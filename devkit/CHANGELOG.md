@@ -2,6 +2,12 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-05-15
+
+### Added
+
+- **`smoke.sh`** — sanity check read-only chamado pelo `/wire-smoke` do `wire-base`. Testa: plugin.json válido, ficheiros `shared/*` presentes (scoring, ci-mode, report-format), 8 skills + 7 commands + 1 agent na árvore esperada, wire-base detectado na cache (para /ngrok-expose), ollama/qwen3-coder e ngrok CLI presentes. Funciona em cache (post-install) e source tree (dev/CI).
+
 ## [0.1.0] — 2026-05-15
 
 Versão inicial do plugin no marketplace `jump2new`.

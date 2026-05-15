@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# wire-secops · smoke.sh — sanity check read-only do plugin.
+# Sai 0 se OK · 1 se críticas · 2 se warns (degradação aceitável).
+set -u
+
+PASSED=0
+FAILED=0
+WARNED=0
+
+ok()   { echo "  ✓ $*"; PASSED=$((PASSED+1)); }
+fail() { echo "  ✗ $*"; FAILED=$((FAILED+1)); }
+warn() { echo "  ! $*"; WARNED=$((WARNED+1)); }
+
+echo "── wire-secops smoke ──"
+
+# 1. plugin.json válido — cache (post-install) com fallback source tree (dev/CI)
+manifest=$(find ~/.claude/plugins/cache -path "*/wire-secops/*/.claude-plugin/plugin.json" -print -quit 2>/dev/null)
+if [ -z "$manifest" ]; then
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+  [ -f "$script_dir/.claude-plugin/plugin.json" ] && manifest="$script_dir/.claude-plugin/plugin.json"
+fi
+if [ -n "$manifest" ] && jq empty "$manifest" 2>/dev/null; then
+  ok "plugin.json válido em $(dirname "$(dirname "$manifest")")"
+else
+  fail "plugin.json não encontrado / inválido"
+  echo "  passed=$PASSED  failed=$FAILED  warned=$WARNED"; exit 1
+fi
+plugin_root="$(dirname "$(dirname "$manifest")")"
+
+# 2. _lib.sh source sem erros e wire_fail_or_warn disponível (real ou stub)
+if [ -f "$plugin_root/hooks/_lib.sh" ]; then
+  if (set +u; source "$plugin_root/hooks/_lib.sh" 2>/dev/null && declare -F wire_fail_or_warn >/dev/null); then
+    ok "_lib.sh expõe wire_fail_or_warn (real ou stub)"
+  else
+    fail "_lib.sh não expõe wire_fail_or_warn"
+  fi
+else
+  fail "hooks/_lib.sh ausente"
+fi
+
+# 3. wire-base detectado (recommends)?
+if find ~/.claude/plugins/cache -path "*/wire-base/*/.claude-plugin/plugin.json" -print -quit 2>/dev/null | grep -q .; then
+  ok "wire-base detectado (hooks usam lib real)"
+else
+  warn "wire-base ausente — hooks com stubs fallback (prod-fail-closed)"
+fi
+
+# 4. Hooks têm bit de execução
+hooks_x=0
+hooks_total=0
+for h in "$plugin_root"/hooks/*.sh; do
+  [ ! -f "$h" ] && continue
+  hooks_total=$((hooks_total+1))
+  [ -x "$h" ] && hooks_x=$((hooks_x+1))
+done
+if [ "$hooks_x" -eq "$hooks_total" ] && [ "$hooks_total" -gt 0 ]; then
+  ok "$hooks_total hooks com bit de execução"
+else
+  fail "$hooks_x/$hooks_total hooks com bit de execução"
+fi
+
+# 5. vault-ttl simulado — comando benigno (ls) com VAULT_TOKEN ausente deve PASSAR (allowlist)
+if [ -x "$plugin_root/hooks/pre-tool-vault-ttl.sh" ]; then
+  # Stub input similar ao formato esperado (linha bash)
+  set +e
+  echo "ls -la" | "$plugin_root/hooks/pre-tool-vault-ttl.sh" >/dev/null 2>&1
+  rc=$?
+  set -e 2>/dev/null || true
+  if [ $rc -eq 0 ]; then
+    ok "pre-tool-vault-ttl.sh allowlist OK (ls passou sem VAULT_TOKEN)"
+  else
+    warn "pre-tool-vault-ttl.sh bloqueou um comando benigno (rc=$rc) — verifica allowlist"
+  fi
+fi
+
+# 6. CLAUDE.md presente (runtime context)
+if [ -f "$plugin_root/CLAUDE.md" ]; then
+  ok "CLAUDE.md (runtime context) presente"
+else
+  warn "CLAUDE.md ausente — perdes contexto runtime no agente"
+fi
+
+# 7. Ollama disponível? (necessário para second-opinion)
+if command -v ollama >/dev/null 2>&1; then
+  if ollama list 2>/dev/null | grep -q qwen3-coder; then
+    ok "ollama + qwen3-coder disponíveis (second-opinion operacional)"
+  else
+    warn "ollama presente mas sem qwen3-coder — second-opinion fail-closed em ops destrutivas"
+  fi
+else
+  warn "ollama não instalado — second-opinion fail-closed em ops destrutivas"
+fi
+
+echo
+echo "  passed=$PASSED  failed=$FAILED  warned=$WARNED"
+
+[ $FAILED -gt 0 ] && exit 1
+[ $WARNED -gt 0 ] && exit 2
+exit 0

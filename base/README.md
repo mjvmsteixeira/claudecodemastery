@@ -1,6 +1,6 @@
 # wire-base
 
-Plugin-base do ecossistema Wire para Claude Code · v0.1.0
+Plugin-base do ecossistema Wire para Claude Code · v0.2.0
 
 ---
 
@@ -23,6 +23,9 @@ Plugin foundacional. Três skills/toolkits que assentam em convenções partilha
 | **wire-doctor** | command + skill | `/wire-doctor` · meta-doctor read-only · orquestra mempalace-doctor + claude-deep-audit + /vault-audit + /wire-vault-doctor em paralelo, consolida num relatório de saúde do setup local |
 | **wire-mode** | command + skill | `/wire-mode [prod\|dev\|lab\|status]` · lê/escreve `~/.wire/mode` e gere marker `~/.wire/lab-mode` · controla fail-closed vs warn-only vs bypass nos hooks downstream |
 | **wire-context-pack** | command + skill | `/wire-context-pack <ir\|release\|audit\|all>` · cheat-sheet curado cross-plugin para primar sessões IR / release / audit · lista skills, commands, Vault paths, AppRoles, logs, one-liners |
+| **wire-upgrade** | command + skill | `/wire-upgrade` · compara versões instaladas vs. remotas (raw GitHub) · emite linhas `/plugin install` para colar |
+| **wire-vault-policy** | command + skill | `/wire-vault-policy <nome> [--kv-read \|--kv-write \|--transit-key \|--ssh-role]` · gera template HCL parametrizado em `$VAULT_HOME/policies/` |
+| **wire-smoke** | command + skill | `/wire-smoke [base\|secops\|devkit\|all]` · orquestra os `smoke.sh` shippados em cada plugin · sanity check read-only de install correctness (~2s/plugin) |
 | **lib/wire-common.sh** | bash lib | `wire_mode`, `wire_scope`, `wire_log`, `wire_backup` — source-able por outros plugins |
 | **lib/vault-env.sh** | bash lib | `V` (native/docker abstraction), `vault_ready`, `vault_unseal`, `vault_container_up`, `vault_arrange_up` |
 
@@ -38,6 +41,9 @@ Os três domínios são **independentes** mas **conscientes uns dos outros** —
 | "saúde do setup", "doutor wire", "diagnóstico geral" | `/wire-doctor` |
 | "muda para dev", "modo prod", "wire mode" | `/wire-mode` |
 | "prepara contexto IR / release / audit", "cheat-sheet" | `/wire-context-pack <scope>` |
+| "há updates dos plugins wire?", "estou actualizado?" | `/wire-upgrade` |
+| "cria policy vault para X", "nova approle" | `/wire-vault-policy <nome>` |
+| "smoke test wire", "instalei e funciona?" | `/wire-smoke [plugin]` |
 | "audita o meu CLAUDE.md", "deep audit", "review my config" | `claude-deep-audit` |
 | "diagnóstico mempalace", "saúde do palace", "repair drawers" | `mempalace-doctor` |
 | "que segredos tem este projecto?" | `/vault-list` |

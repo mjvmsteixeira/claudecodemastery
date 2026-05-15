@@ -2,6 +2,12 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-05-15
+
+### Added
+
+- **`smoke.sh`** — sanity check read-only chamado pelo `/wire-smoke` do `wire-base`. Testa: plugin.json válido, `_lib.sh` expõe `wire_fail_or_warn` (real ou stub), wire-base detectado na cache, hooks executáveis, allowlist do `pre-tool-vault-ttl.sh` passa um `ls` sem token, `CLAUDE.md` presente, ollama/qwen3-coder disponíveis. Funciona em cache (post-install) e source tree (dev/CI).
+
 ## [0.1.0] — 2026-05-15
 
 Versão inicial do plugin no marketplace `jump2new`.

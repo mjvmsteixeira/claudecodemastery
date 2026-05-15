@@ -6,9 +6,9 @@ Marketplace privado **jump2new** com o ecossistema de plugins **Wire** para Clau
 
 | Plugin | Versão | Domínio |
 |--------|--------|---------|
-| **wire-base** | 0.1.0 | Foundacional — `vault-toolkit` (5 commands `/vault-*` + hook SessionStart auto-unseal), skills `mempalace-doctor` e `claude-deep-audit`, helpers bash partilhados (`lib/wire-common.sh`, `lib/vault-env.sh`). **Instalar primeiro.** |
-| **wire-secops** | 0.1.0 | SecOps com Agentes IA para a Wire enquanto fornecedora SaaS de eGovernment local (170+ autarquias). 6 agents, 9 commands `/wire-*`, 6 skills, cadeia de hooks PreToolUse/PostToolUse/Stop. Assume `wire-base` instalado. |
-| **wire-devkit** | 0.1.0 | Toolkit de auditoria de developer — `full-audit`, `security-scan`, `infra-audit`, `ux-audit`, `code-quality`, `performance-audit`, agente `local-reviewer` e `ngrok-expose`. Commands explícitos + skills que auto-disparam. Dependência soft do `wire-base`. |
+| **wire-base** | 0.2.0 | Foundacional — `vault-toolkit` (5 commands `/vault-*` + hook SessionStart auto-unseal), skills `mempalace-doctor` e `claude-deep-audit`, helpers bash partilhados (`lib/wire-common.sh`, `lib/vault-env.sh`). **Instalar primeiro.** |
+| **wire-secops** | 0.2.0 | SecOps com Agentes IA para a Wire enquanto fornecedora SaaS de eGovernment local (170+ autarquias). 6 agents, 9 commands `/wire-*`, 6 skills, cadeia de hooks PreToolUse/PostToolUse/Stop. Assume `wire-base` instalado. |
+| **wire-devkit** | 0.2.0 | Toolkit de auditoria de developer — `full-audit`, `security-scan`, `infra-audit`, `ux-audit`, `code-quality`, `performance-audit`, agente `local-reviewer` e `ngrok-expose`. Commands explícitos + skills que auto-disparam. Dependência soft do `wire-base`. |
 
 ## Estrutura
 
@@ -16,13 +16,13 @@ Marketplace privado **jump2new** com o ecossistema de plugins **Wire** para Clau
 .
 ├── .claude-plugin/
 │   └── marketplace.json          ← declaração do marketplace 'jump2new'
-├── base/                         ← plugin wire-base v0.1.0
+├── base/                         ← plugin wire-base v0.2.0
 │   ├── .claude-plugin/plugin.json
 │   ├── lib/      (wire-common.sh, vault-env.sh)
 │   ├── hooks/    (SessionStart → vault-session-check.sh)
 │   ├── commands/ (5 commands /vault-*)
 │   └── skills/   (mempalace-doctor, claude-deep-audit)
-├── secops/                       ← plugin wire-secops v0.1.0
+├── secops/                       ← plugin wire-secops v0.2.0
 │   ├── .claude-plugin/plugin.json
 │   ├── agents/   (6 agents wire-*-01)
 │   ├── commands/ (9 commands /wire-*)
@@ -30,7 +30,7 @@ Marketplace privado **jump2new** com o ecossistema de plugins **Wire** para Clau
 │   ├── skills/   (6 skills wire-*)
 │   ├── CLAUDE.md
 │   └── vault-policies.hcl
-├── devkit/                        ← plugin wire-devkit v0.1.0
+├── devkit/                        ← plugin wire-devkit v0.2.0
 │   ├── .claude-plugin/plugin.json
 │   ├── commands/ (7 wrappers finos)
 │   ├── skills/   (8 skills: 6 audits + local-reviewer + ngrok-expose)
@@ -66,7 +66,7 @@ Depois do primeiro install, **`/wire-onboard`** (vive no `wire-base`) detecta o 
 ## Verificar
 
 ```
-/plugin list      # wire-base · 0.1.0 · user  +  wire-secops · 0.1.0 · user  +  wire-devkit · 0.1.0 · user
+/plugin list      # wire-base · 0.2.0 · user  +  wire-secops · 0.2.0 · user  +  wire-devkit · 0.2.0 · user
 /agents           # 6 agents wire-*-01
 /wire-onboard     # sanity check do ecossistema + sugestões de smoke test
 ```

@@ -58,32 +58,24 @@ Se a marketplace `mjvmsteixeira/claudecodemastery` ainda não estiver adicionada
 
 ## Passo 3 — Smoke tests por plugin já instalado
 
-Para cada plugin **instalado** no Passo 1, sugerir o smoke test correspondente. Não executar automaticamente — descrever o resultado esperado:
+Para os plugins **instalados** no Passo 1, propor `/wire-smoke` — cada plugin shippa um `smoke.sh` próprio (read-only, ~2s) que confirma libs carregam, hooks executáveis e ferramentas opcionais detectadas:
 
-**`wire-base`:**
-
-```bash
-# Vault local — listar segredos do projecto actual
-echo "Sugerido: corre /vault-list"
-echo "Esperado: lista de segredos em secret/projects/<projecto> + partilhados (secret/ai, secret/tokens)."
-echo "Se o Vault estiver sealed, o hook SessionStart já tentou unseal; ver mensagem do hook."
+```
+Sugerido · sanity check dos plugins instalados:
+  /wire-smoke          # corre os smokes de todos os plugins instalados
+  /wire-smoke base     # ou só um
 ```
 
-**`wire-secops`:**
+Exit codes:
+- `0` — tudo ok
+- `1` — falhas críticas (reinstalar)
+- `2` — só warnings (ferramentas opcionais como `ollama`/`ngrok`/`~/vault/` em falta — degradação aceitável)
 
-```bash
-echo "Sugerido: corre /wire-stack-doctor"
-echo "Esperado: diagnóstico global da stack (Vault, Wazuh, Fortigate, Zabbix) com verde/amarelo/vermelho por componente."
-echo "Pode falhar se não estiveres na rede onde a stack vive — é normal num laptop fora da VPN."
-```
+Smoke tests operacionais (mais pesados) ficam como sugestões secundárias por plugin instalado:
 
-**`wire-devkit`:**
-
-```bash
-echo "Sugerido: corre /full-audit --ci em qualquer projecto"
-echo "Esperado: JSON consolidado com counts CRITICAL/HIGH/MEDIUM/LOW por audit, exit code 0/1/2 conforme severidade."
-echo "Aviso: corre os 5 audits em paralelo; pode demorar 30-90s consoante o projecto."
-```
+- **`wire-base`** · `/vault-list` (segredos do projecto actual) · esperado: lista de paths em `secret/projects/<projecto>/*` mais partilhados (`secret/ai`, `secret/tokens`).
+- **`wire-secops`** · `/wire-stack-doctor` · esperado: verde/amarelo/vermelho por componente (Vault, Wazuh, Fortigate, Zabbix). Pode falhar fora da VPN — é normal.
+- **`wire-devkit`** · `/full-audit --ci` num projecto qualquer · esperado: JSON consolidado com counts e exit code 0/1/2.
 
 ## Passo 4 — Configuração opcional do modo operacional
 

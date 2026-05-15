@@ -181,6 +181,24 @@ for p in "${PLUGINS[@]}"; do
   pass "$p/hooks/ validados"
 done
 
+# ──────────────────────── 3b. smoke.sh (per plugin) ────────────────────────
+section "smoke.sh (per plugin)"
+
+for p in "${PLUGINS[@]}"; do
+  smoke="$p/smoke.sh"
+  if [ -f "$smoke" ]; then
+    if [ ! -x "$smoke" ]; then
+      fail "$smoke: sem bit de execução"
+    fi
+    if ! head -n1 "$smoke" | grep -qE '^#!'; then
+      fail "$smoke: sem shebang"
+    fi
+    pass "$smoke"
+  else
+    warn "$p/smoke.sh ausente (sanity-check do plugin não disponível via /wire-smoke)"
+  fi
+done
+
 # ──────────────────────── 4. lib/*.sh ────────────────────────
 section "lib/ (per plugin)"
 
