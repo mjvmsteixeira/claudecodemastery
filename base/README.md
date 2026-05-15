@@ -1,6 +1,6 @@
 # wire-base
 
-Plugin-base do ecossistema Wire para Claude Code · v0.2.0
+Plugin-base do ecossistema Wire para Claude Code · v0.2.1
 
 ---
 
@@ -26,8 +26,9 @@ Plugin foundacional. Três skills/toolkits que assentam em convenções partilha
 | **wire-upgrade** | command + skill | `/wire-upgrade` · compara versões instaladas vs. remotas (raw GitHub) · emite linhas `/plugin install` para colar |
 | **wire-vault-policy** | command + skill | `/wire-vault-policy <nome> [--kv-read \|--kv-write \|--transit-key \|--ssh-role]` · gera template HCL parametrizado em `$VAULT_HOME/policies/` |
 | **wire-smoke** | command + skill | `/wire-smoke [base\|secops\|devkit\|all]` · orquestra os `smoke.sh` shippados em cada plugin · sanity check read-only de install correctness (~2s/plugin) |
-| **lib/wire-common.sh** | bash lib | `wire_mode`, `wire_scope`, `wire_log`, `wire_backup` — source-able por outros plugins |
+| **lib/wire-common.sh** | bash lib | `wire_mode`, `wire_scope`, `wire_log`, `wire_backup`, `wire_fail_or_warn` — source-able por outros plugins |
 | **lib/vault-env.sh** | bash lib | `V` (native/docker abstraction), `vault_ready`, `vault_unseal`, `vault_container_up`, `vault_arrange_up` |
+| **hooks/pre-tool-audit-guard.sh** | PreToolUse hook | Defense-in-depth para o `wire-devkit`: bloqueia operações destrutivas (`rm` fora de `/tmp`, `git rm`, SQL `DROP/ALTER/TRUNCATE`, Edit/Write a `.gitignore`/`.env*`/`config/initializers/`/`spec/`/`test/`/workflows CI/`filter_parameter_logging.rb`) durante contexto de audit (marker `~/.wire/audit-active` ou `WIRE_AUDIT_ACTIVE=1`) a menos que a skill aprove com `WIRE_AUDIT_APPLY=1`. Em prod fail-closed, em dev warn-only. Silencioso fora de contexto de audit. |
 
 Os três domínios são **independentes** mas **conscientes uns dos outros** — cada SKILL.md tem secção "Ver também" e "Integração" que evita duplicação e dirige o utilizador à ferramenta certa.
 
@@ -136,8 +137,9 @@ base/
 │   ├── wire-common.sh                  # mode, scope, log, backup, require, fail-or-warn
 │   └── vault-env.sh                   # V(), vault_ready, vault_unseal, vault_arrange_up
 ├── hooks/
-│   ├── hooks.json                     # SessionStart → vault-session-check.sh
-│   └── vault-session-check.sh         # auto-unseal + context injection
+│   ├── hooks.json                     # SessionStart → vault-session-check.sh; PreToolUse → pre-tool-audit-guard.sh
+│   ├── vault-session-check.sh         # auto-unseal + context injection
+│   └── pre-tool-audit-guard.sh        # defense-in-depth para wire-devkit (bloqueia destrutivos sem WIRE_AUDIT_APPLY=1)
 ├── commands/
 │   ├── vault-audit.md                 # /vault-audit
 │   ├── vault-backup.md                # /vault-backup
@@ -194,6 +196,19 @@ Os hooks dos dois plugins têm **lifecycle complementar**, não conflitam:
 
 ---
 
+## Co-existência com `wire-devkit`
+
+| Concern | `wire-base` | `wire-devkit` |
+|---------|-------------|---------------|
+| Disciplina contractual de audit (read-only por defeito, gates de safe-apply) | — | ✓ (`shared/safe-apply.md` + skills) |
+| Enforcement em runtime (bloquear destrutivos durante audit context) | ✓ (PreToolUse `pre-tool-audit-guard.sh`) | — |
+| Lifecycle do contexto de audit (set/unset marker `~/.wire/audit-active`, `WIRE_AUDIT_APPLY=1`) | — (apenas reage ao sinal) | ✓ (skills marcam Fase 4) |
+| Hook PreToolUse silencioso fora de audit (no-op) | ✓ | — |
+
+**Defense-in-depth resultante:** com os dois plugins, ganham-se três camadas — contractual (o `description:` da skill comunica a regra), procedural (a metodologia da skill segue os 3 gates), enforced (o hook bloqueia em runtime mesmo se a skill falhar). Sem o `wire-base`, ficam só as duas primeiras.
+
+---
+
 ## Validação estática
 
 Antes de tagar uma release ou de empacotar, correr o validador na raiz do repo:
@@ -235,7 +250,7 @@ zip -r /tmp/wire-base.plugin . -x "*.DS_Store" "*.bak.*"
 mkdir -p ~/.wire && echo dev > ~/.wire/mode    # ou: prod
 
 # 3 · Sanity check
-/plugin list                                  # verificar wire-base v0.1.0
+/plugin list                                  # verificar wire-base v0.2.1
 ls ~/.claude/plugins/wire-base/           # estrutura completa
 
 # 5 · Primeiros usos
