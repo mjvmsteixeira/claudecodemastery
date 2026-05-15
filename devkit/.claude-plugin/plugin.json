@@ -24,5 +24,13 @@
     "performance",
     "ci",
     "claude-code"
+  ],
+  "recommends": [
+    {
+      "plugin": "wire-base",
+      "marketplace": "jump2new",
+      "reason": "Vault helpers (V, vault_ready, vault_unseal) usados pelo /ngrok-expose",
+      "hard": false
+    }
   ]
 }

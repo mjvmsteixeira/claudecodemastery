@@ -1,5 +1,5 @@
 ---
-description: Diagnóstico do Vault — endpoint, token TTL, seal status, HA leader, audit device, AppRoles, backends. Reporta verde/amarelo/vermelho com acções concretas.
+description: Diagnóstico do Vault de PRODUÇÃO do SaaS Wire (vault.wire.internal) — endpoint, token TTL, seal status, HA Raft leader, audit device, AppRoles wire-*, backends transit/ssh/kv. Reporta verde/amarelo/vermelho com acções concretas. NÃO confundir com /vault-audit (que valida o Vault LOCAL de desenvolvimento do projecto).
 ---
 
 Executa diagnóstico completo do Vault que sustenta o broker de credenciais do plugin Wire SecOps.

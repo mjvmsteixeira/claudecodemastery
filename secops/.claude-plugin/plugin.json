@@ -22,5 +22,13 @@
     "wazuh",
     "fortigate",
     "zabbix"
+  ],
+  "recommends": [
+    {
+      "plugin": "wire-base",
+      "marketplace": "jump2new",
+      "reason": "Helpers wire_log/wire_mode/wire_fail_or_warn da wire-common.sh usados pelos hooks",
+      "hard": false
+    }
   ]
 }

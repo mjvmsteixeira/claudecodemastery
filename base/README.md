@@ -4,6 +4,12 @@ Plugin-base do ecossistema Wire para Claude Code · v0.1.0
 
 ---
 
+## Dependências
+
+Nenhuma. É a **fundação** do ecossistema — outros plugins Wire (`wire-secops`, `wire-devkit`) dependem deste.
+
+---
+
 ## O que faz
 
 Plugin foundacional. Três skills/toolkits que assentam em convenções partilhadas, mais um hook `SessionStart` que deixa o teu Vault local operacional sem fricção.

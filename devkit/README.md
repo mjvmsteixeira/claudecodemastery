@@ -47,8 +47,16 @@ em `shared/` e referenciados por todas as skills. Ver `CLAUDE.md`.
 
 ## Dependências
 
-- **Soft** do `wire-base` — apenas o `ngrok-expose` o usa. O resto funciona standalone.
-- `local-reviewer` requer Ollama local; degrada para análise própria se indisponível.
+Recomenda **`wire-base`** — o `/ngrok-expose` precisa do `lib/vault-env.sh` para obter o authtoken do Vault. Os 5 audits e o `local-reviewer` funcionam standalone.
+
+```
+/plugin install wire-base@jump2new      # recomendado (para ngrok-expose)
+/plugin install wire-devkit@jump2new
+```
+
+Outras runtime deps (opcionais):
+- `local-reviewer` requer **Ollama local** (qwen3-coder); degrada para análise própria se indisponível.
+- Integração MemPalace do `/full-audit` é opt-in, gated em `.mempalace/` existir no projecto auditado.
 
 ---
 

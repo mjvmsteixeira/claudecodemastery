@@ -6,6 +6,17 @@ Plugin Claude Code · SecOps com Agentes IA especializado para a **Wire** enquan
 
 ---
 
+## Dependências
+
+Recomenda **`wire-base`** — os hooks deste plugin usam `wire_log` / `wire_mode` / `wire_fail_or_warn` da `wire-common.sh` para respeitarem `WIRE_OPERATING_MODE` (prod/dev/lab). Sem o base instalado, os hooks correm com stubs de fallback (modo prod-fail-closed por defeito).
+
+```
+/plugin install wire-base@jump2new
+/plugin install wire-secops@jump2new
+```
+
+---
+
 ## Para que serve
 
 A Wire é o fornecedor SaaS por trás de 170+ autarquias portuguesas. Está sujeita à **NIS2** enquanto fornecedor crítico de entidades essenciais (DL 20/2025) e ao **Art. 28 do RGPD** enquanto subcontratante de dados pessoais por conta dos municípios. Este plugin codifica a operação SecOps Wire em seis subagentes especializados, seis skills, slash commands e hooks de aprovação.
