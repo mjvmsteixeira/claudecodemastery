@@ -1,6 +1,6 @@
-# wiremaze-base
+# wire-base
 
-Plugin-base do ecossistema Wiremaze para Claude Code · v0.1.0
+Plugin-base do ecossistema Wire para Claude Code · v0.1.0
 
 ---
 
@@ -13,7 +13,7 @@ Plugin foundacional. Três skills/toolkits que assentam em convenções partilha
 | **mempalace-doctor** | skill | Saúde do tool MemPalace (vector DB com drawers/HNSW/KG em `~/.mempalace/`) |
 | **claude-deep-audit** | skill | Auditoria profunda Claude Code via 10 sub-agentes paralelos (CLAUDE.md, settings, skills, hooks, MCPs, memory, plugins, x-refs) |
 | **vault-toolkit** | 5 commands + hook | `/vault-list`, `/vault-set`, `/vault-audit`, `/vault-backup`, `/vault-integrate` · auto-unseal no SessionStart |
-| **lib/wmz-common.sh** | bash lib | `wmz_mode`, `wmz_scope`, `wmz_log`, `wmz_backup` — source-able por outros plugins |
+| **lib/wire-common.sh** | bash lib | `wire_mode`, `wire_scope`, `wire_log`, `wire_backup` — source-able por outros plugins |
 | **lib/vault-env.sh** | bash lib | `V` (native/docker abstraction), `vault_ready`, `vault_unseal`, `vault_container_up`, `vault_arrange_up` |
 
 Os três domínios são **independentes** mas **conscientes uns dos outros** — cada SKILL.md tem secção "Ver também" e "Integração" que evita duplicação e dirige o utilizador à ferramenta certa.
@@ -31,7 +31,7 @@ Os três domínios são **independentes** mas **conscientes uns dos outros** —
 | "verifica PLACEHOLDERs e policy" | `/vault-audit` |
 | "backup encriptado dos segredos" | `/vault-backup` |
 | "actualiza este segredo" | `/vault-set` |
-| "o servidor Vault está saudável?" | `/wiremaze-vault-doctor` (vive em `wiremaze-secops`) |
+| "o servidor Vault está saudável?" | `/wire-vault-doctor` (vive em `wire-secops`) |
 
 A regra: **mempalace-doctor** ≠ **claude-deep-audit** ≠ **vault-doctor**. Domínios distintos, descrições explícitas para evitar mis-triggering.
 
@@ -60,12 +60,12 @@ Se já tens `~/vault/` com `docker-compose.yml`, `vault-init.json`, `policies/`,
 Quando arrancas uma sessão Claude Code:
 
 1. **Hook `SessionStart`** (`vault-session-check.sh`) corre automaticamente
-2. Em modo docker: se container parado, decide baseado em `wmz_mode`:
+2. Em modo docker: se container parado, decide baseado em `wire_mode`:
    - `prod` (default): silencioso, espera que arranques manualmente (`./ops-vault.sh` ou `docker compose up -d`)
-   - `dev` / `lab` ou com `WMZ_VAULT_AUTO_UP=1`: `docker compose up -d` + `sleep 5`
+   - `dev` / `lab` ou com `WIRE_VAULT_AUTO_UP=1`: `docker compose up -d` + `sleep 5`
 3. Tenta auto-unseal lendo as 3 primeiras `unseal_keys_b64` de `vault-init.json`
 4. Se conseguiu: emite nota de contexto com paths dos segredos (`secret/projects/<nome>/`, `secret/ai/`, etc.)
-5. Se falhou: emite warning a sugerir `./ops-vault.sh unseal` ou `/wiremaze-vault-doctor`
+5. Se falhou: emite warning a sugerir `./ops-vault.sh unseal` ou `/wire-vault-doctor`
 
 O comando manual continua a funcionar exactamente como antes:
 
@@ -80,28 +80,28 @@ docker compose up -d            # arranca o container (volumes persistem)
 
 ## Modo dev / prod / lab
 
-Variável `WMZ_OPERATING_MODE` (lida pelo `lib/wmz-common.sh`):
+Variável `WIRE_OPERATING_MODE` (lida pelo `lib/wire-common.sh`):
 
 | Valor | Semântica | Quando usar |
 |-------|-----------|-------------|
 | `prod` | Default. Fail-closed. Vault obrigatório. Auto-up off. | Operação real. |
 | `dev` | Warn-only em hooks; auto-up do Vault permitido. | Formação, demos, desenvolvimento do plugin. |
-| `lab` | Bypass total · exige marker `~/.wmz/lab-mode`. | Exploração de novos hooks, eval de skills. |
+| `lab` | Bypass total · exige marker `~/.wire/lab-mode`. | Exploração de novos hooks, eval de skills. |
 
 Configurar:
 
 ```bash
 # Persistente
-mkdir -p ~/.wmz && echo dev > ~/.wmz/mode
+mkdir -p ~/.wire && echo dev > ~/.wire/mode
 
 # Por sessão (override)
-export WMZ_OPERATING_MODE=dev
+export WIRE_OPERATING_MODE=dev
 
 # Lab mode (precisa de marker explícito)
-touch ~/.wmz/lab-mode && echo lab > ~/.wmz/mode
+touch ~/.wire/lab-mode && echo lab > ~/.wire/mode
 ```
 
-Plugins downstream (como `wiremaze-secops`) **devem** respeitar este sinal — `pre-tool-vault-ttl.sh` está a evoluir para `wmz_fail_or_warn` em vez de `exit 2` directo.
+Plugins downstream (como `wire-secops`) **devem** respeitar este sinal — `pre-tool-vault-ttl.sh` está a evoluir para `wire_fail_or_warn` em vez de `exit 2` directo.
 
 ---
 
@@ -113,7 +113,7 @@ base/
 │   └── plugin.json
 ├── README.md
 ├── lib/
-│   ├── wmz-common.sh                  # mode, scope, log, backup, require, fail-or-warn
+│   ├── wire-common.sh                  # mode, scope, log, backup, require, fail-or-warn
 │   └── vault-env.sh                   # V(), vault_ready, vault_unseal, vault_arrange_up
 ├── hooks/
 │   ├── hooks.json                     # SessionStart → vault-session-check.sh
@@ -137,31 +137,31 @@ base/
 
 ---
 
-## Co-existência com `wiremaze-secops`
+## Co-existência com `wire-secops`
 
-| Concern | `wiremaze-base` | `wiremaze-secops` |
+| Concern | `wire-base` | `wire-secops` |
 |---------|-----------------|-------------------|
 | Auto-unseal Vault local | ✓ (SessionStart) | — |
 | TTL gating de tool calls | — | ✓ (PreToolUse) |
 | Integração segredos por projecto | ✓ (`/vault-*`) | — |
-| Diagnóstico do servidor Vault | — | ✓ (`/wiremaze-vault-doctor`) |
-| Health da plataforma SaaS Wiremaze | — | ✓ (`/wiremaze-saas-health`) |
-| IR multi-tenant | — | ✓ (`/wiremaze-incident-spread`) |
+| Diagnóstico do servidor Vault | — | ✓ (`/wire-vault-doctor`) |
+| Health da plataforma SaaS Wire | — | ✓ (`/wire-saas-health`) |
+| IR multi-tenant | — | ✓ (`/wire-incident-spread`) |
 | Audit Claude Code | ✓ (`claude-deep-audit`) | — |
 | Audit MemPalace | ✓ (`mempalace-doctor`) | — |
 
 **Ordem de instalação recomendada:**
 
-1. `wiremaze-base` primeiro (skills foundacionais + Vault tools + helpers bash)
-2. `wiremaze-secops` depois (assume `lib/wmz-common.sh` existe — opt-in)
+1. `wire-base` primeiro (skills foundacionais + Vault tools + helpers bash)
+2. `wire-secops` depois (assume `lib/wire-common.sh` existe — opt-in)
 
 Os hooks dos dois plugins têm **lifecycle complementar**, não conflitam:
 
-- `SessionStart` (wiremaze-base) → unseal Vault, injecta contexto
-- `PreToolUse: Bash` (wiremaze-secops) → valida TTL antes de operação privilegiada
-- `PreToolUse: Write|Edit` (wiremaze-secops) → redact PII
-- `PostToolUse` (wiremaze-secops) → emit CEF → Wazuh
-- `Stop` (wiremaze-secops) → revoga tokens AppRole
+- `SessionStart` (wire-base) → unseal Vault, injecta contexto
+- `PreToolUse: Bash` (wire-secops) → valida TTL antes de operação privilegiada
+- `PreToolUse: Write|Edit` (wire-secops) → redact PII
+- `PostToolUse` (wire-secops) → emit CEF → Wazuh
+- `Stop` (wire-secops) → revoga tokens AppRole
 
 ---
 
@@ -169,9 +169,9 @@ Os hooks dos dois plugins têm **lifecycle complementar**, não conflitam:
 
 1. **Audit primeiro, mostra, pergunta, age.** Cada skill é read-only por defeito; auto-fix exige confirmação explícita por mensagem.
 2. **Detecta, não migra.** Vault existente em `~/vault/`? Mempalace em `~/.mempalace/`? O plugin adapta-se ao que existe, não impõe estrutura.
-3. **Reversível.** Cada acção destrutiva produz backup datado em `~/.wmz/backups/` ou path equivalente.
+3. **Reversível.** Cada acção destrutiva produz backup datado em `~/.wire/backups/` ou path equivalente.
 4. **Idempotente.** Re-correr não duplica nem corrompe.
-5. **Mode-aware.** Hooks e skills respeitam `WMZ_OPERATING_MODE` quando relevante (auto-up do Vault, severidade de fails, verbosidade).
+5. **Mode-aware.** Hooks e skills respeitam `WIRE_OPERATING_MODE` quando relevante (auto-up do Vault, severidade de fails, verbosidade).
 6. **Standalone-friendly.** Cada skill funciona sem as outras; cross-references são opt-in.
 
 ---
@@ -181,19 +181,19 @@ Os hooks dos dois plugins têm **lifecycle complementar**, não conflitam:
 ```bash
 # 1 · Instalar via marketplace jump2new
 /plugin marketplace add mjvmsteixeira/claudecodemastery
-/plugin install wiremaze-base@jump2new
+/plugin install wire-base@jump2new
 
 #    (alternativa · empacotar localmente)
 cd base
-zip -r /tmp/wiremaze-base.plugin . -x "*.DS_Store" "*.bak.*"
-/plugin install /tmp/wiremaze-base.plugin
+zip -r /tmp/wire-base.plugin . -x "*.DS_Store" "*.bak.*"
+/plugin install /tmp/wire-base.plugin
 
 # 2 · (Opcional) Configurar modo
-mkdir -p ~/.wmz && echo dev > ~/.wmz/mode    # ou: prod
+mkdir -p ~/.wire && echo dev > ~/.wire/mode    # ou: prod
 
 # 3 · Sanity check
-/plugin list                                  # verificar wiremaze-base v0.1.0
-ls ~/.claude/plugins/wiremaze-base/           # estrutura completa
+/plugin list                                  # verificar wire-base v0.1.0
+ls ~/.claude/plugins/wire-base/           # estrutura completa
 
 # 5 · Primeiros usos
 /vault-list                                   # se já tens ~/vault/
@@ -205,12 +205,12 @@ ls ~/.claude/plugins/wiremaze-base/           # estrutura completa
 
 ## Roadmap
 
-- **`wmz-doctor`** · meta-doctor que orquestra mempalace-doctor + claude-deep-audit + /vault-audit + /wiremaze-vault-doctor numa única corrida
-- **`wmz-mode`** · slash command interactivo para mudar `WMZ_OPERATING_MODE` com marker file
-- **`wmz-onboard`** · setup wizard end-to-end (instala base + secops + valida com smoke tests)
-- **`wmz-context-pack`** · prepara contexto cross-plugin para sessões IR / release / audit
-- **Integração com `wiremaze-secops`** · refactor de `pre-tool-vault-ttl.sh` para usar `wmz_fail_or_warn` (mode-aware)
+- **`wire-doctor`** · meta-doctor que orquestra mempalace-doctor + claude-deep-audit + /vault-audit + /wire-vault-doctor numa única corrida
+- **`wire-mode`** · slash command interactivo para mudar `WIRE_OPERATING_MODE` com marker file
+- **`wire-onboard`** · setup wizard end-to-end (instala base + secops + valida com smoke tests)
+- **`wire-context-pack`** · prepara contexto cross-plugin para sessões IR / release / audit
+- **Integração com `wire-secops`** · refactor de `pre-tool-vault-ttl.sh` para usar `wire_fail_or_warn` (mode-aware)
 
 ---
 
-© 2026 Wiremaze · jump2new · Uso interno
+© 2026 Wire · jump2new · Uso interno

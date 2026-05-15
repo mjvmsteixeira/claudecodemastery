@@ -7,7 +7,7 @@ Doctor "umbrella" que corre os diagnósticos individuais em sequência e produz 
 ## Quando usar
 
 - **Manhã, antes de operar** — uma única invocação confirma que tudo está pronto.
-- **Após mudança de rede / VPN reconnect** — valida que endpoints internos Wiremaze são alcançáveis.
+- **Após mudança de rede / VPN reconnect** — valida que endpoints internos Wire são alcançáveis.
 - **Antes de exercício IR ou release-gate** — preciso de garantir que Wazuh, Fortigate e Vault estão todos OK.
 - **Pós-update do plugin** (`/plugin marketplace update`) — verifica que ambiente não regrediu.
 
@@ -17,11 +17,11 @@ Executa em sequência, **sem parar** entre checks (ao contrário dos doctors ind
 
 ### 1. Vault (crítico)
 
-Chama internamente o playbook do `/wiremaze-vault-doctor`. Resumo só com verdicto final + 1-3 issues críticas se existirem.
+Chama internamente o playbook do `/wire-vault-doctor`. Resumo só com verdicto final + 1-3 issues críticas se existirem.
 
 ### 2. Ollama (crítico para ops destrutivas)
 
-Chama internamente o playbook do `/wiremaze-ollama-doctor`. Sem Ollama, hook `pre-tool-second-opinion.sh` bloqueia.
+Chama internamente o playbook do `/wire-ollama-doctor`. Sem Ollama, hook `pre-tool-second-opinion.sh` bloqueia.
 
 ### 3. Wazuh quick-check (crítico para audit)
 
@@ -49,7 +49,7 @@ curl -sf -m 5 "${ZABBIX_URL}" -X POST -H "Content-Type: application/json" \
 ```
 
 - **OK** se devolve versão
-- **WARN** se inacessível → `wiremaze-saas-monitoring` skill perde uma das 3 fontes.
+- **WARN** se inacessível → `wire-saas-monitoring` skill perde uma das 3 fontes.
 
 ### 6. Conectividade ao GitHub marketplace
 
@@ -63,7 +63,7 @@ curl -sf -m 5 https://github.com/mjvmsteixeira/claudecodemastery.git/info/refs?s
 ### Output estruturado
 
 ```
-== Wiremaze · STACK DOCTOR · 2026-05-13 23:05 ==
+== Wire · STACK DOCTOR · 2026-05-13 23:05 ==
 
 [1] Vault             HEALTHY    broker OK · token TTL 28m · 7 AppRoles
 [2] Ollama            HEALTHY    qwen3-coder · smoke 1.8s · fail-closed OK
@@ -75,8 +75,8 @@ curl -sf -m 5 https://github.com/mjvmsteixeira/claudecodemastery.git/info/refs?s
 Verdicto global: DEGRADED (1 WARN, 5 OK)
 
 [!] Fortigate inacessível → correlação Wazuh↔Fortigate fica cega.
-    A skill 'wiremaze-saas-monitoring' opera mas só com 2 das 3 fontes.
-    Acção: verificar VPN Wiremaze, firewall rules, ou variável FORTIGATE_HOST.
+    A skill 'wire-saas-monitoring' opera mas só com 2 das 3 fontes.
+    Acção: verificar VPN Wire, firewall rules, ou variável FORTIGATE_HOST.
 
 Critical path validation:
   - Operação read-only (saas-health, tenant-audit):     ✓ pode operar
@@ -85,8 +85,8 @@ Critical path validation:
   - Audit trail (todos os commands):                    ✓ Wazuh OK
 
 Próximos passos:
-  1. /wiremaze-vault-doctor    (detail completo Vault)
-  2. /wiremaze-ollama-doctor   (detail completo Ollama)
+  1. /wire-vault-doctor    (detail completo Vault)
+  2. /wire-ollama-doctor   (detail completo Ollama)
   3. Investigar Fortigate · ver Erro 3/5 do troubleshooting
 ```
 
@@ -97,15 +97,15 @@ Próximos passos:
 | **HEALTHY** | Todos OK ou só INFO | Operar livremente |
 | **DEGRADED** | 1+ WARN mas Vault+Ollama HEALTHY | Operar com cautela, evitar features afectadas |
 | **CRITICAL** | Vault BROKEN OR Ollama BROKEN | Não operar · Reparar primeiro |
-| **OFFLINE** | Sem rede Wiremaze | Modo formação local · só comandos read-only que não dependem de SIEM |
+| **OFFLINE** | Sem rede Wire | Modo formação local · só comandos read-only que não dependem de SIEM |
 
 ## Decisão automática
 
-O `wiremaze-stack-doctor` ressalta no topo o que **podes** e o que **não podes** fazer no estado actual. Exemplo:
+O `wire-stack-doctor` ressalta no topo o que **podes** e o que **não podes** fazer no estado actual. Exemplo:
 
 ```
-✓ podes correr: /wiremaze-saas-health (local), /wiremaze-tenant-audit (sem cross-tenant)
-✗ não corras:   /wiremaze-incident-spread (precisa Fortigate)
+✓ podes correr: /wire-saas-health (local), /wire-tenant-audit (sem cross-tenant)
+✗ não corras:   /wire-incident-spread (precisa Fortigate)
 ```
 
 ## Cadência sugerida
@@ -117,7 +117,7 @@ O `wiremaze-stack-doctor` ressalta no topo o que **podes** e o que **não podes*
 
 ## Variáveis respeitadas
 
-Todas as do `~/.wmz/secops.conf`:
+Todas as do `~/.wire/secops.conf`:
 - `VAULT_ADDR` · `VAULT_TOKEN`
 - `WAZUH_HOST` · `WAZUH_API_PORT`
 - `FORTIGATE_HOST`

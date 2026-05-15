@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Wiremaze SecOps · empacotamento do plugin (v0.1.0)
+# Wire SecOps · empacotamento do plugin (v0.1.0)
 # Executa este script na máquina do Marco (jump2new) para gerar o .plugin instalável.
 set -euo pipefail
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PLUGIN_NAME="wiremaze-secops"
+PLUGIN_NAME="wire-secops"
 OUT_DIR="${SCRIPT_DIR}/.."
 TMP_ZIP="/tmp/${PLUGIN_NAME}.plugin"
 

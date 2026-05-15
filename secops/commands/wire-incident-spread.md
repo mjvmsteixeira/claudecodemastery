@@ -1,15 +1,15 @@
 ---
-description: Analisa propagação de incidente entre municípios clientes Wiremaze, identifica blast radius, prepara comunicação coordenada.
+description: Analisa propagação de incidente entre municípios clientes Wire, identifica blast radius, prepara comunicação coordenada.
 argument-hint: <incident-id>
 ---
 
 Analisa o blast radius do incidente: **$ARGUMENTS**
 
-Activa a skill `wiremaze-ir-multitenant` e o subagent `wiremaze-ir-saas-01`.
+Activa a skill `wire-ir-multitenant` e o subagent `wire-ir-saas-01`.
 
 Sequência:
 1. Carrega o incidente `$ARGUMENTS` do Wazuh + ticket interno.
-2. Cruza janela temporal com painel `/wiremaze-saas-health` para confirmar produtos wire* afectados.
+2. Cruza janela temporal com painel `/wire-saas-health` para confirmar produtos wire* afectados.
 3. Identifica:
    - Lista de tenants afectados (UUID + nome do município).
    - Produtos wire* afectados.

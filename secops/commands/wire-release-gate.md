@@ -1,11 +1,11 @@
 ---
-description: Release gate Wiremaze — aplica CTRL-W-R-001..018 a um release e produz decisão GO / GO_COM_CONDICOES / NO-GO com plano de canary.
+description: Release gate Wire — aplica CTRL-W-R-001..018 a um release e produz decisão GO / GO_COM_CONDICOES / NO-GO com plano de canary.
 argument-hint: <release-id-ou-tag>
 ---
 
 Release gate para: **$ARGUMENTS**
 
-Activa a skill `wiremaze-release-safety` e o subagent `wiremaze-deploy-01`.
+Activa a skill `wire-release-safety` e o subagent `wire-deploy-01`.
 
 Sequência:
 1. Resolve `$ARGUMENTS` para o release/tag concreto no GitLab/GitHub.

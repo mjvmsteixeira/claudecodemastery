@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.anthropic.com/en/claude/code/hooks.schema.json",
-  "description": "Hooks Wiremaze SecOps — gate de aprovação humana, redacção PII, second-opinion via Ollama local, emissão CEF para Wazuh, revogação Vault.",
+  "description": "Hooks Wire SecOps — gate de aprovação humana, redacção PII, second-opinion via Ollama local, emissão CEF para Wazuh, revogação Vault.",
   "hooks": {
     "PreToolUse": [
       {

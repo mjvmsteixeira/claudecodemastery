@@ -65,17 +65,17 @@ Detalhe operacional de cada etapa em `references/etapas.md` (thresholds aplicado
 
 Nunca executar `repair --yes`, `kg_invalidate`, `VACUUM`, `init` ou apagar backups sem confirmação explícita do utilizador. O modo doctor é diagnóstico primeiro, acção só com aprovação por mensagem.
 
-## Integração com wiremaze-base
+## Integração com wire-base
 
-Se `lib/wmz-common.sh` estiver disponível, esta skill pode:
+Se `lib/wire-common.sh` estiver disponível, esta skill pode:
 
-- Respeitar `WMZ_OPERATING_MODE`: em `dev` permite auto-fix de WARN-level após confirmação simples; em `prod` exige confirmação explícita por cada acção, mesmo benignas.
-- Emitir eventos para `~/.wmz/log/mempalace-doctor.log` via `wmz_log` (timestamp + acção + path).
-- Backup pré-acção em `~/.wmz/backups/` em vez de `$PALACE_BACKUP`, se o utilizador preferir consolidar backups Wiremaze num único local (ver `wmz_backup`).
+- Respeitar `WIRE_OPERATING_MODE`: em `dev` permite auto-fix de WARN-level após confirmação simples; em `prod` exige confirmação explícita por cada acção, mesmo benignas.
+- Emitir eventos para `~/.wire/log/mempalace-doctor.log` via `wire_log` (timestamp + acção + path).
+- Backup pré-acção em `~/.wire/backups/` em vez de `$PALACE_BACKUP`, se o utilizador preferir consolidar backups Wire num único local (ver `wire_backup`).
 
-A skill funciona standalone se `wmz-common.sh` não existir — todas as integrações são opt-in.
+A skill funciona standalone se `wire-common.sh` não existir — todas as integrações são opt-in.
 
 ## Ver também
 
 - `claude-deep-audit` (skill irmã, mesma plugin-base) — auditoria de **configuração Claude Code** (CLAUDE.md, settings, hooks, MCPs). Domínio distinto: este doctor olha para `~/.mempalace/`; o claude-deep-audit olha para `~/.claude/` e `./`.
-- `/wiremaze-vault-doctor` (em wiremaze-secops) — diagnóstico do **servidor Vault** (HA, seal, audit device, AppRoles), não confundir com os comandos `/vault-*` desta plugin-base (que são integração de segredos por-projecto).
+- `/wire-vault-doctor` (em wire-secops) — diagnóstico do **servidor Vault** (HA, seal, audit device, AppRoles), não confundir com os comandos `/vault-*` desta plugin-base (que são integração de segredos por-projecto).

@@ -1,28 +1,28 @@
 ---
 name: ngrok-expose
-description: Expõe uma app local via ngrok HTTPS. Authtoken obtido do Vault via wiremaze-base.
+description: Expõe uma app local via ngrok HTTPS. Authtoken obtido do Vault via wire-base.
 allowed-tools: Bash, Read, Edit
 ---
 
 # /ngrok-expose
 
 Expõe uma aplicação local via túnel ngrok público. O authtoken está no Vault
-(`secret/tokens/ngrok`), acedido através do `lib/vault-env.sh` do plugin `wiremaze-base`.
+(`secret/tokens/ngrok`), acedido através do `lib/vault-env.sh` do plugin `wire-base`.
 
 ## Pré-requisito
 
-Requer o plugin `wiremaze-base` instalado (fornece `lib/vault-env.sh`). Sem ele, este
-comando não consegue obter o authtoken — instalar com `/plugin install wiremaze-base@jump2new`.
+Requer o plugin `wire-base` instalado (fornece `lib/vault-env.sh`). Sem ele, este
+comando não consegue obter o authtoken — instalar com `/plugin install wire-base@jump2new`.
 
 ## Instruções
 
-### 1. Localizar e carregar o helper do wiremaze-base
+### 1. Localizar e carregar o helper do wire-base
 
 ```bash
-BASE_LIB=$(find ~/.claude/plugins/cache -path "*/wiremaze-base/*/lib/vault-env.sh" 2>/dev/null \
+BASE_LIB=$(find ~/.claude/plugins/cache -path "*/wire-base/*/lib/vault-env.sh" 2>/dev/null \
   | sort -V | tail -1)
 if [ -z "$BASE_LIB" ]; then
-  echo "wiremaze-base não está instalado — corre: /plugin install wiremaze-base@jump2new"
+  echo "wire-base não está instalado — corre: /plugin install wire-base@jump2new"
   exit 1
 fi
 source "$BASE_LIB"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wiremaze SecOps · stop · Revoga explicitamente o token Vault no fim da sessão.
+# Wire SecOps · stop · Revoga explicitamente o token Vault no fim da sessão.
 set -euo pipefail
 
 if [ -n "${VAULT_TOKEN:-}" ]; then

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wiremaze SecOps · pre-tool · Redacta padrões PII antes da chamada ir para o modelo.
+# Wire SecOps · pre-tool · Redacta padrões PII antes da chamada ir para o modelo.
 # Cobre NIF, email, IBAN, CC, CV (cartão de cidadão), telefone, IP privado em payloads.
 set -euo pipefail
 

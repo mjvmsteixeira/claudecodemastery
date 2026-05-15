@@ -1,6 +1,6 @@
 # Scoring — rubrica unificada
 
-Todos os audits do `wiremaze-devkit` emitem um score X.X/10 por dimensão e um total.
+Todos os audits do `wire-devkit` emitem um score X.X/10 por dimensão e um total.
 Este ficheiro é a fonte de verdade — as `SKILL.md` referenciam-no, não redefinem scoring.
 
 ## Cálculo por dimensão

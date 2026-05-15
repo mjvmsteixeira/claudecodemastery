@@ -1,19 +1,19 @@
 ---
-name: wiremaze-compliance-provider
-description: Conformidade regulamentar da Wiremaze enquanto fornecedora SaaS de eGovernment local — perspectiva de fornecedor crítico NIS2 (DL 20/2025) e subcontratante RGPD (Art. 28). Usa esta skill para auditoria de conformidade, mapping de controlos a frameworks, preparação de evidência para auditor externo, resposta a questionário de cliente, snapshot anual de compliance, gap analysis face a ISO 27001 ou ENS, ou redacção de Anexo II do contrato de subcontratação. Dispara em "compliance snapshot", "Art. 28", "questionário do cliente", "evidência ISO", "NIS2 fornecedor", "DPIA", "subcontratante", "mapeamento ENS".
+name: wire-compliance-provider
+description: Conformidade regulamentar da Wire enquanto fornecedora SaaS de eGovernment local — perspectiva de fornecedor crítico NIS2 (DL 20/2025) e subcontratante RGPD (Art. 28). Usa esta skill para auditoria de conformidade, mapping de controlos a frameworks, preparação de evidência para auditor externo, resposta a questionário de cliente, snapshot anual de compliance, gap analysis face a ISO 27001 ou ENS, ou redacção de Anexo II do contrato de subcontratação. Dispara em "compliance snapshot", "Art. 28", "questionário do cliente", "evidência ISO", "NIS2 fornecedor", "DPIA", "subcontratante", "mapeamento ENS".
 ---
 
-# Wiremaze · Conformidade enquanto Fornecedor SaaS
+# Wire · Conformidade enquanto Fornecedor SaaS
 
-A Wiremaze opera num ponto regulatório triplo: **(a)** ela própria como fornecedor crítico de entidades essenciais NIS2, **(b)** subcontratante de dados pessoais por conta dos municípios (RGPD Art. 28), **(c)** sujeita a referenciais técnicos de mercado (ISO 27001, ENS, CSA STAR) frequentemente exigidos em concursos públicos.
+A Wire opera num ponto regulatório triplo: **(a)** ela própria como fornecedor crítico de entidades essenciais NIS2, **(b)** subcontratante de dados pessoais por conta dos municípios (RGPD Art. 28), **(c)** sujeita a referenciais técnicos de mercado (ISO 27001, ENS, CSA STAR) frequentemente exigidos em concursos públicos.
 
 ## Frameworks de referência
 
-| Framework | Aplicação à Wiremaze | Evidência típica |
+| Framework | Aplicação à Wire | Evidência típica |
 |-----------|----------------------|------------------|
 | **NIS2 / DL 20/2025** | Fornecedor crítico de entidades essenciais (municípios). Cooperação obrigatória, notificação em 24h | Política IR, runbooks, registo de notificações |
 | **RGPD Art. 28** | Subcontratante por conta de cada município | Contratos de subcontratação, registo de tratamentos, DPIA, Anexo II |
-| **Lei n.º 58/2019** | Execução nacional RGPD | Documentação DPO Wiremaze, formação, registo |
+| **Lei n.º 58/2019** | Execução nacional RGPD | Documentação DPO Wire, formação, registo |
 | **RJSC (DL 65/2021)** | Quadro geral cibersegurança | Inventário, gestão de risco, formação |
 | **AI Act (UE 2024/1689)** | Aplicável se houver IA no produto (ex: "Maria" assistente virtual) | Classificação de risco, transparência, registo |
 | **ISO/IEC 27001:2022** | Referencial preferido em concursos | Manual SGSI, declaração aplicabilidade, auditoria externa |
@@ -26,7 +26,7 @@ A Wiremaze opera num ponto regulatório triplo: **(a)** ela própria como fornec
 
 ### 1. Mapping cross-framework
 
-Dada uma lista de controlos internos Wiremaze (CTRL-W-*), produz tabela cruzada para cada framework, evidenciando:
+Dada uma lista de controlos internos Wire (CTRL-W-*), produz tabela cruzada para cada framework, evidenciando:
 
 - Cobertura directa (controlo X cobre cláusula Y).
 - Cobertura parcial (com plano).
@@ -37,7 +37,7 @@ Dada uma lista de controlos internos Wiremaze (CTRL-W-*), produz tabela cruzada 
 Output ASCII compacto:
 
 ```
-== Wiremaze · Compliance Snapshot · YYYY-Qn ==
+== Wire · Compliance Snapshot · YYYY-Qn ==
 Framework          Cobertura  Última auditoria   Próxima  Estado
 NIS2 (DL 20/2025)  92%        2026-02 (interna)  2026-08  OK
 RGPD Art. 28       98%        2026-03 (DPO)      2026-09  OK
@@ -54,7 +54,7 @@ Próximos marcos:     Auditoria externa ISO 27001 (Nov 2026)
 
 ### 3. Resposta a questionários de cliente
 
-Quando o município X envia questionário (típico em concursos), esta skill produz a primeira versão de resposta, mapeada às respostas oficiais já validadas, com identificação clara de questões que exigem revisão humana (DPO Wiremaze, jurídico).
+Quando o município X envia questionário (típico em concursos), esta skill produz a primeira versão de resposta, mapeada às respostas oficiais já validadas, com identificação clara de questões que exigem revisão humana (DPO Wire, jurídico).
 
 ### 4. Evidência Art. 28 para inclusão no contrato
 
@@ -65,7 +65,7 @@ Produz Anexo II / "Termos do subcontratante" com:
 - Categorias de titulares (munícipes, funcionários, candidatos).
 - Medidas técnicas e organizativas concretas.
 - Localização do tratamento (residência de dados).
-- Sub-subcontratantes autorizados (lista de fornecedores Wiremaze: cloud provider, CDN, email transactional, etc.).
+- Sub-subcontratantes autorizados (lista de fornecedores Wire: cloud provider, CDN, email transactional, etc.).
 - Procedimentos de notificação de violação.
 
 ### 5. DPIA (Avaliação de Impacto sobre Protecção de Dados)
@@ -75,7 +75,7 @@ Por produto wire*, a DPIA documenta:
 - Necessidade e proporcionalidade do tratamento.
 - Riscos para direitos e liberdades.
 - Medidas de mitigação.
-- Consulta ao DPO Wiremaze e, quando aplicável, ao DPO do município.
+- Consulta ao DPO Wire e, quando aplicável, ao DPO do município.
 
 ## Workflow
 
@@ -96,12 +96,12 @@ Por produto wire*, a DPIA documenta:
 
 - Não substitui auditor externo certificado.
 - Resposta a questionário cliente requer revisão humana antes de envio.
-- DPIA final é responsabilidade conjunta com DPO Wiremaze + DPO do município.
+- DPIA final é responsabilidade conjunta com DPO Wire + DPO do município.
 
 ## Referências
 
-- `references/mapping-nis2.md` — controlos Wiremaze ↔ NIS2 (a criar).
-- `references/mapping-iso27001.md` — controlos Wiremaze ↔ ISO 27001 Anexo A (a criar).
+- `references/mapping-nis2.md` — controlos Wire ↔ NIS2 (a criar).
+- `references/mapping-iso27001.md` — controlos Wire ↔ ISO 27001 Anexo A (a criar).
 - `references/anexoII-template.md` — template de Anexo II do contrato.
 - `references/dpia-template.md` — template de DPIA por produto.
 - `references/caiq-pre-filled.md` — CAIQ pré-preenchido para entrega rápida.

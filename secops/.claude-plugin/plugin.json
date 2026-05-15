@@ -1,18 +1,18 @@
 {
-  "name": "wiremaze-secops",
+  "name": "wire-secops",
   "version": "0.1.0",
-  "description": "SecOps com Agentes IA especializado para a Wiremaze enquanto fornecedora SaaS de eGovernment local (170+ autarquias). Stack real: servidores nativos Ruby on Rails (várias versões), Vault, Wazuh (SIEM), Fortigate (perímetro), Zabbix (monitorização activa), PostgreSQL multi-tenant. Cobre saúde da stack com correlação Wazuh↔Fortigate, auditoria de cobertura Zabbix, isolamento multi-tenant, IR multi-cliente, release gates Capistrano e conformidade NIS2 fornecedor + Art. 28 RGPD. Inclui secção Vault expandida no CLAUDE.md com detalhes operacionais (paths, policies, TTLs, rotação, auditoria).",
+  "description": "SecOps com Agentes IA especializado para a Wire enquanto fornecedora SaaS de eGovernment local (170+ autarquias). Stack real: servidores nativos Ruby on Rails (várias versões), Vault, Wazuh (SIEM), Fortigate (perímetro), Zabbix (monitorização activa), PostgreSQL multi-tenant. Cobre saúde da stack com correlação Wazuh↔Fortigate, auditoria de cobertura Zabbix, isolamento multi-tenant, IR multi-cliente, release gates Capistrano e conformidade NIS2 fornecedor + Art. 28 RGPD. Inclui secção Vault expandida no CLAUDE.md com detalhes operacionais (paths, policies, TTLs, rotação, auditoria).",
   "author": {
     "name": "jump2new",
     "email": "geral@jump2new.pt"
   },
-  "homepage": "https://www.wiremaze.com/",
-  "license": "Proprietary - Uso interno Wiremaze",
+  "homepage": "https://jump2new.pt/",
+  "license": "Proprietary - Uso interno Wire",
   "keywords": [
     "secops",
     "saas",
     "egovernment",
-    "wiremaze",
+    "wire",
     "ruby-on-rails",
     "multi-tenant",
     "nis2",

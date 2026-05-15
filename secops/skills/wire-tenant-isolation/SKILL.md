@@ -1,11 +1,11 @@
 ---
-name: wiremaze-tenant-isolation
-description: Auditar e validar o isolamento multi-tenant entre municípios clientes na plataforma SaaS Wiremaze (wirePAPER, wireDESK, wireSTUDIO e restante família wire*). Usa esta skill sempre que o pedido envolva cruzamento de dados entre clientes, due-diligence de novo cliente, validação de chaves de cifra por tenant, auditoria de queries que toquem múltiplos schemas/databases, revisão de logs por suspeita de vazamento cross-tenant, ou preparação de relatório Art. 28 RGPD para um cliente específico. Dispara em pedidos como "audita isolamento", "verifica se há cross-tenant", "Município X consegue ver dados do Município Y", "valida tenant separation", "evidência de isolamento para auditoria".
+name: wire-tenant-isolation
+description: Auditar e validar o isolamento multi-tenant entre municípios clientes na plataforma SaaS Wire (wirePAPER, wireDESK, wireSTUDIO e restante família wire*). Usa esta skill sempre que o pedido envolva cruzamento de dados entre clientes, due-diligence de novo cliente, validação de chaves de cifra por tenant, auditoria de queries que toquem múltiplos schemas/databases, revisão de logs por suspeita de vazamento cross-tenant, ou preparação de relatório Art. 28 RGPD para um cliente específico. Dispara em pedidos como "audita isolamento", "verifica se há cross-tenant", "Município X consegue ver dados do Município Y", "valida tenant separation", "evidência de isolamento para auditoria".
 ---
 
-# Wiremaze · Auditoria de Isolamento Multi-Tenant
+# Wire · Auditoria de Isolamento Multi-Tenant
 
-A Wiremaze hospeda dados de 170+ municípios na mesma plataforma. O isolamento entre tenants é o controlo crítico mais importante: uma falha aqui produz simultaneamente um incidente NIS2 (fornecedor crítico) **e** uma violação RGPD (subcontratante a expor dados pessoais de munícipes). Esta skill formaliza a auditoria.
+A Wire hospeda dados de 170+ municípios na mesma plataforma. O isolamento entre tenants é o controlo crítico mais importante: uma falha aqui produz simultaneamente um incidente NIS2 (fornecedor crítico) **e** uma violação RGPD (subcontratante a expor dados pessoais de munícipes). Esta skill formaliza a auditoria.
 
 ## Quando aplicar
 
@@ -21,7 +21,7 @@ A Wiremaze hospeda dados de 170+ municípios na mesma plataforma. O isolamento e
 - **Não-listável.** Nenhum endpoint pode devolver a lista de clientes sem permissão administrativa. Enumerar tenant IDs é um vector de ataque.
 - **Storage segregado.** Ficheiros de munícipes vão para buckets/pastas com prefix obrigatório `tenant=<UUID>/`. Acesso enforce via policy IAM/Vault, não só na aplicação.
 - **Cifra por tenant onde aplicável.** Para dados especialmente sensíveis (denunciantes, RH), chave de cifra dedicada por tenant (Vault Transit).
-- **Auditoria 100%.** Toda a query cross-tenant (administrativa, suporte) tem que aparecer no audit log da Wiremaze com justificação e ticket.
+- **Auditoria 100%.** Toda a query cross-tenant (administrativa, suporte) tem que aparecer no audit log da Wire com justificação e ticket.
 
 ## Matriz de controlos (CTRL-W-T-001..016)
 
@@ -48,7 +48,7 @@ A Wiremaze hospeda dados de 170+ municípios na mesma plataforma. O isolamento e
 
 1. **Scope.** Define o âmbito: um cliente específico, um produto wire*, ou auditoria geral.
 2. **Snapshot.** Recolhe os artefactos: schema das DBs, policies Vault, IAM, configuração da app, últimos 30 dias de audit log relevantes.
-3. **Aplicação dos controlos.** Para cada CTRL-W-T-001..016, evidencia conformidade ou desvio. Usa o sub-agente `wiremaze-tenant-01` quando o pedido envolver acesso técnico a DB ou Vault.
+3. **Aplicação dos controlos.** Para cada CTRL-W-T-001..016, evidencia conformidade ou desvio. Usa o sub-agente `wire-tenant-01` quando o pedido envolver acesso técnico a DB ou Vault.
 4. **Cross-check.** Procura sinais de vazamento real: logs com tenant_id inconsistente, queries sem WHERE tenant_id, exports não-rastreados.
 5. **Relatório.** Output estruturado:
 
@@ -71,13 +71,13 @@ A Wiremaze hospeda dados de 170+ municípios na mesma plataforma. O isolamento e
 ## Limites
 
 - Esta skill **não** executa fix automático. Identifica e recomenda; correcção passa por desenvolvimento + release com gate.
-- Evidência de vazamento real **dispara IR** (`wiremaze-ir-multitenant`), não fica em modo de auditoria.
-- Acesso a dados de tenant para validação requer ticket de auditoria + autorização DPO Wiremaze.
+- Evidência de vazamento real **dispara IR** (`wire-ir-multitenant`), não fica em modo de auditoria.
+- Acesso a dados de tenant para validação requer ticket de auditoria + autorização DPO Wire.
 
 ## Referências
 
 - `references/queries-evidencia.md` — queries SQL/Vault padrão para evidenciar cada controlo (a criar conforme adopção).
 - `references/template-relatorio.md` — template DOCX para o relatório Art. 28 enviado ao cliente.
-- WMZ.MTZ.SEC.006 — controlos numerados completos.
+- WIRE.MTZ.SEC.006 — controlos numerados completos.
 - RGPD Art. 28 — obrigações do subcontratante.
 - ISO/IEC 27001:2022, A.5.34 (privacidade e PII).

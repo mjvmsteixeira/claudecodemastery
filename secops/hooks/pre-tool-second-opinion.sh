@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wiremaze SecOps · pre-tool · Second-opinion via Ollama local (qwen3-coder).
+# Wire SecOps · pre-tool · Second-opinion via Ollama local (qwen3-coder).
 # Aplica-se a comandos destrutivos/cross-tenant. Fail-closed se o modelo local estiver indisponível.
 set -euo pipefail
 

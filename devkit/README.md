@@ -1,8 +1,8 @@
-# wiremaze-devkit
+# wire-devkit
 
 Toolkit de auditoria de developer para Claude Code · v0.1.0
 
-Terceiro plugin do marketplace `jump2new`, ao lado de `wiremaze-base` e `wiremaze-secops`.
+Terceiro plugin do marketplace `jump2new`, ao lado de `wire-base` e `wire-secops`.
 
 ## O que faz
 
@@ -15,7 +15,7 @@ Terceiro plugin do marketplace `jump2new`, ao lado de `wiremaze-base` e `wiremaz
 | **code-quality** | command + skill | Dead code, arquitectura, complexidade, cobertura de testes |
 | **performance-audit** | command + skill | Bundle size, N+1 queries, I/O bloqueante, resource leaks |
 | **local-reviewer** | agent + skill | Segunda opinião via Ollama qwen3-coder local — read-only, sem cloud |
-| **ngrok-expose** | command + skill | Túnel ngrok HTTPS (authtoken via Vault do wiremaze-base) |
+| **ngrok-expose** | command + skill | Túnel ngrok HTTPS (authtoken via Vault do wire-base) |
 
 Cada audit tem um command explícito (`/security-scan --scope=secrets`) e uma skill que
 auto-dispara por intenção ("audita a segurança disto"). O material de referência pesado
@@ -25,13 +25,13 @@ está em `references/` com progressive disclosure.
 
 ```
 /plugin marketplace add mjvmsteixeira/claudecodemastery
-/plugin install wiremaze-devkit@jump2new
+/plugin install wire-devkit@jump2new
 ```
 
 Opcional mas recomendado para o `ngrok-expose`:
 
 ```
-/plugin install wiremaze-base@jump2new
+/plugin install wire-base@jump2new
 ```
 
 ## Modo CI
@@ -47,7 +47,7 @@ em `shared/` e referenciados por todas as skills. Ver `CLAUDE.md`.
 
 ## Dependências
 
-- **Soft** do `wiremaze-base` — apenas o `ngrok-expose` o usa. O resto funciona standalone.
+- **Soft** do `wire-base` — apenas o `ngrok-expose` o usa. O resto funciona standalone.
 - `local-reviewer` requer Ollama local; degrada para análise própria se indisponível.
 
 ---

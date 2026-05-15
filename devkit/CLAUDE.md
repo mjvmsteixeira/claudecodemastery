@@ -1,4 +1,4 @@
-# wiremaze-devkit
+# wire-devkit
 
 Toolkit de auditoria de developer. Cada audit existe em três camadas:
 
@@ -29,7 +29,7 @@ O devkit **não** empacota templates nem oferece `--update-rules`.
 
 ## Dependências
 
-- Dependência **soft** do `wiremaze-base`: só o `ngrok-expose` usa
+- Dependência **soft** do `wire-base`: só o `ngrok-expose` usa
   `lib/vault-env.sh` do base. Os 5 audits individuais e o `local-reviewer` funcionam standalone.
 - `local-reviewer` precisa de Ollama local; degrada para análise própria se offline.
 - A integração MemPalace do `full-audit` é opcional, gated em `.mempalace/` existir.

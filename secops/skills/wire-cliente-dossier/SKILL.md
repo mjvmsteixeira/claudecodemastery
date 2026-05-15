@@ -1,9 +1,9 @@
 ---
-name: wiremaze-cliente-dossier
+name: wire-cliente-dossier
 description: Gerar dossier consolidado de segurança e operação por município cliente. Compila produtos wire* activos, SLA realizado, histórico de incidentes (12 meses), DPIA aplicáveis, controlos específicos do tenant, escalations e contactos. Usa esta skill quando há reunião com cliente, renovação de contrato, resposta a pedido de evidência por DPO municipal, preparação de QBR (quarterly business review), ou auditoria do Tribunal de Contas que envolve o município. Dispara em "dossier do cliente", "tudo sobre o município X", "preparar QBR", "evidência para o DPO", "renovação cliente", "Tribunal de Contas pediu", "auditoria do município".
 ---
 
-# Wiremaze · Dossier de Cliente
+# Wire · Dossier de Cliente
 
 Cada município é um cliente, mas também é uma entidade essencial NIS2, com obrigações próprias e DPO próprio. Esta skill produz uma vista 360° consolidada sobre o cliente, pronta para reunião, auditoria ou resposta a pedido de informação.
 
@@ -21,8 +21,8 @@ Cada município é um cliente, mas também é uma entidade essencial NIS2, com o
 ### 1. Identificação
 
 - Nome do município, NIPC, contacto institucional, DPO contactável.
-- Tenant UUID na plataforma Wiremaze.
-- Account manager Wiremaze + técnico de referência.
+- Tenant UUID na plataforma Wire.
+- Account manager Wire + técnico de referência.
 
 ### 2. Produtos activos
 
@@ -78,20 +78,20 @@ Por incidente: ID, data, severidade, produto, impacto, RCA resumido, ligação �
 
 - Lista curta (≤5) com plano e responsável.
 
-### 10. Recomendações Wiremaze para o cliente
+### 10. Recomendações Wire para o cliente
 
 Linha proactiva: o que o município deveria fazer / melhorar do seu lado (formação, MFA, revisão de acessos), para reduzir risco conjunto.
 
 ## Workflow
 
 1. **Recebe input.** Nome do município OU tenant UUID.
-2. **Recolha automatizada.** Subagent `wiremaze-tenant-01` puxa metadados (produtos, versões, contratos), `wiremaze-monitor-01` puxa SLA realizado, `wiremaze-compliance-01` puxa evidência regulatória.
+2. **Recolha automatizada.** Subagent `wire-tenant-01` puxa metadados (produtos, versões, contratos), `wire-monitor-01` puxa SLA realizado, `wire-compliance-01` puxa evidência regulatória.
 3. **Aplica template.** Estrutura 10 secções acima.
 4. **Limpa para distribuição.**
    - Remove referências a outros tenants.
    - Garante que nenhum dado de outro cliente vaza.
-   - Tag classification: Confidencial — Wiremaze + Município <nome>.
-5. **Geração formal.** DOCX via Cowork `ai-rep-01`, com cabeçalho/rodapé Wiremaze + identificação do cliente. Saída em `/shared/reports/output/dossier-<municipio>-<YYYY-MM-DD>.docx`.
+   - Tag classification: Confidencial — Wire + Município <nome>.
+5. **Geração formal.** DOCX via Cowork `ai-rep-01`, com cabeçalho/rodapé Wire + identificação do cliente. Saída em `/shared/reports/output/dossier-<municipio>-<YYYY-MM-DD>.docx`.
 6. **Registo da emissão.** Log no audit trail (quem pediu, quando, a quem foi enviado).
 
 ## Princípios não-negociáveis
@@ -111,6 +111,6 @@ Linha proactiva: o que o município deveria fazer / melhorar do seu lado (forma�
 ## Referências
 
 - `references/dossier-template.docx` — template institucional.
-- `references/sla-calculation.md` — fórmula oficial Wiremaze para cálculo de SLA.
+- `references/sla-calculation.md` — fórmula oficial Wire para cálculo de SLA.
 - `references/distribuicao-classificacao.md` — política de classificação e distribuição.
-- WMZ.PRC.AUD.004 — auditoria e retenção.
+- WIRE.PRC.AUD.004 — auditoria e retenção.

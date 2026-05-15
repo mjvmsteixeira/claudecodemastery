@@ -2,7 +2,7 @@
 description: Diagnóstico do Ollama local — verifica daemon, modelo qwen3-coder, latência de inferência, e compatibilidade com o hook pre-tool-second-opinion. Reporta verde/amarelo/vermelho com acções concretas.
 ---
 
-Executa diagnóstico completo do Ollama local que sustenta o hook `pre-tool-second-opinion.sh` do plugin Wiremaze SecOps.
+Executa diagnóstico completo do Ollama local que sustenta o hook `pre-tool-second-opinion.sh` do plugin Wire SecOps.
 
 ## Objectivo
 
@@ -72,7 +72,7 @@ VERDICT=$(curl -sf -m 15 "${OLLAMA_HOST}/api/generate" -d "$(jq -n --arg model "
 Produz painel ASCII compacto:
 
 ```
-== Wiremaze · Ollama Doctor · 2026-05-13 22:55 ==
+== Wire · Ollama Doctor · 2026-05-13 22:55 ==
 
 Endpoint:           http://127.0.0.1:11434       [✓ HTTP 200]
 Modelo configurado: qwen3-coder:30b              [✓ pulled · 19.4 GB]
@@ -110,11 +110,11 @@ Vermelho. **Hook `pre-tool-second-opinion.sh` vai bloquear tudo fail-closed.** A
 - `OLLAMA_HOST` — endpoint (default `http://127.0.0.1:11434`)
 - `OLLAMA_MODEL` — modelo (default `qwen3-coder:30b`)
 
-Estas vêm do `~/.wmz/secops.conf` ou env vars exportadas. Se ausentes, usa defaults.
+Estas vêm do `~/.wire/secops.conf` ou env vars exportadas. Se ausentes, usa defaults.
 
 ## Cadência sugerida
 
-- **Início do turno**, após `wmz-secops-login` e antes de operar.
+- **Início do turno**, após `wire-secops-login` e antes de operar.
 - **Antes de exercício IR**, quando o second-opinion vai ser intensamente usado.
 - **Depois de update de Ollama** (`brew upgrade ollama`) — modelo pode precisar de re-pull.
 - **Schedule diário** automatizado via cron/launchd, alerta se BROKEN >10 min.
@@ -122,4 +122,4 @@ Estas vêm do `~/.wmz/secops.conf` ou env vars exportadas. Se ausentes, usa defa
 ## Limites
 
 - **Read-only.** Não inicia nem reinicia Ollama; só reporta. Acções correctivas são manuais.
-- **Não testa todos os modelos** que podem estar em uso (ex: se houver modelos para outros plugins). Foca-se no que o `wiremaze-secops` depende.
+- **Não testa todos os modelos** que podem estar em uso (ex: se houver modelos para outros plugins). Foca-se no que o `wire-secops` depende.

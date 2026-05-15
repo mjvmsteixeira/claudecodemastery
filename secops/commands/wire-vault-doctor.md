@@ -2,7 +2,7 @@
 description: Diagnóstico do Vault — endpoint, token TTL, seal status, HA leader, audit device, AppRoles, backends. Reporta verde/amarelo/vermelho com acções concretas.
 ---
 
-Executa diagnóstico completo do Vault que sustenta o broker de credenciais do plugin Wiremaze SecOps.
+Executa diagnóstico completo do Vault que sustenta o broker de credenciais do plugin Wire SecOps.
 
 ## Objectivo
 
@@ -20,7 +20,7 @@ curl -sf -m 3 "${VAULT_ADDR}/v1/sys/health" > /tmp/vault-health.json
 ```
 
 - **OK** → continua
-- **FAIL** (connection refused, timeout) → reporta: Vault server em down. Acção: `docker compose up -d` (dev) ou contactar SRE Wiremaze (prod). Para aqui.
+- **FAIL** (connection refused, timeout) → reporta: Vault server em down. Acção: `docker compose up -d` (dev) ou contactar SRE Wire (prod). Para aqui.
 - **FAIL TLS** (`cert not trusted`) → indica que CLI está em HTTP mas server em HTTPS (ou vice-versa). Acção: verificar `VAULT_ADDR` e `VAULT_SKIP_VERIFY`.
 
 ### Check 2 · Seal status
@@ -44,8 +44,8 @@ POLICIES=$(jq -r '.data.policies | join(",")' /tmp/vault-tok.json)
 ```
 
 - **OK** se TTL ≥ 300s (5 min) e policies não-vazias
-- **WARN** se TTL < 300s → token vai expirar em breve. Acção: `vault token renew` ou re-login com `wmz-secops-login`.
-- **FAIL** se token inválido (404/permission denied) → expirado/revogado. Acção: `wmz-secops-login`.
+- **WARN** se TTL < 300s → token vai expirar em breve. Acção: `vault token renew` ou re-login com `wire-secops-login`.
+- **FAIL** se token inválido (404/permission denied) → expirado/revogado. Acção: `wire-secops-login`.
 
 ### Check 4 · HA status (se aplicável)
 
@@ -65,7 +65,7 @@ COUNT=$(jq 'keys | length' /tmp/vault-audit.json)
 ```
 
 - **OK** se ≥1 audit device activo
-- **CRÍTICO** se nenhum → **toda a operação não fica auditada**. Acção imediata: `vault audit enable file file_path=/var/log/vault-audit.log` ou `socket address=wazuh:514 socket_type=udp`. Para conformidade Wiremaze, audit é não-negociável.
+- **CRÍTICO** se nenhum → **toda a operação não fica auditada**. Acção imediata: `vault audit enable file file_path=/var/log/vault-audit.log` ou `socket address=wazuh:514 socket_type=udp`. Para conformidade Wire, audit é não-negociável.
 
 ### Check 6 · Backends esperados
 
@@ -92,13 +92,13 @@ vault list -format=json auth/approle/role | jq -r '.[]' > /tmp/vault-approles.tx
 ```
 
 Espera-se ver:
-- `wiremaze-monitor`
-- `wiremaze-ir`
-- `wiremaze-tenant`
-- `wiremaze-srv`
-- `wiremaze-deploy`
-- `wiremaze-compliance`
-- `wiremaze-cowork-reporting`
+- `wire-monitor`
+- `wire-ir`
+- `wire-tenant`
+- `wire-srv`
+- `wire-deploy`
+- `wire-compliance`
+- `wire-cowork-reporting`
 
 - **OK** se todos os 7 presentes
 - **WARN** com lista do que falta. Acção: aplicar `vault-policies.hcl` + criar AppRoles (slide 12).
@@ -106,7 +106,7 @@ Espera-se ver:
 ### Output estruturado
 
 ```
-== Wiremaze · Vault Doctor · 2026-05-13 23:00 ==
+== Wire · Vault Doctor · 2026-05-13 23:00 ==
 
 Endpoint:        http://127.0.0.1:8200        [✓ HTTP 200]
 Seal status:     unsealed · initialized        [✓]
@@ -114,7 +114,7 @@ Token TTL:       28m12s · policies=root        [✓]
 HA:              single-node (dev)             [INFO]
 Audit devices:   1 (file)                      [✓]
 Backends:        kv-v2 · transit · ssh         [✓]
-AppRoles:        7/7 (wiremaze-*)              [✓]
+AppRoles:        7/7 (wire-*)              [✓]
 
 Verdicto: HEALTHY · broker operacional.
 
@@ -134,11 +134,11 @@ Action items:
 - `VAULT_ADDR` — endpoint
 - `VAULT_TOKEN` — token actual da sessão
 - `VAULT_CACERT` — CA cert para TLS (prod)
-- `VAULT_NAMESPACE` — namespace Wiremaze (se Vault Enterprise)
+- `VAULT_NAMESPACE` — namespace Wire (se Vault Enterprise)
 
 ## Cadência sugerida
 
-- **Início do turno** após `wmz-secops-login`
+- **Início do turno** após `wire-secops-login`
 - **Antes de exercício IR** (depende do Vault para SSH CA)
 - **Em onboarding de novo engineer** (verifica que AppRoles estão ok antes de dar acesso)
 - **Schedule diário** via cron, alerta para SRE se BROKEN >5 min

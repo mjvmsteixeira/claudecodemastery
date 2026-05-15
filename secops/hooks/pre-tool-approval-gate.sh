@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wiremaze SecOps · pre-tool · Gate de aprovação humana N1/N2/N3.
+# Wire SecOps · pre-tool · Gate de aprovação humana N1/N2/N3.
 # Avalia o comando proposto e decide se exige confirmação.
 # N1: alterações em config aplicacional. N2: contenção parcial / cross-tenant. N3: desligar produto / Vault root.
 set -euo pipefail
@@ -38,5 +38,5 @@ if [ "$CONFIRM" != "yes ${LEVEL}" ]; then
 fi
 
 # Regista no audit log local antes de prosseguir
-echo "$(date -Iseconds) ${LEVEL} APPROVED: $CMD" >> /var/log/wiremaze-secops-approvals.log 2>/dev/null || true
+echo "$(date -Iseconds) ${LEVEL} APPROVED: $CMD" >> /var/log/wire-secops-approvals.log 2>/dev/null || true
 exit 0

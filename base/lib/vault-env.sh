@@ -93,20 +93,20 @@ file_mtime() {
 }
 
 # ────────────────────────────────────────────────────────────────────────────
-# Optional integration with wiremaze-base · lib/wmz-common.sh
+# Optional integration with wire-base · lib/wire-common.sh
 # Defensive: silently skip if not present, so the toolkit works standalone.
-# Adds: wmz_log → estruturado, wmz_mode → respeitar prod/dev/lab
+# Adds: wire_log → estruturado, wire_mode → respeitar prod/dev/lab
 # ────────────────────────────────────────────────────────────────────────────
 _VAULT_ENV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ -f "${_VAULT_ENV_DIR}/wmz-common.sh" ]; then
+if [ -f "${_VAULT_ENV_DIR}/wire-common.sh" ]; then
   # shellcheck disable=SC1091
-  source "${_VAULT_ENV_DIR}/wmz-common.sh"
+  source "${_VAULT_ENV_DIR}/wire-common.sh"
 fi
 
 _vlog() {
-  # Wrapper · usa wmz_log se disponível, senão silencioso para não poluir stdout
-  if command -v wmz_log >/dev/null 2>&1; then
-    wmz_log "vault-toolkit" "$1" "$2"
+  # Wrapper · usa wire_log se disponível, senão silencioso para não poluir stdout
+  if command -v wire_log >/dev/null 2>&1; then
+    wire_log "vault-toolkit" "$1" "$2"
   fi
 }
 
@@ -131,7 +131,7 @@ vault_container_running() {
 # Sai com 1 se não houver docker compose.yml ou o comando falhou.
 #
 # IMPORTANTE: Esta função PODE ter efeitos secundários (arrancar container).
-# Controlada por WMZ_VAULT_AUTO_UP — não é chamada implicitamente em prod.
+# Controlada por WIRE_VAULT_AUTO_UP — não é chamada implicitamente em prod.
 # ────────────────────────────────────────────────────────────────────────────
 vault_container_up() {
   [ "$VAULT_MODE" = "docker" ] || return 0   # native mode = nothing to start
@@ -161,15 +161,15 @@ vault_container_up() {
 #   2) unseal (3 primeiras keys de vault-init.json)
 #   3) verify ready
 #
-# Controlado por WMZ_VAULT_AUTO_UP (default: 0 em prod, 1 em dev/lab se wmz_mode disponível).
+# Controlado por WIRE_VAULT_AUTO_UP (default: 0 em prod, 1 em dev/lab se wire_mode disponível).
 # Em prod sem auto-up explícito: assume operador humano arranca containers.
 # ────────────────────────────────────────────────────────────────────────────
 vault_arrange_up() {
-  local auto_up="${WMZ_VAULT_AUTO_UP:-}"
+  local auto_up="${WIRE_VAULT_AUTO_UP:-}"
 
   # Sem override explícito e em prod → não toca em nada
-  if [ -z "$auto_up" ] && command -v wmz_is_prod >/dev/null 2>&1 && wmz_is_prod; then
-    _vlog "skip" "vault_arrange_up skipped in prod (set WMZ_VAULT_AUTO_UP=1 to override)"
+  if [ -z "$auto_up" ] && command -v wire_is_prod >/dev/null 2>&1 && wire_is_prod; then
+    _vlog "skip" "vault_arrange_up skipped in prod (set WIRE_VAULT_AUTO_UP=1 to override)"
     return 1
   fi
 

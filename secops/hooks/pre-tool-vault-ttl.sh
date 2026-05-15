@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wiremaze SecOps · pre-tool · Vault TTL guard
+# Wire SecOps · pre-tool · Vault TTL guard
 #
 # Política · "fail-open para diagnóstico, fail-closed para ops privilegiadas":
 #
@@ -42,9 +42,9 @@ ALLOWLIST_PATTERNS=(
   '/api/generate\b'
 
   # Doctors do plugin · existem precisamente para diagnosticar
-  'wiremaze-vault-doctor'
-  'wiremaze-ollama-doctor'
-  'wiremaze-stack-doctor'
+  'wire-vault-doctor'
+  'wire-ollama-doctor'
+  'wire-stack-doctor'
 
   # Setup inicial · ler ficheiros de init/credentials (não usa Vault)
   'vault-init\.json'
@@ -80,16 +80,16 @@ if [ -z "${VAULT_TOKEN:-}" ]; then
 [hook] vault-ttl · VAULT_TOKEN ausente — bloqueia (fail-closed).
 
 Diagnóstico (não exige token, está em allowlist):
-  /wiremaze-vault-doctor      # verifica server + descobre porque falta token
-  /wiremaze-stack-doctor      # diagnóstico global
+  /wire-vault-doctor      # verifica server + descobre porque falta token
+  /wire-stack-doctor      # diagnóstico global
 
 Destrancar via AppRole (preferível, TTL curto):
   export VAULT_ADDR=https://127.0.0.1:8200
-  export VAULT_CACERT=~/.wmz/vault-ca.pem
+  export VAULT_CACERT=~/.wire/vault-ca.pem
   export VAULT_ROLE_ID=$(security find-generic-password \
-    -a wmz-secops -s vault-role-id -w)
+    -a wire-secops -s vault-role-id -w)
   export VAULT_SECRET_ID=$(security find-generic-password \
-    -a wmz-secops -s vault-secret-id -w)
+    -a wire-secops -s vault-secret-id -w)
   export VAULT_TOKEN=$(vault write -field=token \
     auth/approle/login \
     role_id="$VAULT_ROLE_ID" secret_id="$VAULT_SECRET_ID")
@@ -115,10 +115,10 @@ Renovar (preserva o mesmo token):
   vault token renew
 
 Re-login completo (novo token, TTL fresco):
-  wmz-secops-login
+  wire-secops-login
 
 Diagnóstico (se renew falhar):
-  /wiremaze-vault-doctor
+  /wire-vault-doctor
 EOF
     exit 2
   fi

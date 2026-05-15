@@ -1,6 +1,6 @@
-# wiremaze-secops
+# wire-secops
 
-Plugin Claude Code · SecOps com Agentes IA especializado para a **Wiremaze** enquanto fornecedora SaaS de eGovernment local (170+ autarquias portuguesas).
+Plugin Claude Code · SecOps com Agentes IA especializado para a **Wire** enquanto fornecedora SaaS de eGovernment local (170+ autarquias portuguesas).
 
 **Versão:** 0.1.0 · **Data:** 2026-05-15 · **Autor:** jump2new · geral@jump2new.pt
 
@@ -8,40 +8,40 @@ Plugin Claude Code · SecOps com Agentes IA especializado para a **Wiremaze** en
 
 ## Para que serve
 
-A Wiremaze é o fornecedor SaaS por trás de 170+ autarquias portuguesas. Está sujeita à **NIS2** enquanto fornecedor crítico de entidades essenciais (DL 20/2025) e ao **Art. 28 do RGPD** enquanto subcontratante de dados pessoais por conta dos municípios. Este plugin codifica a operação SecOps Wiremaze em seis subagentes especializados, seis skills, slash commands e hooks de aprovação.
+A Wire é o fornecedor SaaS por trás de 170+ autarquias portuguesas. Está sujeita à **NIS2** enquanto fornecedor crítico de entidades essenciais (DL 20/2025) e ao **Art. 28 do RGPD** enquanto subcontratante de dados pessoais por conta dos municípios. Este plugin codifica a operação SecOps Wire em seis subagentes especializados, seis skills, slash commands e hooks de aprovação.
 
 ---
 
 ## Arquitectura
 
 ```
-wiremaze-secops/
+wire-secops/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── skills/                       # Skills especializadas, disparam por contexto
-│   ├── wiremaze-tenant-isolation/
-│   ├── wiremaze-saas-monitoring/
-│   ├── wiremaze-ir-multitenant/
-│   ├── wiremaze-release-safety/
-│   ├── wiremaze-compliance-provider/
-│   └── wiremaze-cliente-dossier/
+│   ├── wire-tenant-isolation/
+│   ├── wire-saas-monitoring/
+│   ├── wire-ir-multitenant/
+│   ├── wire-release-safety/
+│   ├── wire-compliance-provider/
+│   └── wire-cliente-dossier/
 ├── agents/                       # Subagentes (Claude Code)
-│   ├── wiremaze-monitor-01.md
-│   ├── wiremaze-ir-saas-01.md
-│   ├── wiremaze-tenant-01.md
-│   ├── wiremaze-srv-saas-01.md
-│   ├── wiremaze-deploy-01.md
-│   └── wiremaze-compliance-01.md
-├── commands/                     # Slash commands (todos prefixados wiremaze-)
-│   ├── wiremaze-saas-health.md           # operação
-│   ├── wiremaze-tenant-audit.md          # operação
-│   ├── wiremaze-incident-spread.md       # operação
-│   ├── wiremaze-release-gate.md          # operação
-│   ├── wiremaze-cliente-dossier.md       # operação
-│   ├── wiremaze-compliance-snapshot.md   # operação
-│   ├── wiremaze-stack-doctor.md          # diagnóstico · global
-│   ├── wiremaze-vault-doctor.md          # diagnóstico · Vault
-│   └── wiremaze-ollama-doctor.md         # diagnóstico · Ollama
+│   ├── wire-monitor-01.md
+│   ├── wire-ir-saas-01.md
+│   ├── wire-tenant-01.md
+│   ├── wire-srv-saas-01.md
+│   ├── wire-deploy-01.md
+│   └── wire-compliance-01.md
+├── commands/                     # Slash commands (todos prefixados wire-)
+│   ├── wire-saas-health.md           # operação
+│   ├── wire-tenant-audit.md          # operação
+│   ├── wire-incident-spread.md       # operação
+│   ├── wire-release-gate.md          # operação
+│   ├── wire-cliente-dossier.md       # operação
+│   ├── wire-compliance-snapshot.md   # operação
+│   ├── wire-stack-doctor.md          # diagnóstico · global
+│   ├── wire-vault-doctor.md          # diagnóstico · Vault
+│   └── wire-ollama-doctor.md         # diagnóstico · Ollama
 ├── hooks/
 │   └── hooks.json                # Pre-tool e post-tool
 └── README.md
@@ -57,11 +57,11 @@ wiremaze-secops/
 4. **SSH = Vault CA cert (TTL ≤ 15min).** Nunca chaves estáticas em produção.
 5. **Second-opinion em ops destrutivas.** Ollama qwen3-coder local valida hipóteses antes de execução.
 6. **Observabilidade total.** Todas as tool calls → CEF/OTLP → Wazuh. Tokens revogados pós-sessão.
-7. **Releases têm gate.** Nenhum deploy em produção sem `/wiremaze-release-gate` aprovado e dry-run multi-tenant.
+7. **Releases têm gate.** Nenhum deploy em produção sem `/wire-release-gate` aprovado e dry-run multi-tenant.
 
 ---
 
-## Stack assumido (Wiremaze real)
+## Stack assumido (Wire real)
 
 - **Vault HA (Raft, 3 nós)** — broker de credenciais, AppRoles, SSH CA, transit.
 - **Wazuh** — SIEM mestre. Recebe syslog/CEF do Fortigate, logs lograge dos Rails, audit Vault, OTel.
@@ -80,17 +80,17 @@ wiremaze-secops/
 # 1. Adicionar o marketplace
 /plugin marketplace add mjvmsteixeira/claudecodemastery
 
-# 2. Instalar os plugins (base primeiro — wiremaze-secops assume-o)
-/plugin install wiremaze-base@jump2new
-/plugin install wiremaze-secops@jump2new
+# 2. Instalar os plugins (base primeiro — wire-secops assume-o)
+/plugin install wire-base@jump2new
+/plugin install wire-secops@jump2new
 
 # 3. Configurar AppRoles Vault (uma vez)
-vault write auth/approle/role/wiremaze-monitor   token_ttl=30m token_max_ttl=1h
-vault write auth/approle/role/wiremaze-ir        token_ttl=15m token_max_ttl=1h
-vault write auth/approle/role/wiremaze-tenant    token_ttl=15m token_max_ttl=30m
-vault write auth/approle/role/wiremaze-srv       token_ttl=15m token_max_ttl=30m
-vault write auth/approle/role/wiremaze-deploy    token_ttl=15m token_max_ttl=30m
-vault write auth/approle/role/wiremaze-compliance token_ttl=30m token_max_ttl=1h
+vault write auth/approle/role/wire-monitor   token_ttl=30m token_max_ttl=1h
+vault write auth/approle/role/wire-ir        token_ttl=15m token_max_ttl=1h
+vault write auth/approle/role/wire-tenant    token_ttl=15m token_max_ttl=30m
+vault write auth/approle/role/wire-srv       token_ttl=15m token_max_ttl=30m
+vault write auth/approle/role/wire-deploy    token_ttl=15m token_max_ttl=30m
+vault write auth/approle/role/wire-compliance token_ttl=30m token_max_ttl=1h
 ```
 
 ---
@@ -112,10 +112,10 @@ Cada skill tem o seu `SKILL.md` em `skills/<nome>/SKILL.md`.
 
 ## Cadência operacional
 
-- **Diária:** `/wiremaze-saas-health` no início do turno; revisão de alertas Wazuh; fecho de turno com relatório.
+- **Diária:** `/wire-saas-health` no início do turno; revisão de alertas Wazuh; fecho de turno com relatório.
 - **Semanal:** revisão drift de servidores, dossiers de clientes com SLA degradado.
-- **Quinzenal:** `/wiremaze-release-gate` para cada release planeado.
-- **Mensal:** `/wiremaze-compliance-snapshot` com mapping de controlos.
+- **Quinzenal:** `/wire-release-gate` para cada release planeado.
+- **Mensal:** `/wire-compliance-snapshot` com mapping de controlos.
 - **Trimestral:** revisão de AppRoles, rotação de keys de tenant, simulacro de IR multi-tenant.
 - **Anual:** auditoria externa (ISO 27001 + ENS), revisão da política completa.
 
@@ -123,21 +123,21 @@ Cada skill tem o seu `SKILL.md` em `skills/<nome>/SKILL.md`.
 
 ## Documentos de referência
 
-- `WMZ.POL.SEC.001` — Política SecOps Wiremaze (a redigir, baseada em GIN.POL.SEC.001 adaptada)
-- `WMZ.ARQ.SEC.002` — Arquitectura técnica multi-tenant
-- `WMZ.PRC.AUD.004` — Procedimento de auditoria e conformidade
-- `WMZ.PRC.IRT.005` — Procedimento IR multi-tenant
-- `WMZ.MTZ.SEC.006` — Matriz RACI + controlos numerados CTRL-W-001..080
+- `WIRE.POL.SEC.001` — Política SecOps Wire (a redigir, baseada em GIN.POL.SEC.001 adaptada)
+- `WIRE.ARQ.SEC.002` — Arquitectura técnica multi-tenant
+- `WIRE.PRC.AUD.004` — Procedimento de auditoria e conformidade
+- `WIRE.PRC.IRT.005` — Procedimento IR multi-tenant
+- `WIRE.MTZ.SEC.006` — Matriz RACI + controlos numerados CTRL-W-001..080
 
 ---
 
 ## Notas de adopção
 
-1. **Pensado de raiz para fornecedor SaaS.** Não é adaptação de pacote cliente; é desenhado para a Wiremaze enquanto subcontratante crítico, com foco em multi-tenancy e operações 24x7.
+1. **Pensado de raiz para fornecedor SaaS.** Não é adaptação de pacote cliente; é desenhado para a Wire enquanto subcontratante crítico, com foco em multi-tenancy e operações 24x7.
 2. **Cowork em modo confinado** mantém-se: relatórios institucionais e dossiers de cliente são produzidos em `/shared/reports/output/` por `ai-rep-01` (herdado).
 3. **Período de pilotagem recomendado:** 12 semanas (ver roadmap no deck de formação).
 4. **Métricas de sucesso:** MTTD <5min em alertas P1, MTTR <30min em incidentes multi-tenant, 0 incidentes de cross-tenant data leak, 100% de releases gated.
 
 ---
 
-© 2026 Wiremaze, S.A. · Uso interno · Versão 0.1.0
+© 2026 jump2new · Uso interno · Versão 0.1.0

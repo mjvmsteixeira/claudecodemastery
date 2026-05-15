@@ -4,22 +4,22 @@
     "name": "jump2new",
     "email": "geral@jump2new.pt"
   },
-  "description": "Marketplace privado jump2new — ecossistema de plugins Wiremaze para Claude Code: wiremaze-base (foundacional), wiremaze-secops (SecOps SaaS eGovernment) e wiremaze-devkit (toolkit de auditoria de developer).",
+  "description": "Marketplace privado jump2new — ecossistema de plugins Wire para Claude Code: wire-base (foundacional), wire-secops (SecOps SaaS eGovernment) e wire-devkit (toolkit de auditoria de developer).",
   "plugins": [
     {
-      "name": "wiremaze-base",
+      "name": "wire-base",
       "source": "./base",
       "description": "Plugin foundacional — vault-toolkit, skills mempalace-doctor e claude-deep-audit, helpers bash partilhados e hook SessionStart de auto-unseal. Instalar primeiro."
     },
     {
-      "name": "wiremaze-secops",
+      "name": "wire-secops",
       "source": "./secops",
-      "description": "Plugin SecOps Wiremaze — Vault, Wazuh, Fortigate, Zabbix, RoR multi-tenant. Assume wiremaze-base instalado."
+      "description": "Plugin SecOps Wire — Vault, Wazuh, Fortigate, Zabbix, RoR multi-tenant. Assume wire-base instalado."
     },
     {
-      "name": "wiremaze-devkit",
+      "name": "wire-devkit",
       "source": "./devkit",
-      "description": "Toolkit de auditoria de developer — full-audit, security-scan, infra-audit, ux-audit, code-quality, performance-audit, agente local-reviewer e ngrok-expose. Dependência soft do wiremaze-base."
+      "description": "Toolkit de auditoria de developer — full-audit, security-scan, infra-audit, ux-audit, code-quality, performance-audit, agente local-reviewer e ngrok-expose. Dependência soft do wire-base."
     }
   ]
 }

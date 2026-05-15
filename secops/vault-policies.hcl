@@ -1,12 +1,12 @@
 # ============================================================================
-# Wiremaze SecOps · Vault Policies HCL
+# Wire SecOps · Vault Policies HCL
 # ============================================================================
 # Seis AppRoles dedicados, um por subagent. TTLs deliberadamente curtos.
 # Os comandos de criação dos AppRoles estão no fim do ficheiro.
 # ============================================================================
 
 # ----------------------------------------------------------------------------
-# wiremaze-monitor — wiremaze-monitor-01 (read-only sobre observabilidade)
+# wire-monitor — wire-monitor-01 (read-only sobre observabilidade)
 # ----------------------------------------------------------------------------
 path "secret/data/observability/wazuh/*" {
   capabilities = ["read"]
@@ -22,12 +22,12 @@ path "secret/data/observability/otel/*" {
 }
 
 # ----------------------------------------------------------------------------
-# wiremaze-ir — wiremaze-ir-saas-01 (IR multi-tenant, mais permissivo, TTL curto)
+# wire-ir — wire-ir-saas-01 (IR multi-tenant, mais permissivo, TTL curto)
 # ----------------------------------------------------------------------------
 path "secret/data/ir/*" {
   capabilities = ["read", "create", "update"]
 }
-path "ssh/sign/wmz-ir-role" {
+path "ssh/sign/wire-ir-role" {
   capabilities = ["create", "update"]
 }
 path "transit/encrypt/forensics" {
@@ -41,7 +41,7 @@ path "sys/audit-hash/*" {
 }
 
 # ----------------------------------------------------------------------------
-# wiremaze-tenant — wiremaze-tenant-01 (auditoria de isolamento)
+# wire-tenant — wire-tenant-01 (auditoria de isolamento)
 # ----------------------------------------------------------------------------
 path "secret/data/tenants/metadata/*" {
   capabilities = ["read"]
@@ -55,9 +55,9 @@ path "sys/policies/acl/*" {
 }
 
 # ----------------------------------------------------------------------------
-# wiremaze-srv — wiremaze-srv-saas-01 (operações servidor, SSH CA)
+# wire-srv — wire-srv-saas-01 (operações servidor, SSH CA)
 # ----------------------------------------------------------------------------
-path "ssh/sign/wmz-srv-role" {
+path "ssh/sign/wire-srv-role" {
   capabilities = ["create", "update"]
 }
 path "secret/data/srv/inventory/*" {
@@ -71,7 +71,7 @@ path "secret/data/srv/ansible/*" {
 }
 
 # ----------------------------------------------------------------------------
-# wiremaze-deploy — wiremaze-deploy-01 (release gate, CI/CD reads)
+# wire-deploy — wire-deploy-01 (release gate, CI/CD reads)
 # ----------------------------------------------------------------------------
 path "secret/data/cicd/gitlab/*" {
   capabilities = ["read"]
@@ -87,7 +87,7 @@ path "secret/data/registry/credentials" {
 }
 
 # ----------------------------------------------------------------------------
-# wiremaze-compliance — wiremaze-compliance-01 (read-only sobre compliance)
+# wire-compliance — wire-compliance-01 (read-only sobre compliance)
 # ----------------------------------------------------------------------------
 path "secret/data/compliance/*" {
   capabilities = ["read"]
@@ -100,7 +100,7 @@ path "secret/data/dpia/*" {
 }
 
 # ----------------------------------------------------------------------------
-# wiremaze-cowork-reporting — Cowork ai-rep-01 (confinado, leitura inbox + escrita output)
+# wire-cowork-reporting — Cowork ai-rep-01 (confinado, leitura inbox + escrita output)
 # ----------------------------------------------------------------------------
 path "secret/data/reports/inbox/*" {
   capabilities = ["read"]
@@ -113,57 +113,57 @@ path "secret/data/reports/output/*" {
 # Configuração dos AppRoles — executar uma vez após criação das policies acima
 # ============================================================================
 #
-# vault write auth/approle/role/wiremaze-monitor \
+# vault write auth/approle/role/wire-monitor \
 #     token_ttl=30m token_max_ttl=1h \
-#     token_policies="wiremaze-monitor" \
+#     token_policies="wire-monitor" \
 #     secret_id_ttl=5m secret_id_num_uses=1
 #
-# vault write auth/approle/role/wiremaze-ir \
+# vault write auth/approle/role/wire-ir \
 #     token_ttl=15m token_max_ttl=1h \
-#     token_policies="wiremaze-ir" \
+#     token_policies="wire-ir" \
 #     secret_id_ttl=5m secret_id_num_uses=1
 #
-# vault write auth/approle/role/wiremaze-tenant \
+# vault write auth/approle/role/wire-tenant \
 #     token_ttl=15m token_max_ttl=30m \
-#     token_policies="wiremaze-tenant" \
+#     token_policies="wire-tenant" \
 #     secret_id_ttl=5m secret_id_num_uses=1
 #
-# vault write auth/approle/role/wiremaze-srv \
+# vault write auth/approle/role/wire-srv \
 #     token_ttl=15m token_max_ttl=30m \
-#     token_policies="wiremaze-srv" \
+#     token_policies="wire-srv" \
 #     secret_id_ttl=5m secret_id_num_uses=1
 #
-# vault write auth/approle/role/wiremaze-deploy \
+# vault write auth/approle/role/wire-deploy \
 #     token_ttl=15m token_max_ttl=30m \
-#     token_policies="wiremaze-deploy" \
+#     token_policies="wire-deploy" \
 #     secret_id_ttl=5m secret_id_num_uses=1
 #
-# vault write auth/approle/role/wiremaze-compliance \
+# vault write auth/approle/role/wire-compliance \
 #     token_ttl=30m token_max_ttl=1h \
-#     token_policies="wiremaze-compliance" \
+#     token_policies="wire-compliance" \
 #     secret_id_ttl=5m secret_id_num_uses=1
 #
-# vault write auth/approle/role/wiremaze-cowork-reporting \
+# vault write auth/approle/role/wire-cowork-reporting \
 #     token_ttl=60m token_max_ttl=2h \
-#     token_policies="wiremaze-cowork-reporting" \
+#     token_policies="wire-cowork-reporting" \
 #     secret_id_ttl=10m secret_id_num_uses=1
 #
 # ============================================================================
-# SSH CA roles (criados nos paths ssh/sign/wmz-*-role)
+# SSH CA roles (criados nos paths ssh/sign/wire-*-role)
 # ============================================================================
 #
-# vault write ssh/roles/wmz-srv-role \
+# vault write ssh/roles/wire-srv-role \
 #     key_type=ca \
 #     algorithm_signer=rsa-sha2-256 \
-#     allowed_users="wmz-srv,wmz-deploy" \
-#     default_user="wmz-srv" \
+#     allowed_users="wire-srv,wire-deploy" \
+#     default_user="wire-srv" \
 #     ttl=15m max_ttl=15m
 #
-# vault write ssh/roles/wmz-ir-role \
+# vault write ssh/roles/wire-ir-role \
 #     key_type=ca \
 #     algorithm_signer=rsa-sha2-256 \
-#     allowed_users="wmz-ir" \
-#     default_user="wmz-ir" \
+#     allowed_users="wire-ir" \
+#     default_user="wire-ir" \
 #     ttl=15m max_ttl=15m
 #
 # ============================================================================

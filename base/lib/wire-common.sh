@@ -1,51 +1,51 @@
 #!/usr/bin/env bash
-# wiremaze-base · lib/wmz-common.sh
+# wire-base · lib/wire-common.sh
 #
-# Helpers partilhados para hooks e scripts dos plugins Wiremaze.
-# Plugins downstream fazem:  source "${CLAUDE_PLUGIN_ROOT}/../wiremaze-base/lib/wmz-common.sh"
+# Helpers partilhados para hooks e scripts dos plugins Wire.
+# Plugins downstream fazem:  source "${CLAUDE_PLUGIN_ROOT}/../wire-base/lib/wire-common.sh"
 #
 # Não tem efeitos colaterais ao ser sourced. Só define funções e constantes.
 
 # ────────────────────────────────────────────────────────────────────────────
 # Constantes · paths canónicos
 # ────────────────────────────────────────────────────────────────────────────
-WMZ_HOME="${HOME}/.wmz"
-WMZ_BACKUPS_DIR="${WMZ_HOME}/backups"
-WMZ_LOG_DIR="${WMZ_HOME}/log"
-WMZ_SCOPE_FILE="${WMZ_HOME}/scope"
-WMZ_MODE_FILE="${WMZ_HOME}/mode"
-WMZ_LAB_MARKER="${WMZ_HOME}/lab-mode"
+WIRE_HOME="${HOME}/.wire"
+WIRE_BACKUPS_DIR="${WIRE_HOME}/backups"
+WIRE_LOG_DIR="${WIRE_HOME}/log"
+WIRE_SCOPE_FILE="${WIRE_HOME}/scope"
+WIRE_MODE_FILE="${WIRE_HOME}/mode"
+WIRE_LAB_MARKER="${WIRE_HOME}/lab-mode"
 
 CLAUDE_GLOBAL_DIR="${HOME}/.claude"
 CLAUDE_GLOBAL_MEMORY="${CLAUDE_GLOBAL_DIR}/CLAUDE.md"
 CLAUDE_GLOBAL_SETTINGS="${CLAUDE_GLOBAL_DIR}/settings.json"
 
 # ────────────────────────────────────────────────────────────────────────────
-# wmz_mode · devolve o operating mode actual
+# wire_mode · devolve o operating mode actual
 #
 # Ordem de precedência:
-#   1) WMZ_OPERATING_MODE (env var, override por sessão)
-#   2) ~/.wmz/mode (ficheiro, persistente)
+#   1) WIRE_OPERATING_MODE (env var, override por sessão)
+#   2) ~/.wire/mode (ficheiro, persistente)
 #   3) "prod" (default seguro)
 #
 # Modos válidos:
 #   prod  → fail-closed total. Vault obrigatório.
 #   dev   → warn-only. Hooks logam mas não bloqueiam.
-#   lab   → bypass total. Exige marker ~/.wmz/lab-mode.
+#   lab   → bypass total. Exige marker ~/.wire/lab-mode.
 # ────────────────────────────────────────────────────────────────────────────
-wmz_mode() {
+wire_mode() {
   local mode
 
-  if [ -n "${WMZ_OPERATING_MODE:-}" ]; then
-    mode="$WMZ_OPERATING_MODE"
-  elif [ -f "$WMZ_MODE_FILE" ]; then
-    mode=$(cat "$WMZ_MODE_FILE" 2>/dev/null | tr -d '[:space:]')
+  if [ -n "${WIRE_OPERATING_MODE:-}" ]; then
+    mode="$WIRE_OPERATING_MODE"
+  elif [ -f "$WIRE_MODE_FILE" ]; then
+    mode=$(cat "$WIRE_MODE_FILE" 2>/dev/null | tr -d '[:space:]')
   else
     mode="prod"
   fi
 
   # Validação · lab exige marker
-  if [ "$mode" = "lab" ] && [ ! -f "$WMZ_LAB_MARKER" ]; then
+  if [ "$mode" = "lab" ] && [ ! -f "$WIRE_LAB_MARKER" ]; then
     echo "prod"
     return
   fi
@@ -57,47 +57,47 @@ wmz_mode() {
 }
 
 # ────────────────────────────────────────────────────────────────────────────
-# wmz_scope · devolve o scope preferido do utilizador
+# wire_scope · devolve o scope preferido do utilizador
 #
-# Lê ~/.wmz/scope (definido pelo mempalace-doctor).
+# Lê ~/.wire/scope (definido pelo mempalace-doctor).
 # Valores: global | project | hybrid (default: hybrid)
 # ────────────────────────────────────────────────────────────────────────────
-wmz_scope() {
-  if [ -f "$WMZ_SCOPE_FILE" ]; then
-    cat "$WMZ_SCOPE_FILE" 2>/dev/null | tr -d '[:space:]'
+wire_scope() {
+  if [ -f "$WIRE_SCOPE_FILE" ]; then
+    cat "$WIRE_SCOPE_FILE" 2>/dev/null | tr -d '[:space:]'
   else
     echo "hybrid"
   fi
 }
 
 # ────────────────────────────────────────────────────────────────────────────
-# wmz_is_prod · helper booleano · "estamos em prod?"
+# wire_is_prod · helper booleano · "estamos em prod?"
 # ────────────────────────────────────────────────────────────────────────────
-wmz_is_prod() {
-  [ "$(wmz_mode)" = "prod" ]
+wire_is_prod() {
+  [ "$(wire_mode)" = "prod" ]
 }
 
-wmz_is_dev() {
-  [ "$(wmz_mode)" = "dev" ]
+wire_is_dev() {
+  [ "$(wire_mode)" = "dev" ]
 }
 
-wmz_is_lab() {
-  [ "$(wmz_mode)" = "lab" ]
+wire_is_lab() {
+  [ "$(wire_mode)" = "lab" ]
 }
 
 # ────────────────────────────────────────────────────────────────────────────
-# wmz_log · escreve linha em log estruturado
+# wire_log · escreve linha em log estruturado
 #
-# Uso:  wmz_log <plugin> <event> <message>
+# Uso:  wire_log <plugin> <event> <message>
 # Output:  YYYY-MM-DDTHH:MM:SSZ  <plugin>  <event>  <message>
 # ────────────────────────────────────────────────────────────────────────────
-wmz_log() {
+wire_log() {
   local plugin="${1:-unknown}"
   local event="${2:-info}"
   local message="${3:-}"
-  local log_file="${WMZ_LOG_DIR}/${plugin}.log"
+  local log_file="${WIRE_LOG_DIR}/${plugin}.log"
 
-  mkdir -p "$WMZ_LOG_DIR" 2>/dev/null || true
+  mkdir -p "$WIRE_LOG_DIR" 2>/dev/null || true
   printf '%s\t%s\t%s\t%s\n' \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     "$plugin" \
@@ -107,85 +107,85 @@ wmz_log() {
 }
 
 # ────────────────────────────────────────────────────────────────────────────
-# wmz_backup · cria backup tarball com timestamp
+# wire_backup · cria backup tarball com timestamp
 #
-# Uso:  wmz_backup <label> <path1> [path2] [path3] ...
+# Uso:  wire_backup <label> <path1> [path2] [path3] ...
 # Devolve path do tarball.
 # ────────────────────────────────────────────────────────────────────────────
-wmz_backup() {
+wire_backup() {
   local label="${1:-untagged}"
   shift
   local ts
   ts=$(date -u +%Y%m%d-%H%M%S)
-  local out="${WMZ_BACKUPS_DIR}/${label}-${ts}.tgz"
+  local out="${WIRE_BACKUPS_DIR}/${label}-${ts}.tgz"
 
-  mkdir -p "$WMZ_BACKUPS_DIR" 2>/dev/null || true
+  mkdir -p "$WIRE_BACKUPS_DIR" 2>/dev/null || true
   tar czf "$out" "$@" 2>/dev/null && echo "$out"
 }
 
 # ────────────────────────────────────────────────────────────────────────────
-# wmz_fail_or_warn · escolhe entre exit 2 e log baseado em mode
+# wire_fail_or_warn · escolhe entre exit 2 e log baseado em mode
 #
-# Uso:  wmz_fail_or_warn <plugin> <hook> <message>
+# Uso:  wire_fail_or_warn <plugin> <hook> <message>
 # Em prod: log + exit 2
 # Em dev:  log + return 0
 # Em lab:  return 0 (silent)
 # ────────────────────────────────────────────────────────────────────────────
-wmz_fail_or_warn() {
+wire_fail_or_warn() {
   local plugin="$1"
   local hook="$2"
   local message="$3"
   local mode
-  mode=$(wmz_mode)
+  mode=$(wire_mode)
 
   case "$mode" in
     prod)
-      wmz_log "$plugin" "block" "$hook: $message"
+      wire_log "$plugin" "block" "$hook: $message"
       echo "[$plugin/$hook] $message" >&2
       exit 2
       ;;
     dev)
-      wmz_log "$plugin" "warn" "$hook: $message"
+      wire_log "$plugin" "warn" "$hook: $message"
       echo "[$plugin/$hook] (dev mode) $message" >&2
       ;;
     lab)
       # silencioso, mas loga
-      wmz_log "$plugin" "bypass" "$hook: $message"
+      wire_log "$plugin" "bypass" "$hook: $message"
       ;;
   esac
 }
 
 # ────────────────────────────────────────────────────────────────────────────
-# wmz_require · valida pré-condições, falha em prod, warn em dev
+# wire_require · valida pré-condições, falha em prod, warn em dev
 #
-# Uso:  wmz_require <plugin> <hook> <test-cmd> <error-message>
+# Uso:  wire_require <plugin> <hook> <test-cmd> <error-message>
 #
 # Exemplo:
-#   wmz_require my-plugin vault-ttl \
+#   wire_require my-plugin vault-ttl \
 #     '[ -n "${VAULT_TOKEN:-}" ]' \
 #     "VAULT_TOKEN ausente"
 # ────────────────────────────────────────────────────────────────────────────
-wmz_require() {
+wire_require() {
   local plugin="$1"
   local hook="$2"
   local test_cmd="$3"
   local error="$4"
 
   if ! eval "$test_cmd" >/dev/null 2>&1; then
-    wmz_fail_or_warn "$plugin" "$hook" "$error"
+    wire_fail_or_warn "$plugin" "$hook" "$error"
   fi
 }
 
 # ────────────────────────────────────────────────────────────────────────────
-# wmz_init_dirs · cria a estrutura ~/.wmz/ se ausente
+# wire_init_dirs · cria a estrutura ~/.wire/ se ausente
 # Chamado pelo mempalace-doctor no passo 6.
 # ────────────────────────────────────────────────────────────────────────────
-wmz_init_dirs() {
-  mkdir -p "$WMZ_HOME" "$WMZ_BACKUPS_DIR" "$WMZ_LOG_DIR" 2>/dev/null || true
+wire_init_dirs() {
+  mkdir -p "$WIRE_HOME" "$WIRE_BACKUPS_DIR" "$WIRE_LOG_DIR" 2>/dev/null || true
 }
 
 # ────────────────────────────────────────────────────────────────────────────
-# wmz_version · versão deste lib
+# wire_version · versão deste lib
 # ────────────────────────────────────────────────────────────────────────────
-WMZ_COMMON_VERSION="0.1.0"
-wmz_version() { echo "$WMZ_COMMON_VERSION"; }
+WIRE_COMMON_VERSION="0.1.0"
+wire_version() { echo "$WIRE_COMMON_VERSION"; }

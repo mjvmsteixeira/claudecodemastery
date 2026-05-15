@@ -1,12 +1,12 @@
 ---
-description: Painel ASCII de saúde da plataforma Wiremaze por produto wire*, com SLA 24h, p95, error rate, alertas P1, correlação Wazuh ↔ Fortigate, estado da monitorização Zabbix.
+description: Painel ASCII de saúde da plataforma Wire por produto wire*, com SLA 24h, p95, error rate, alertas P1, correlação Wazuh ↔ Fortigate, estado da monitorização Zabbix.
 ---
 
-Produz o painel `/wiremaze-saas-health` actual da plataforma Wiremaze.
+Produz o painel `/wire-saas-health` actual da plataforma Wire.
 
-Usa o subagent `wiremaze-monitor-01` para puxar contexto de **Wazuh** (SIEM), **Fortigate** (perímetro) e **Zabbix** (monitorização activa) em modo read-only (AppRole `wiremaze-monitor`).
+Usa o subagent `wire-monitor-01` para puxar contexto de **Wazuh** (SIEM), **Fortigate** (perímetro) e **Zabbix** (monitorização activa) em modo read-only (AppRole `wire-monitor`).
 
-A skill `wiremaze-saas-monitoring` define o formato exacto do painel. Não improvises layout — segue o template.
+A skill `wire-saas-monitoring` define o formato exacto do painel. Não improvises layout — segue o template.
 
 Estrutura obrigatória:
 
