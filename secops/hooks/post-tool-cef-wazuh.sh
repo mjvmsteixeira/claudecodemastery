@@ -2,6 +2,8 @@
 # Wire SecOps · post-tool · Envia evento CEF para o Wazuh com a tool call executada.
 # Configurável via env: WAZUH_HOST, WAZUH_PORT (default 514/udp).
 set -euo pipefail
+# shellcheck source=_lib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 
 WAZUH_HOST="${WAZUH_HOST:-wazuh-manager.wire.internal}"
 WAZUH_PORT="${WAZUH_PORT:-514}"

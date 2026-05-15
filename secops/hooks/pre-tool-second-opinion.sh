@@ -2,6 +2,8 @@
 # Wire SecOps · pre-tool · Second-opinion via Ollama local (qwen3-coder).
 # Aplica-se a comandos destrutivos/cross-tenant. Fail-closed se o modelo local estiver indisponível.
 set -euo pipefail
+# shellcheck source=_lib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 
 CMD="${1:-$(cat)}"
 
@@ -11,8 +13,7 @@ if ! echo "$CMD" | grep -qE '(cross-tenant|all-tenants|systemctl (stop|disable) 
 fi
 
 if ! curl -sf -m 3 http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then
-  echo "[hook] Ollama local não responde — fail-closed para operações destrutivas." >&2
-  exit 2
+  wire_fail_or_warn "wire-secops" "second-opinion" "Ollama local não responde — second-opinion indisponível para operação destrutiva"
 fi
 
 RESPONSE=$(curl -sf -m 15 http://127.0.0.1:11434/api/generate \
@@ -26,8 +27,7 @@ VERDICT=$(echo "$RESPONSE" | head -1 | awk '{print $1}')
 
 if [ "$VERDICT" != "SAFE" ]; then
   echo "[hook] Second-opinion: $RESPONSE" >&2
-  echo "[hook] Operação bloqueada." >&2
-  exit 2
+  wire_fail_or_warn "wire-secops" "second-opinion" "Verdict do modelo local: $VERDICT"
 fi
 
 echo "[hook] Second-opinion: SAFE ($RESPONSE)"

@@ -2,6 +2,8 @@
 # Wire SecOps · pre-tool · Redacta padrões PII antes da chamada ir para o modelo.
 # Cobre NIF, email, IBAN, CC, CV (cartão de cidadão), telefone, IP privado em payloads.
 set -euo pipefail
+# shellcheck source=_lib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 
 INPUT="${1:-$(cat)}"
 

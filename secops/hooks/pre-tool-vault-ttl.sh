@@ -17,6 +17,8 @@
 # destrancar (login AppRole, renovar token, correr doctor, etc.).
 
 set -euo pipefail
+# shellcheck source=_lib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 
 CMD="${1:-$(cat)}"
 
@@ -98,7 +100,7 @@ Modo dev (formação, Vault em Docker):
   export VAULT_ADDR=http://127.0.0.1:8200
   export VAULT_TOKEN=dev-only-root
 EOF
-  exit 2
+  wire_fail_or_warn "wire-secops" "vault-ttl" "VAULT_TOKEN ausente"
 fi
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -120,7 +122,7 @@ Re-login completo (novo token, TTL fresco):
 Diagnóstico (se renew falhar):
   /wire-vault-doctor
 EOF
-    exit 2
+    wire_fail_or_warn "wire-secops" "vault-ttl" "TTL=${TTL}s abaixo do mínimo 60s"
   fi
 
   echo "[hook] vault-ttl · OK (TTL=${TTL}s)" >&2

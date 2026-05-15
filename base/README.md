@@ -107,7 +107,7 @@ export WIRE_OPERATING_MODE=dev
 touch ~/.wire/lab-mode && echo lab > ~/.wire/mode
 ```
 
-Plugins downstream (como `wire-secops`) **devem** respeitar este sinal — `pre-tool-vault-ttl.sh` está a evoluir para `wire_fail_or_warn` em vez de `exit 2` directo.
+Plugins downstream (como `wire-secops`) **respeitam** este sinal via `wire_fail_or_warn` — os hooks do secops fazem `source` da `wire-common.sh` (via shim `_lib.sh`) e bloqueiam em prod, avisam em dev, são silenciosos em lab.
 
 ---
 
@@ -215,7 +215,7 @@ ls ~/.claude/plugins/wire-base/           # estrutura completa
 - **`wire-mode`** · slash command interactivo para mudar `WIRE_OPERATING_MODE` com marker file
 - **`wire-onboard`** · setup wizard end-to-end (instala base + secops + valida com smoke tests)
 - **`wire-context-pack`** · prepara contexto cross-plugin para sessões IR / release / audit
-- **Integração com `wire-secops`** · refactor de `pre-tool-vault-ttl.sh` para usar `wire_fail_or_warn` (mode-aware)
+- ~~Integração com `wire-secops` · refactor de `pre-tool-vault-ttl.sh` para usar `wire_fail_or_warn` (mode-aware)~~ — **feito em v0.1.0**: os 6 hooks do secops sourceiam `wire-common.sh` via shim `_lib.sh` com fallback stubs
 
 ---
 

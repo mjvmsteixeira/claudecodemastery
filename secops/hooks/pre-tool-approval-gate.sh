@@ -3,6 +3,8 @@
 # Avalia o comando proposto e decide se exige confirmação.
 # N1: alterações em config aplicacional. N2: contenção parcial / cross-tenant. N3: desligar produto / Vault root.
 set -euo pipefail
+# shellcheck source=_lib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 
 CMD="${1:-$(cat)}"
 LEVEL="0"
