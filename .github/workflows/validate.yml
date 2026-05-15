@@ -1,0 +1,30 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install jq + shellcheck
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends jq shellcheck
+
+      - name: Run validate.sh (com shellcheck)
+        run: ./scripts/validate.sh
+
+      - name: Dry-run package.sh
+        run: ./scripts/package.sh --no-validate --out /tmp/dist
+
+      - name: Listar artefactos
+        run: ls -lh /tmp/dist/
