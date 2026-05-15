@@ -285,6 +285,28 @@ for p in "${PLUGINS[@]}"; do
   pass "$p/agents/ validados"
 done
 
+# ──────────────────────── 7b. descriptions sem promessas perigosas ────────────────────────
+section "descriptions: anti-padrões de auto-fix"
+
+# Padrões que NÃO podem aparecer em frontmatter description: de SKILL.md ou
+# commands/*.md. Histórico: a v0.2.0 do wire-devkit prometia "fora do modo CI,
+# corrige TODOS os issues automaticamente sem perguntar" no full-audit, o que
+# autorizou apagar initializers/middleware num dev shell. Esta verificação previne
+# regressão. Ver devkit/CLAUDE.md (Safety convention).
+DENY_RE='(sem perguntar|corrige TODOS|auto-?fix de tudo|automaticamente sem|without asking|without confirmation)'
+
+for p in "${PLUGINS[@]}"; do
+  for f in "$p"/skills/*/SKILL.md "$p"/commands/*.md; do
+    [ ! -f "$f" ] && continue
+    fm=$(awk '/^---$/{c++; next} c==1' "$f")
+    if echo "$fm" | grep -qiE "$DENY_RE"; then
+      hit=$(echo "$fm" | grep -iEo "$DENY_RE" | head -1)
+      fail "$f: description contém anti-padrão de auto-fix ('$hit') — ver devkit/CLAUDE.md (Safety convention)"
+    fi
+  done
+done
+[ $ERRORS -eq 0 ] && pass "nenhuma description promete auto-fix sem confirmação"
+
 # ──────────────────────── 8. shellcheck (opcional) ────────────────────────
 if [ $SKIP_SHELLCHECK -eq 0 ] && [ $have_shellcheck -eq 1 ]; then
   section "shellcheck (hooks + lib)"

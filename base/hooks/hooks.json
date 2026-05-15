@@ -1,5 +1,5 @@
 {
-  "description": "Auto-unseal the local Vault at session start and inject available-credentials context.",
+  "description": "Auto-unseal the local Vault at session start and inject available-credentials context. PreToolUse audit-guard bloqueia operações destrutivas durante contexto de audit do devkit a menos que apply esteja explicitamente aprovado.",
   "hooks": {
     "SessionStart": [
       {
@@ -9,6 +9,18 @@
             "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/vault-session-check.sh",
             "timeout": 8,
             "statusMessage": "Vault check..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-audit-guard.sh",
+            "timeout_ms": 3000
           }
         ]
       }

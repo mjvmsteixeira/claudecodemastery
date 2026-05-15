@@ -1,7 +1,7 @@
 {
   "name": "wire-base",
-  "version": "0.2.0",
-  "description": "Plugin-base do ecossistema Wire para Claude Code. Três skills foundacionais — mempalace-doctor (saúde do tool MemPalace), claude-deep-audit (auditoria profunda Claude Code via 10 sub-agentes paralelos), vault-toolkit (gestão de segredos por-projeto contra Vault local). Inclui hook SessionStart para auto-unseal do Vault, helpers bash partilhados (lib/wire-common.sh, lib/vault-env.sh) e convenções que outros plugins Wire assumem. Detecta automaticamente ~/vault/ existente e preserva configuração actual. Instalar antes de qualquer outro plugin Wire.",
+  "version": "0.2.1",
+  "description": "Plugin-base do ecossistema Wire para Claude Code. Três skills foundacionais — mempalace-doctor (saúde do tool MemPalace), claude-deep-audit (auditoria profunda Claude Code via 10 sub-agentes paralelos), vault-toolkit (gestão de segredos por-projeto contra Vault local). Inclui hook SessionStart para auto-unseal do Vault, hook PreToolUse audit-guard que dá defense-in-depth ao wire-devkit (bloqueia operações destrutivas durante contexto de audit a menos que apply esteja explicitamente aprovado), helpers bash partilhados (lib/wire-common.sh, lib/vault-env.sh) e convenções que outros plugins Wire assumem. Detecta automaticamente ~/vault/ existente e preserva configuração actual. Instalar antes de qualquer outro plugin Wire.",
   "author": {
     "name": "jump2new",
     "email": "geral@jump2new.pt"

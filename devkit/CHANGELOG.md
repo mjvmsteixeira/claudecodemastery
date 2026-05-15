@@ -2,6 +2,50 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] — 2026-05-15
+
+Iteração de **defense-in-depth + extensão a todas as audit skills + prevenção de regressão**.
+Resolve os 9 gaps identificados no follow-up à v0.2.1 (auditoria do empty-shell wireSTUDIO).
+
+### Added
+
+- **`shared/safe-apply.md`** — fonte de verdade para os 3 gates universais que toda a skill que possa mutar ficheiros tem de executar antes de aplicar correcções:
+  - **Gate 1 — modo operacional**: lê `WIRE_OPERATING_MODE` (ou `~/.wire/mode`); em `dev` degrada apply para report-only (em dev, código "morto" pode ser activado on-demand — a skill não tem competência para decidir).
+  - **Gate 2 — sample/empty-shell detection**: marcadores canónicos no projecto (`.dev-shell`, `SAMPLE.md`, `.empty-shell`, `.audit-profile=dev-shell`), pistas no `CLAUDE.md` da raiz (`<!-- wire-audit: dev-shell -->`, `empty shell`, `sample app`, `dev only`, etc.), ou `WIRE_AUDIT_PROFILE`. Se positivo, degrada apply para report-only com aviso.
+  - **Gate 3 — acções destrutivas pedem confirmação humana individual**: apagar/mover ficheiros, mexer em `.gitignore`/`.env*`/`config/initializers/`/`spec/`/`test/`/`filter_parameter_logging.rb`/`backtrace_silencers.rb`/workflows CI, drop/alter/truncate de tabelas, ou updates major de deps — diff antes/depois + prompt `[s/N/skip-all]` (default `N`).
+
+### Changed
+
+- **`full-audit/SKILL.md`** Fase 4 agora invoca explicitamente os gates de `safe-apply.md` antes de aplicar; se algum gate falhar, degrada para report-only com explicação clara. Removida a duplicação local da lógica de "modo dev / sample".
+- **`security-scan/SKILL.md`** Correcções: `auto-fix-safe` deixa de incluir mutação de `.gitignore`/`.gitattributes`/`.env*` — esses passam pelo Gate 3 mesmo em modo "safe". Texto claro do que sobra como auto-fixable: updates de patch sem breaking changes e adição de headers de segurança em falta.
+- **`code-quality/SKILL.md`**, **`infra-audit/SKILL.md`**, **`performance-audit/SKILL.md`**, **`ux-audit/SKILL.md`** — todas referenciam `shared/safe-apply.md` na sua secção "Correcções" e listam explicitamente os tipos de mutação que passam pelo Gate 3 (apagar imports/dead-code, editar `Dockerfile`/`*.tf`/playbooks, optimizações que mudam comportamento observável, copy/idioma/visual). Resposta default em prompts de correcção: `n`.
+- **`scripts/validate.sh`** — nova secção que falha o build se qualquer `SKILL.md` ou `commands/*.md` tem no `description:` do frontmatter um anti-padrão de auto-fix (`sem perguntar|corrige TODOS|auto-?fix de tudo|automaticamente sem|without asking|without confirmation`). Previne a regressão que originou o incidente.
+- **`devkit/CLAUDE.md`** — nova secção "Safety convention" para futuros contribuidores: documenta a regra read-only-por-defeito, a obrigação de referenciar `shared/safe-apply.md` em qualquer skill mutante, o check do validate.sh e a integração com o `wire-base` PreToolUse audit-guard.
+- **`plugin.json` description** e **`marketplace.json` entry** comunicam agora "read-only por defeito" e a relação com o `wire-base` audit-guard.
+
+### Depends on
+
+- **`wire-base@jump2new ≥ 0.2.1`** (recomendado, não obrigatório) — para ganhar o PreToolUse audit-guard como segunda linha de defesa. Sem ele, a disciplina é só contractual (skills); com ele, é também enforced (hook bloqueia em runtime).
+
+## [0.2.1] — 2026-05-15
+
+### Fixed
+
+- **`full-audit` deixa de auto-corrigir por defeito.** A description e o command anterior prometiam "fora do modo CI, corrige TODOS os issues automaticamente sem perguntar" — contrato perigoso que autorizava sub-agentes a apagar ficheiros, remover initializers/middleware e mexer em `.gitignore`/`filter_parameter_logging.rb` mesmo em ambientes de dev/empty-shell. Incidente real: auditoria num dev shell removeu código intencionalmente "morto" (activado on-demand em dev).
+  - Novo default: **report-only**. Sem `--apply`, a skill gera só o relatório consolidado e nada toca em ficheiros.
+  - Correcção opt-in via `--apply` (flag no command, parâmetro `apply` na skill). Mesmo com `apply`:
+    - Cada sub-audit respeita os seus próprios safeguards (ex.: `security-scan` continua a exigir `--auto-fix-safe`).
+    - Acções destrutivas (apagar/mover ficheiros, mexer em `.env`/secrets, remover initializer/middleware, alterar `.gitignore`) pedem confirmação humana individual — não são auto-classificáveis como "low-risk".
+    - Em `WIRE_OPERATING_MODE=dev` ou em projectos marcados como sample/empty-shell (CLAUDE.md sinaliza ou `.dev-shell`/`SAMPLE.md` na raiz), `apply` degrada para report-only com aviso.
+  - `--ci` continua a não corrigir nada e passa a ser explicitamente incompatível com `--apply`.
+- **Description da skill `full-audit`** reescrita para reflectir o contrato real (read-only por defeito, apply opt-in) — o description é o que sub-agentes lêem antes de qualquer outra coisa, por isso a promessa tinha de ser corrigida na fonte e não só na metodologia.
+- **Phase 2 (recolha) agora é estritamente read-only.** O orquestrador é instruído a prefixar cada Agent dispatch com "Modo de recolha pura — não aplicar correcções, não perguntar 'queres que corrija?'". Garante que sub-agentes que lêem a sua própria SKILL.md (ex.: `code-quality`) não decidem aplicar fixes "low-risk" durante a recolha — a correcção fica concentrada na Fase 4 e só com `--apply`.
+
+### Notes
+
+- As outras 5 skills (`security-scan`, `code-quality`, `infra-audit`, `performance-audit`, `ux-audit`) já eram read-only por defeito — ficam intactas.
+- Migração para utilizadores: quem corria `/full-audit` à espera de auto-fix tem agora de adicionar `--apply` explicitamente. Recomendado fazer dry-run primeiro (sem flag) para confirmar o que seria aplicado.
+
 ## [0.2.0] — 2026-05-15
 
 ### Added

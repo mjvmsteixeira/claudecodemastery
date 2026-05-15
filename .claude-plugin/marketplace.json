@@ -19,7 +19,7 @@
     {
       "name": "wire-devkit",
       "source": "./devkit",
-      "description": "Toolkit de auditoria de developer — full-audit, security-scan, infra-audit, ux-audit, code-quality, performance-audit, agente local-reviewer e ngrok-expose. Dependência soft do wire-base."
+      "description": "Toolkit de auditoria de developer — full-audit, security-scan, infra-audit, ux-audit, code-quality, performance-audit, agente local-reviewer e ngrok-expose. **Read-only por defeito**: relatórios não tocam em ficheiros; correcção é opt-in via `--apply` com gates de modo, sample-detection e confirmação humana para acções destrutivas. Dependência soft do wire-base (também recomendado para ganhar o PreToolUse audit-guard de defense-in-depth)."
     }
   ]
 }

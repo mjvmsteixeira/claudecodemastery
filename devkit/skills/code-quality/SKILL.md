@@ -57,7 +57,14 @@ o command original não o fazia.)
 
 ### 6. Correcções
 
-Fora de `ci`: depois do relatório, perguntar quais findings corrigir. Em `ci`: nunca corrigir.
+**Antes de aplicar qualquer correcção, executar os gates de
+`${CLAUDE_PLUGIN_ROOT}/shared/safe-apply.md`** (modo, sample-detection, acções
+destrutivas).
+
+Fora de `ci`: depois do relatório, perguntar quais findings corrigir. Apagar/mover
+ficheiros, remover imports/funções marcadas como dead-code, ou mexer em
+`config/initializers/`/`spec/`/`test/` exigem confirmação humana individual com diff
+(Gate 3) — não são auto-aplicáveis em batch. Em `ci`: nunca corrigir.
 
 ## Fronteira com outras skills
 

@@ -68,8 +68,15 @@ As dimensões são os scopes avaliados.
 
 ### 6. Correcções
 
-- `auto-fix-safe`: aplicar só fixes não-disruptivos (sem breaking changes) — updates de
-  patch, headers em falta, `.gitignore` entries. Mostrar o diff de cada correcção.
+**Antes de aplicar qualquer correcção, executar os gates de
+`${CLAUDE_PLUGIN_ROOT}/shared/safe-apply.md`** (modo, sample-detection,
+acções destrutivas).
+
+- `auto-fix-safe`: aplicar só fixes **não-disruptivos e não-destrutivos** — updates de
+  patch sem breaking changes e adição de headers de segurança em falta. Mostrar o diff
+  de cada correcção. **Excluído de auto-fix-safe** (mesmo sendo "pequeno"): editar
+  `.gitignore`, `.gitattributes`, `.env*`, `filter_parameter_logging.rb`, e qualquer
+  ficheiro coberto pelo Gate 3 — estes passam pelo prompt de confirmação individual.
 - Sem `auto-fix-safe` e fora de `ci`: depois do relatório, perguntar
-  "Queres que corrija os CRITICAL e HIGH? [s/n/seleccionar]".
+  "Queres que corrija os CRITICAL e HIGH? [s/n/seleccionar]". Resposta default: `n`.
 - Em `ci`: nunca corrigir.

@@ -63,4 +63,10 @@ As dimensões são os scopes avaliados.
 
 ### 6. Correcções
 
-Fora de `ci`: depois do relatório, perguntar quais findings corrigir. Em `ci`: nunca corrigir.
+**Antes de aplicar qualquer correcção, executar os gates de
+`${CLAUDE_PLUGIN_ROOT}/shared/safe-apply.md`** (modo, sample-detection, acções
+destrutivas).
+
+Fora de `ci`: depois do relatório, perguntar quais findings corrigir. Editar
+`Dockerfile`/`docker-compose*.yml`/`*.tf`/playbooks Ansible/`Jenkinsfile`/workflows
+CI exige confirmação humana individual com diff (Gate 3). Em `ci`: nunca corrigir.

@@ -62,7 +62,11 @@ Para `design-system`, reportar adicionalmente a % de compliance (violations / co
 
 ### 6. Correcções
 
+**Antes de aplicar qualquer correcção, executar os gates de
+`${CLAUDE_PLUGIN_ROOT}/shared/safe-apply.md`** (modo, sample-detection, acções
+destrutivas).
+
 Fora de `ci`: depois do relatório, perguntar "Queres que corrija os CRITICAL e HIGH?
-[s/n/seleccionar]". Correcções autónomas seguras: `aria-label`, `htmlFor`, headers
-semânticos, `alt=""`. Alterações de copy/idioma e mudanças visuais exigem aprovação.
-Em `ci`: nunca corrigir.
+[s/n/seleccionar]" (default: `n`). Correcções autónomas seguras (não cobertas pelo Gate
+3): `aria-label`, `htmlFor`, headers semânticos, `alt=""`. Alterações de copy/idioma e
+mudanças visuais exigem aprovação. Em `ci`: nunca corrigir.

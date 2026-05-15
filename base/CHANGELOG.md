@@ -2,6 +2,17 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] — 2026-05-15
+
+### Added
+
+- **`hooks/pre-tool-audit-guard.sh`** — PreToolUse hook que dá defense-in-depth ao `wire-devkit`. Activa-se quando `~/.wire/audit-active` existe ou `WIRE_AUDIT_ACTIVE=1` está definida (skill marca o início da Fase 4 com apply); bloqueia tools `Bash|Write|Edit|MultiEdit|NotebookEdit` se o tool input é destrutivo (`rm` fora de `/tmp`, `git rm`, SQL `DROP/ALTER/TRUNCATE/DELETE`, Edit/Write a `.gitignore`/`.env*`/`config/initializers/`/`spec/`/`test/`/`.github/workflows`/`filter_parameter_logging.rb`/`backtrace_silencers.rb`) a menos que `WIRE_AUDIT_APPLY=1` esteja exportada (skill aprovou explicitamente após gates). Em prod fail-closed (exit 2), em dev warn-only via `wire_fail_or_warn`. Registado em `hooks.json` com matcher conjunto. Silencioso fora de contexto de audit — não interfere com qualquer outro uso de Claude Code.
+
+### Notes
+
+- Este hook torna efectiva a política `shared/safe-apply.md` do `wire-devkit` mesmo se o agente decidir ignorar a metodologia da skill — a defesa é dupla: contractual (skill) + enforcement (hook).
+- Sem `wire-devkit` instalado o hook é no-op (marker file e env nunca aparecem).
+
 ## [0.2.0] — 2026-05-15
 
 Iteração focada em **upgrade story**, **smoke tests** e **vault policy templating**. Sem breaking changes.
