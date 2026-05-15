@@ -15,6 +15,7 @@
 !secops/
 !devkit/
 !scripts/
+!.github/
 
 # 3. Detritos ignorados em qualquer subpasta
 **/.DS_Store

@@ -29,14 +29,25 @@ Marketplace privado **jump2new** com o ecossistema de plugins **Wire** para Clau
 │   ├── hooks/    (4 pre + 1 post + 1 stop)
 │   ├── skills/   (6 skills wire-*)
 │   ├── CLAUDE.md
-│   ├── vault-policies.hcl
-│   └── package.sh
-└── devkit/                        ← plugin wire-devkit v0.1.0
-    ├── .claude-plugin/plugin.json
-    ├── commands/ (7 wrappers finos)
-    ├── skills/   (8 skills: 6 audits + local-reviewer + ngrok-expose)
-    ├── agents/   (local-reviewer)
-    └── shared/   (scoring, ci-mode, report-format)
+│   └── vault-policies.hcl
+├── devkit/                        ← plugin wire-devkit v0.1.0
+│   ├── .claude-plugin/plugin.json
+│   ├── commands/ (7 wrappers finos)
+│   ├── skills/   (8 skills: 6 audits + local-reviewer + ngrok-expose)
+│   ├── agents/   (local-reviewer)
+│   └── shared/   (scoring, ci-mode, report-format)
+└── scripts/
+    ├── validate.sh                ← checks estáticos (JSON, frontmatter, shellcheck)
+    └── package.sh                 ← empacotador unificado dos 3 plugins
+```
+
+## Desenvolvimento
+
+```bash
+./scripts/validate.sh                  # validar tudo antes de tagar/publicar
+./scripts/package.sh                   # empacotar os 3 em /tmp/*.plugin
+./scripts/package.sh base              # só wire-base
+./scripts/package.sh --out ./dist      # outdir alternativo
 ```
 
 ## Instalar no Claude Code

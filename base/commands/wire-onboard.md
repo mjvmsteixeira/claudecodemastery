@@ -119,6 +119,21 @@ CHANGELOGs:
   ~/.claude/plugins/cache/*/wire-devkit/*/CHANGELOG.md
 ```
 
+## Passo 6 — Health check final (closes the loop)
+
+Se **todos os plugins recomendados** detectados no Passo 1 estiverem instalados (3/3 ou os 2 hard-required: base + secops), sugerir corrida imediata do `/wire-doctor` para fechar o ciclo com diagnóstico real:
+
+```
+Próximo · sanity check completo do setup:
+  /wire-doctor
+
+Read-only · orquestra mempalace-doctor + claude-deep-audit + /vault-audit
++ /wire-vault-doctor (se secops instalado) em paralelo, consolida num
+relatório único.
+```
+
+Se houver gaps (X/3 < 2), saltar este passo — fazer o doctor antes de ter o ecossistema mínimo só gera ruído.
+
 ## Notas
 
 - Idempotente — re-correr não reinstala nada, apenas reporta o estado actual.
