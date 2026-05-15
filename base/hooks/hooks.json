@@ -1,0 +1,17 @@
+{
+  "description": "Auto-unseal the local Vault at session start and inject available-credentials context.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/vault-session-check.sh",
+            "timeout": 8,
+            "statusMessage": "Vault check..."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "$schema": "https://docs.anthropic.com/en/claude/code/hooks.schema.json",
+  "description": "Hooks Wiremaze SecOps — gate de aprovação humana, redacção PII, second-opinion via Ollama local, emissão CEF para Wazuh, revogação Vault.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-vault-ttl.sh",
+            "timeout_ms": 5000
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-pii-redact.sh",
+            "timeout_ms": 3000
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-approval-gate.sh",
+            "timeout_ms": 60000
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-second-opinion.sh",
+            "timeout_ms": 20000
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-pii-redact.sh",
+            "timeout_ms": 3000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/post-tool-cef-wazuh.sh",
+            "timeout_ms": 5000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/post-tool-vault-revoke.sh",
+            "timeout_ms": 5000
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+# ============================================================
+# WHITELIST MODE — só o marketplace e os três plugins Wiremaze.
+# Tudo o resto fica IGNORADO por defeito.
+# ============================================================
+
+# 1. Ignora absolutamente tudo
+/*
+
+# 2. Whitelist apenas estes paths
+!.gitignore
+!README.md
+!LICENSE
+!.claude-plugin/
+!base/
+!secops/
+!devkit/
+
+# 3. Detritos ignorados em qualquer subpasta
+**/.DS_Store
+**/__MACOSX
+**/*.log
+**/*.bak
+**/*~
+**/*.plugin
+secops/.orphaned_at

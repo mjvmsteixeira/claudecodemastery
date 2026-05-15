@@ -1,0 +1,25 @@
+{
+  "name": "jump2new",
+  "owner": {
+    "name": "jump2new",
+    "email": "geral@jump2new.pt"
+  },
+  "description": "Marketplace privado jump2new — ecossistema de plugins Wiremaze para Claude Code: wiremaze-base (foundacional), wiremaze-secops (SecOps SaaS eGovernment) e wiremaze-devkit (toolkit de auditoria de developer).",
+  "plugins": [
+    {
+      "name": "wiremaze-base",
+      "source": "./base",
+      "description": "Plugin foundacional — vault-toolkit, skills mempalace-doctor e claude-deep-audit, helpers bash partilhados e hook SessionStart de auto-unseal. Instalar primeiro."
+    },
+    {
+      "name": "wiremaze-secops",
+      "source": "./secops",
+      "description": "Plugin SecOps Wiremaze — Vault, Wazuh, Fortigate, Zabbix, RoR multi-tenant. Assume wiremaze-base instalado."
+    },
+    {
+      "name": "wiremaze-devkit",
+      "source": "./devkit",
+      "description": "Toolkit de auditoria de developer — full-audit, security-scan, infra-audit, ux-audit, code-quality, performance-audit, agente local-reviewer e ngrok-expose. Dependência soft do wiremaze-base."
+    }
+  ]
+}
