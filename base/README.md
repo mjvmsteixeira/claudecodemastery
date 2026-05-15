@@ -20,6 +20,9 @@ Plugin foundacional. Três skills/toolkits que assentam em convenções partilha
 | **claude-deep-audit** | skill | Auditoria profunda Claude Code via 10 sub-agentes paralelos (CLAUDE.md, settings, skills, hooks, MCPs, memory, plugins, x-refs) |
 | **vault-toolkit** | 5 commands + skill + hook | `/vault-list`, `/vault-set`, `/vault-audit`, `/vault-backup`, `/vault-integrate` · skill thin que roteia intenções "segredos"→command · auto-unseal no SessionStart |
 | **wire-onboard** | command + skill | `/wire-onboard` · setup wizard end-to-end do ecossistema Wire (base/secops/devkit) · detecta gaps, emite linhas de install, sugere smoke tests · idempotente |
+| **wire-doctor** | command + skill | `/wire-doctor` · meta-doctor read-only · orquestra mempalace-doctor + claude-deep-audit + /vault-audit + /wire-vault-doctor em paralelo, consolida num relatório de saúde do setup local |
+| **wire-mode** | command + skill | `/wire-mode [prod\|dev\|lab\|status]` · lê/escreve `~/.wire/mode` e gere marker `~/.wire/lab-mode` · controla fail-closed vs warn-only vs bypass nos hooks downstream |
+| **wire-context-pack** | command + skill | `/wire-context-pack <ir\|release\|audit\|all>` · cheat-sheet curado cross-plugin para primar sessões IR / release / audit · lista skills, commands, Vault paths, AppRoles, logs, one-liners |
 | **lib/wire-common.sh** | bash lib | `wire_mode`, `wire_scope`, `wire_log`, `wire_backup` — source-able por outros plugins |
 | **lib/vault-env.sh** | bash lib | `V` (native/docker abstraction), `vault_ready`, `vault_unseal`, `vault_container_up`, `vault_arrange_up` |
 
@@ -32,6 +35,9 @@ Os três domínios são **independentes** mas **conscientes uns dos outros** —
 | Sintoma do utilizador | Skill / Command que dispara |
 |-----------------------|------------------------------|
 | "setup wire", "instalar plugins wire", "estou novo no wire" | `/wire-onboard` |
+| "saúde do setup", "doutor wire", "diagnóstico geral" | `/wire-doctor` |
+| "muda para dev", "modo prod", "wire mode" | `/wire-mode` |
+| "prepara contexto IR / release / audit", "cheat-sheet" | `/wire-context-pack <scope>` |
 | "audita o meu CLAUDE.md", "deep audit", "review my config" | `claude-deep-audit` |
 | "diagnóstico mempalace", "saúde do palace", "repair drawers" | `mempalace-doctor` |
 | "que segredos tem este projecto?" | `/vault-list` |
@@ -131,16 +137,25 @@ base/
 │   ├── vault-backup.md                # /vault-backup
 │   ├── vault-integrate.md             # /vault-integrate
 │   ├── vault-list.md                  # /vault-list
-│   └── vault-set.md                   # /vault-set
+│   ├── vault-set.md                   # /vault-set
+│   ├── wire-onboard.md                # /wire-onboard
+│   ├── wire-doctor.md                 # /wire-doctor
+│   ├── wire-mode.md                   # /wire-mode [prod|dev|lab|status]
+│   └── wire-context-pack.md           # /wire-context-pack <ir|release|audit|all>
 └── skills/
     ├── mempalace-doctor/
     │   ├── SKILL.md
     │   └── references/
     │       └── etapas.md              # detalhe operacional dos 7 passos
-    └── claude-deep-audit/
-        ├── SKILL.md
-        └── references/
-            └── subagent-briefings.md  # briefings dos 10 sub-agentes paralelos
+    ├── claude-deep-audit/
+    │   ├── SKILL.md
+    │   └── references/
+    │       └── subagent-briefings.md  # briefings dos 10 sub-agentes paralelos
+    ├── vault-toolkit/SKILL.md
+    ├── wire-onboard/SKILL.md
+    ├── wire-doctor/SKILL.md
+    ├── wire-mode/SKILL.md
+    └── wire-context-pack/SKILL.md
 ```
 
 ---
@@ -213,10 +228,10 @@ ls ~/.claude/plugins/wire-base/           # estrutura completa
 
 ## Roadmap
 
-- **`wire-doctor`** · meta-doctor que orquestra mempalace-doctor + claude-deep-audit + /vault-audit + /wire-vault-doctor numa única corrida
-- **`wire-mode`** · slash command interactivo para mudar `WIRE_OPERATING_MODE` com marker file
+- ~~`wire-doctor` · meta-doctor que orquestra mempalace-doctor + claude-deep-audit + /vault-audit + /wire-vault-doctor numa única corrida~~ — **feito em v0.1.0**
+- ~~`wire-mode` · slash command interactivo para mudar `WIRE_OPERATING_MODE` com marker file~~ — **feito em v0.1.0**
 - ~~`wire-onboard` · setup wizard end-to-end~~ — **feito em v0.1.0**: `/wire-onboard` + skill thin detectam plugins na cache, guiam instalação dos gaps e sugerem smoke tests
-- **`wire-context-pack`** · prepara contexto cross-plugin para sessões IR / release / audit
+- ~~`wire-context-pack` · prepara contexto cross-plugin para sessões IR / release / audit~~ — **feito em v0.1.0**: cheat-sheet por scope (`ir | release | audit | all`), marca itens de plugins em falta
 - ~~Integração com `wire-secops` · refactor de `pre-tool-vault-ttl.sh` para usar `wire_fail_or_warn` (mode-aware)~~ — **feito em v0.1.0**: os 6 hooks do secops sourceiam `wire-common.sh` via shim `_lib.sh` com fallback stubs
 
 ---

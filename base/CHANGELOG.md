@@ -12,6 +12,9 @@ Versão inicial do plugin no marketplace `jump2new`.
 - **Skill `claude-deep-audit`** — auditoria profunda de uma instalação Claude Code via 10 sub-agentes paralelos (CLAUDE.md, settings, skills, hooks, MCPs, memory, plugins, x-refs).
 - **Skill `vault-toolkit`** — trigger fino que roteia intenções "segredos / Vault" para os 5 commands `/vault-*`.
 - **Command + skill `wire-onboard`** — setup wizard do ecossistema: detecta plugins instalados (base/secops/devkit), emite linhas `/plugin install` para gaps e sugere smoke tests por plugin. Idempotente.
+- **Command + skill `wire-doctor`** — meta-doctor read-only. Orquestra `mempalace-doctor`, `claude-deep-audit`, `/vault-audit` e (se `wire-secops` instalado) `/wire-vault-doctor` em paralelo; consolida num relatório único com status por componente e top acções priorizadas.
+- **Command + skill `wire-mode`** — interface slash para o `WIRE_OPERATING_MODE`. Lê/escreve `~/.wire/mode` e gere o marker `~/.wire/lab-mode` (obrigatório para activar `lab`). Suporta `prod | dev | lab | status`.
+- **Command + skill `wire-context-pack`** — cheat-sheet curado por scope (`ir | release | audit | all`) com skills, commands, agents, paths Vault, AppRoles, logs e one-liners relevantes. Não corre live data — é mapa. Marca itens de plugins não instalados com `(plugin em falta)`.
 - **Commands** `/vault-list`, `/vault-set`, `/vault-audit`, `/vault-backup`, `/vault-integrate`.
 - **Hook SessionStart** `vault-session-check.sh` — auto-unseal opcional do Vault local (lê `~/vault/vault-init.json`) e injecta nota de contexto.
 - **Lib partilhada** `lib/vault-env.sh` — `V()` (native/docker abstraction), `vault_ready`, `vault_unseal`, `vault_container_up`, `vault_arrange_up`. Source-able por outros plugins.
