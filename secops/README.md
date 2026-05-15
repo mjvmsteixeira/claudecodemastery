@@ -2,7 +2,7 @@
 
 Plugin Claude Code · SecOps com Agentes IA especializado para a **Wiremaze** enquanto fornecedora SaaS de eGovernment local (170+ autarquias portuguesas).
 
-**Versão:** 0.2.1 · **Data:** 2026-05-13 · **Autor:** jump2new · geral@jump2new.pt
+**Versão:** 0.1.0 · **Data:** 2026-05-15 · **Autor:** jump2new · geral@jump2new.pt
 
 ---
 

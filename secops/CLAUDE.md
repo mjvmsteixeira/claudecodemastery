@@ -49,7 +49,7 @@ Policies HCL completas em `vault-policies.hcl`. Versionado em git, code review o
 
 ### Hooks que dependem de Vault
 
-- `pre-tool-vault-ttl.sh` — **allowlist-based** (v0.2.1+). Diagnósticos (`vault status`, `vault token lookup`, `wiremaze-*-doctor`, endpoints públicos `sys/health`/`sys/seal-status`, comandos read-only de sistema) **passam sem token**. Tudo o resto exige `VAULT_TOKEN` válido com TTL ≥ 60s (fail-closed).
+- `pre-tool-vault-ttl.sh` — **allowlist-based**. Diagnósticos (`vault status`, `vault token lookup`, `wiremaze-*-doctor`, endpoints públicos `sys/health`/`sys/seal-status`, comandos read-only de sistema) **passam sem token**. Tudo o resto exige `VAULT_TOKEN` válido com TTL ≥ 60s (fail-closed).
 - `post-tool-vault-revoke.sh` — revoga token no fim da sessão; limpa keys efémeras em tmpfs
 - `pre-tool-second-opinion.sh` — em ops destrutivas, valida com Ollama qwen3-coder local
 

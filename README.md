@@ -1,4 +1,4 @@
-# jump2new · marketplace Wiremaze
+# jump2new · marketplace
 
 Marketplace privado **jump2new** com o ecossistema de plugins **Wiremaze** para Claude Code.
 
@@ -6,8 +6,8 @@ Marketplace privado **jump2new** com o ecossistema de plugins **Wiremaze** para 
 
 | Plugin | Versão | Domínio |
 |--------|--------|---------|
-| **wiremaze-base** | 0.2.0 | Foundacional — `vault-toolkit` (5 commands `/vault-*` + hook SessionStart auto-unseal), skills `mempalace-doctor` e `claude-deep-audit`, helpers bash partilhados (`lib/wmz-common.sh`, `lib/vault-env.sh`). **Instalar primeiro.** |
-| **wiremaze-secops** | 0.2.1 | SecOps com Agentes IA para a Wiremaze enquanto fornecedora SaaS de eGovernment local (170+ autarquias). 6 agents, 9 commands `/wiremaze-*`, 6 skills, cadeia de hooks PreToolUse/PostToolUse/Stop. Assume `wiremaze-base` instalado. |
+| **wiremaze-base** | 0.1.0 | Foundacional — `vault-toolkit` (5 commands `/vault-*` + hook SessionStart auto-unseal), skills `mempalace-doctor` e `claude-deep-audit`, helpers bash partilhados (`lib/wmz-common.sh`, `lib/vault-env.sh`). **Instalar primeiro.** |
+| **wiremaze-secops** | 0.1.0 | SecOps com Agentes IA para a Wiremaze enquanto fornecedora SaaS de eGovernment local (170+ autarquias). 6 agents, 9 commands `/wiremaze-*`, 6 skills, cadeia de hooks PreToolUse/PostToolUse/Stop. Assume `wiremaze-base` instalado. |
 | **wiremaze-devkit** | 0.1.0 | Toolkit de auditoria de developer — `full-audit`, `security-scan`, `infra-audit`, `ux-audit`, `code-quality`, `performance-audit`, agente `local-reviewer` e `ngrok-expose`. Commands explícitos + skills que auto-disparam. Dependência soft do `wiremaze-base`. |
 
 ## Estrutura
@@ -16,13 +16,13 @@ Marketplace privado **jump2new** com o ecossistema de plugins **Wiremaze** para 
 .
 ├── .claude-plugin/
 │   └── marketplace.json          ← declaração do marketplace 'jump2new'
-├── base/                         ← plugin wiremaze-base v0.2.0
+├── base/                         ← plugin wiremaze-base v0.1.0
 │   ├── .claude-plugin/plugin.json
 │   ├── lib/      (wmz-common.sh, vault-env.sh)
 │   ├── hooks/    (SessionStart → vault-session-check.sh)
 │   ├── commands/ (5 commands /vault-*)
 │   └── skills/   (mempalace-doctor, claude-deep-audit)
-├── secops/                       ← plugin wiremaze-secops v0.2.1
+├── secops/                       ← plugin wiremaze-secops v0.1.0
 │   ├── .claude-plugin/plugin.json
 │   ├── agents/   (6 agents wiremaze-*-01)
 │   ├── commands/ (9 commands /wiremaze-*)
@@ -53,7 +53,7 @@ Ordem importa: `wiremaze-base` primeiro — fornece convenções e helpers que o
 ## Verificar
 
 ```
-/plugin list      # wiremaze-base · 0.2.0 · user  +  wiremaze-secops · 0.2.1 · user  +  wiremaze-devkit · 0.1.0 · user
+/plugin list      # wiremaze-base · 0.1.0 · user  +  wiremaze-secops · 0.1.0 · user  +  wiremaze-devkit · 0.1.0 · user
 /agents           # 6 agents wiremaze-*-01
 ```
 

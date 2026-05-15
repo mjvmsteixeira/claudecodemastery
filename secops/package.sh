@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wiremaze SecOps · empacotamento do plugin (v0.2.1)
+# Wiremaze SecOps · empacotamento do plugin (v0.1.0)
 # Executa este script na máquina do Marco (jump2new) para gerar o .plugin instalável.
 set -euo pipefail
 

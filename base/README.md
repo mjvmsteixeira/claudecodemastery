@@ -1,6 +1,6 @@
 # wiremaze-base
 
-Plugin-base do ecossistema Wiremaze para Claude Code · v0.2.0
+Plugin-base do ecossistema Wiremaze para Claude Code · v0.1.0
 
 ---
 
@@ -192,7 +192,7 @@ zip -r /tmp/wiremaze-base.plugin . -x "*.DS_Store" "*.bak.*"
 mkdir -p ~/.wmz && echo dev > ~/.wmz/mode    # ou: prod
 
 # 3 · Sanity check
-/plugin list                                  # verificar wiremaze-base v0.2.0
+/plugin list                                  # verificar wiremaze-base v0.1.0
 ls ~/.claude/plugins/wiremaze-base/           # estrutura completa
 
 # 5 · Primeiros usos
