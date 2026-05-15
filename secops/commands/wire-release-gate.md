@@ -1,4 +1,5 @@
 ---
+name: wire-release-gate
 description: Release gate Wire — aplica CTRL-W-R-001..018 a um release e produz decisão GO / GO_COM_CONDICOES / NO-GO com plano de canary.
 argument-hint: <release-id-ou-tag>
 ---

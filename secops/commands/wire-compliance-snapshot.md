@@ -1,4 +1,5 @@
 ---
+name: wire-compliance-snapshot
 description: Snapshot trimestral de conformidade Wire cross-framework (NIS2, RGPD, ISO 27001/27017/27018, ENS, AI Act). KPIs, lacunas, próximas auditorias.
 ---
 

@@ -1,4 +1,5 @@
 ---
+name: wire-ollama-doctor
 description: Diagnóstico do Ollama local — verifica daemon, modelo qwen3-coder, latência de inferência, e compatibilidade com o hook pre-tool-second-opinion. Reporta verde/amarelo/vermelho com acções concretas.
 ---
 

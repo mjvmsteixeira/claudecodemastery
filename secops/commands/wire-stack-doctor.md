@@ -1,4 +1,5 @@
 ---
+name: wire-stack-doctor
 description: Diagnóstico orquestrado de TODA a stack que o plugin depende — Vault, Wazuh, Fortigate, Zabbix, Ollama. Agrega verdictos individuais num único painel GREEN/YELLOW/RED.
 ---
 

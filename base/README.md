@@ -188,6 +188,20 @@ Os hooks dos dois plugins têm **lifecycle complementar**, não conflitam:
 
 ---
 
+## Validação estática
+
+Antes de tagar uma release ou de empacotar, correr o validador na raiz do repo:
+
+```bash
+./scripts/validate.sh                  # corre tudo (com shellcheck se instalado)
+./scripts/validate.sh --skip-shellcheck # sem shellcheck
+./scripts/validate.sh --plugin base    # limita a um plugin
+```
+
+Verifica: JSON dos manifestos, hooks executáveis, hooks.json sem referências mortas, frontmatter (`name`+`description`) em skills/commands/agents, e (opcional) shellcheck sobre `hooks/*.sh` e `lib/*.sh`.
+
+---
+
 ## Princípios
 
 1. **Audit primeiro, mostra, pergunta, age.** Cada skill é read-only por defeito; auto-fix exige confirmação explícita por mensagem.

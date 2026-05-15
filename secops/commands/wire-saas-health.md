@@ -1,4 +1,5 @@
 ---
+name: wire-saas-health
 description: Painel ASCII de saúde da plataforma Wire por produto wire*, com SLA 24h, p95, error rate, alertas P1, correlação Wazuh ↔ Fortigate, estado da monitorização Zabbix.
 ---
 

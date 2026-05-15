@@ -1,4 +1,5 @@
 ---
+name: wire-tenant-audit
 description: Audita o isolamento multi-tenant de um cliente Wire específico. Aplica CTRL-W-T-001..016 e produz relatório formal.
 argument-hint: <nome-municipio-ou-tenant-uuid>
 ---

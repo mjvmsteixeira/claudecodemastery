@@ -53,13 +53,13 @@ Vault — paths e AppRole:
   · Transit: transit/encrypt/forensics · transit/decrypt/forensics
 
 Logs e telemetria:
-  · CEF local: /var/log/wiremaze-secops-cef.log
+  · CEF local: /var/log/wire-secops-cef.log
   · SIEM: Wazuh manager (recebe audit Vault, syslog Fortigate, lograge Rails)
   · Perímetro: Fortigate syslog (anti-DDoS, IPS, WAF)
   · Monitorização activa: Zabbix (agentes, triggers, templates)
 
 One-liners úteis:
-  tail -f /var/log/wiremaze-secops-cef.log | grep -i incident
+  tail -f /var/log/wire-secops-cef.log | grep -i incident
   vault token lookup -format=json | jq '.data.{policies,ttl,expire_time}'
   vault list ssh/roles/wire-ir-role
 

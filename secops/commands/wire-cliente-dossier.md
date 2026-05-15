@@ -1,4 +1,5 @@
 ---
+name: wire-cliente-dossier
 description: Gera dossier consolidado de segurança e operação por município cliente — produtos activos, SLA realizado, incidentes 12m, DPIA, configurações específicas, riscos.
 argument-hint: <nome-municipio>
 ---

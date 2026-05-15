@@ -1,4 +1,5 @@
 ---
+name: wire-incident-spread
 description: Analisa propagação de incidente entre municípios clientes Wire, identifica blast radius, prepara comunicação coordenada.
 argument-hint: <incident-id>
 ---

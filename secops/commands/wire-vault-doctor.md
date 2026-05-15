@@ -1,4 +1,5 @@
 ---
+name: wire-vault-doctor
 description: Diagnóstico do Vault de PRODUÇÃO do SaaS Wire (vault.wire.internal) — endpoint, token TTL, seal status, HA Raft leader, audit device, AppRoles wire-*, backends transit/ssh/kv. Reporta verde/amarelo/vermelho com acções concretas. NÃO confundir com /vault-audit (que valida o Vault LOCAL de desenvolvimento do projecto).
 ---
 

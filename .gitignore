@@ -1,5 +1,5 @@
 # ============================================================
-# WHITELIST MODE — só o marketplace e os três plugins Wiremaze.
+# WHITELIST MODE — só o marketplace e os três plugins Wire (base, secops, devkit).
 # Tudo o resto fica IGNORADO por defeito.
 # ============================================================
 
@@ -14,6 +14,7 @@
 !base/
 !secops/
 !devkit/
+!scripts/
 
 # 3. Detritos ignorados em qualquer subpasta
 **/.DS_Store
