@@ -18,7 +18,8 @@ Plugin foundacional. Três skills/toolkits que assentam em convenções partilha
 |------------|------|---------|
 | **mempalace-doctor** | skill | Saúde do tool MemPalace (vector DB com drawers/HNSW/KG em `~/.mempalace/`) |
 | **claude-deep-audit** | skill | Auditoria profunda Claude Code via 10 sub-agentes paralelos (CLAUDE.md, settings, skills, hooks, MCPs, memory, plugins, x-refs) |
-| **vault-toolkit** | 5 commands + hook | `/vault-list`, `/vault-set`, `/vault-audit`, `/vault-backup`, `/vault-integrate` · auto-unseal no SessionStart |
+| **vault-toolkit** | 5 commands + skill + hook | `/vault-list`, `/vault-set`, `/vault-audit`, `/vault-backup`, `/vault-integrate` · skill thin que roteia intenções "segredos"→command · auto-unseal no SessionStart |
+| **wire-onboard** | command + skill | `/wire-onboard` · setup wizard end-to-end do ecossistema Wire (base/secops/devkit) · detecta gaps, emite linhas de install, sugere smoke tests · idempotente |
 | **lib/wire-common.sh** | bash lib | `wire_mode`, `wire_scope`, `wire_log`, `wire_backup` — source-able por outros plugins |
 | **lib/vault-env.sh** | bash lib | `V` (native/docker abstraction), `vault_ready`, `vault_unseal`, `vault_container_up`, `vault_arrange_up` |
 
@@ -30,6 +31,7 @@ Os três domínios são **independentes** mas **conscientes uns dos outros** —
 
 | Sintoma do utilizador | Skill / Command que dispara |
 |-----------------------|------------------------------|
+| "setup wire", "instalar plugins wire", "estou novo no wire" | `/wire-onboard` |
 | "audita o meu CLAUDE.md", "deep audit", "review my config" | `claude-deep-audit` |
 | "diagnóstico mempalace", "saúde do palace", "repair drawers" | `mempalace-doctor` |
 | "que segredos tem este projecto?" | `/vault-list` |
@@ -213,7 +215,7 @@ ls ~/.claude/plugins/wire-base/           # estrutura completa
 
 - **`wire-doctor`** · meta-doctor que orquestra mempalace-doctor + claude-deep-audit + /vault-audit + /wire-vault-doctor numa única corrida
 - **`wire-mode`** · slash command interactivo para mudar `WIRE_OPERATING_MODE` com marker file
-- **`wire-onboard`** · setup wizard end-to-end (instala base + secops + valida com smoke tests)
+- ~~`wire-onboard` · setup wizard end-to-end~~ — **feito em v0.1.0**: `/wire-onboard` + skill thin detectam plugins na cache, guiam instalação dos gaps e sugerem smoke tests
 - **`wire-context-pack`** · prepara contexto cross-plugin para sessões IR / release / audit
 - ~~Integração com `wire-secops` · refactor de `pre-tool-vault-ttl.sh` para usar `wire_fail_or_warn` (mode-aware)~~ — **feito em v0.1.0**: os 6 hooks do secops sourceiam `wire-common.sh` via shim `_lib.sh` com fallback stubs
 

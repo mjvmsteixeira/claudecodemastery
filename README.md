@@ -50,11 +50,14 @@ Marketplace privado **jump2new** com o ecossistema de plugins **Wire** para Clau
 
 Ordem importa: `wire-base` primeiro — fornece convenções e helpers que o `wire-secops` assume e que o `ngrok-expose` do `wire-devkit` usa. `wire-secops` e `wire-devkit` são independentes entre si.
 
+Depois do primeiro install, **`/wire-onboard`** (vive no `wire-base`) detecta o que ainda falta, emite as linhas de install dos plugins em falta e sugere smoke tests por plugin já instalado. Idempotente — pode correr múltiplas vezes.
+
 ## Verificar
 
 ```
 /plugin list      # wire-base · 0.1.0 · user  +  wire-secops · 0.1.0 · user  +  wire-devkit · 0.1.0 · user
 /agents           # 6 agents wire-*-01
+/wire-onboard     # sanity check do ecossistema + sugestões de smoke test
 ```
 
 ## Stack assumido (`wire-secops`)
