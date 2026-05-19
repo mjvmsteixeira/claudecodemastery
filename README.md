@@ -71,6 +71,19 @@ Depois do primeiro install, **`/wire-onboard`** (vive no `wire-base`) detecta o 
 /wire-onboard     # sanity check do ecossistema + sugestões de smoke test
 ```
 
+## Upgrade para v0.3.0 (a partir de v0.2.x) · OBRIGATÓRIO uninstall antes de install
+
+Claude Code não actualiza plugins in-place de forma fiável e o `wire-secops` v0.3.0 traz mudança no hook `pre-tool-vault-ttl.sh`. Cache antiga lado-a-lado da nova provoca comportamento inconsistente. Faz **sempre**:
+
+```
+/plugin uninstall wire-base@jump2new
+/plugin uninstall wire-secops@jump2new
+/plugin install wire-base@jump2new
+/plugin install wire-secops@jump2new
+```
+
+Recarrega a sessão Claude Code (nova janela ou Ctrl-D + abrir). `/plugin list` deve mostrar uma entrada de cada com `0.3.0`.
+
 ## Bootstrap do Vault (v0.3.0)
 
 Setup completo do Vault local em 3 comandos (provisiona audit, kv-v2, AppRoles, transit, ssh, Keychain). Documentado em detalhe nos READMEs de `base/` e `secops/`:

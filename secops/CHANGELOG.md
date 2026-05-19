@@ -4,6 +4,17 @@ Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento
 
 ## v0.3.0 — 2026-05-19
 
+### ⚠ Upgrade · OBRIGATÓRIO desinstalar a versão antiga antes de instalar v0.3.0
+
+O hook `pre-tool-vault-ttl.sh` ganhou patterns novos na allowlist. Se a cache do v0.2.x ficar lado-a-lado da v0.3.0, o hook antigo pode bloquear comandos que a v0.3.0 já allowlistou — comportamento inconsistente.
+
+```
+/plugin uninstall wire-secops@jump2new
+/plugin install wire-secops@jump2new
+```
+
+Recarrega a sessão Claude Code para o hook novo entrar em vigor. `/plugin list` deve mostrar `wire-secops · 0.3.0 · user` (uma entrada apenas).
+
 ### Adicionado
 
 - **`/wire-secops-bootstrap`** — provisiona conteúdo Wire-specific no Vault assumindo infra base já provisionada. Inclui: 7 policies wire-* via split do `vault-policies.hcl` shipado, 7 AppRoles com TTLs hardcoded (espelham comentários do HCL), `transit/keys/forensics`, `ssh/config/ca`, `ssh/roles/wire-srv-role` + `ssh/roles/wire-ir-role`. Popula macOS Keychain + `~/vault/approle-credentials.json` (chmod 600) por cada AppRole. Idempotente, `--plan` (default) / `--apply`. Marca rotações de secret-id como `⟳` no plano para confirmação explícita.

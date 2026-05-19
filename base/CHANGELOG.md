@@ -4,11 +4,24 @@ Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento
 
 ## v0.3.0 — 2026-05-19
 
+### ⚠ Upgrade · OBRIGATÓRIO desinstalar a versão antiga antes de instalar v0.3.0
+
+Claude Code não actualiza plugins in-place de forma fiável; cache da versão antiga pode coexistir com a nova e provocar comportamento inconsistente (commands antigos chamados, hook antigo activo). Faz **sempre**:
+
+```
+/plugin uninstall wire-base@jump2new
+/plugin install wire-base@jump2new
+```
+
+Depois recarrega a sessão (nova janela ou Ctrl-D + abrir) para os hooks novos entrarem em vigor.
+
+Verifica com `/plugin list` que aparece `wire-base · 0.3.0 · user` (e que **não** há entrada duplicada).
+
 ### Adicionado
 
 - **`/wire-vault-bootstrap`** — provisiona infra Vault genérica (audit device em `/vault/audit/audit.log`, kv-v2 em `secret/`, approle auth, transit engine, ssh engine). Idempotente. Padrão `--plan` (default) / `--apply`. Valida policy='root' antes de qualquer escrita (defesa em profundidade contra allowlist do hook secops). Refuse-and-redirect para `/wire-vault-kv-migrate` se detectar kv-v1 com dados.
 
-- **`/wire-vault-kv-migrate`** — migra `secret/` de kv-v1 para kv-v2. Destrutivo, fluxo em 3 etapas exclusivas: `--plan` (walker recursivo, conta paths+keys, não escreve), `--backup` (exporta para `~/vault/backups/kv-v1-<ts>.json` em JSONL com chmod 600, valida JSON), `--apply` (exige backup <24h, faz disable→re-enable v2→re-import, confirmação interactiva `migrate-now`).
+- **`/wire-vault-kv-migrate`** — migra `secret/` de kv-v1 para kv-v2. Destrutivo, fluxo em 3 etapas exclusivas: `--plan` (walker recursivo, conta paths+keys, não escreve), `--backup` (exporta para `~/vault/backups/kv-v1-<ts>.json` em JSONL com chmod 600, valida JSON), `--apply` (exige backup <24h, faz disable→re-enable v2→re-import, gate por env-var `WIRE_VAULT_MIGRATE_CONFIRM=migrate-now`).
 
 - `base/smoke.sh`: asserts dos 2 novos commands.
 
