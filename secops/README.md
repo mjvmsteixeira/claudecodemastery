@@ -2,7 +2,7 @@
 
 Plugin Claude Code · SecOps com Agentes IA especializado para a **Wire** enquanto fornecedora SaaS de eGovernment local (170+ autarquias portuguesas).
 
-**Versão:** 0.1.0 · **Data:** 2026-05-15 · **Autor:** jump2new · geral@jump2new.pt
+**Versão:** 0.3.0 · **Data:** 2026-05-19 · **Autor:** jump2new · geral@jump2new.pt
 
 ---
 
@@ -52,7 +52,8 @@ wire-secops/
 │   ├── wire-compliance-snapshot.md   # operação
 │   ├── wire-stack-doctor.md          # diagnóstico · global
 │   ├── wire-vault-doctor.md          # diagnóstico · Vault
-│   └── wire-ollama-doctor.md         # diagnóstico · Ollama
+│   ├── wire-ollama-doctor.md         # diagnóstico · Ollama
+│   └── wire-secops-bootstrap.md      # provisioning · 7 policies + 7 AppRoles + transit + ssh + Keychain (v0.3.0)
 ├── hooks/
 │   └── hooks.json                # Pre-tool e post-tool
 └── README.md
@@ -95,13 +96,18 @@ wire-secops/
 /plugin install wire-base@jump2new
 /plugin install wire-secops@jump2new
 
-# 3. Configurar AppRoles Vault (uma vez)
-vault write auth/approle/role/wire-monitor   token_ttl=30m token_max_ttl=1h
-vault write auth/approle/role/wire-ir        token_ttl=15m token_max_ttl=1h
-vault write auth/approle/role/wire-tenant    token_ttl=15m token_max_ttl=30m
-vault write auth/approle/role/wire-srv       token_ttl=15m token_max_ttl=30m
-vault write auth/approle/role/wire-deploy    token_ttl=15m token_max_ttl=30m
-vault write auth/approle/role/wire-compliance token_ttl=30m token_max_ttl=1h
+# 3. Bootstrap automático (v0.3.0+) — uma única corrida cria policies, AppRoles, transit, ssh CA, ssh roles, Keychain
+export VAULT_TOKEN=$(jq -r .root_token ~/vault/vault-init.json)
+/wire-vault-bootstrap --plan && /wire-vault-bootstrap --apply        # infra base (audit, kv-v2, approle, transit, ssh)
+/wire-secops-bootstrap --plan && /wire-secops-bootstrap --apply       # 7 policies + 7 AppRoles + transit/keys/forensics + ssh/config/ca + ssh roles + Keychain
+
+# 3b. (Alternativa pre-v0.3.0 · manual, em vias de ficar legacy)
+# vault write auth/approle/role/wire-monitor   token_ttl=30m token_max_ttl=1h
+# vault write auth/approle/role/wire-ir        token_ttl=15m token_max_ttl=1h
+# vault write auth/approle/role/wire-tenant    token_ttl=15m token_max_ttl=30m
+# vault write auth/approle/role/wire-srv       token_ttl=15m token_max_ttl=30m
+# vault write auth/approle/role/wire-deploy    token_ttl=15m token_max_ttl=30m
+# vault write auth/approle/role/wire-compliance token_ttl=30m token_max_ttl=1h
 ```
 
 ---
@@ -151,4 +157,4 @@ Cada skill tem o seu `SKILL.md` em `skills/<nome>/SKILL.md`.
 
 ---
 
-© 2026 jump2new · Uso interno · Versão 0.1.0
+© 2026 jump2new · Uso interno · Versão 0.3.0

@@ -6,8 +6,8 @@ Marketplace privado **jump2new** com o ecossistema de plugins **Wire** para Clau
 
 | Plugin | Versão | Domínio |
 |--------|--------|---------|
-| **wire-base** | 0.2.1 | Foundacional — `vault-toolkit` (5 commands `/vault-*` + hook SessionStart auto-unseal), skills `mempalace-doctor` e `claude-deep-audit`, helpers bash partilhados (`lib/wire-common.sh`, `lib/vault-env.sh`), hook PreToolUse `audit-guard` que dá defense-in-depth ao `wire-devkit`. **Instalar primeiro.** |
-| **wire-secops** | 0.2.0 | SecOps com Agentes IA para a Wire enquanto fornecedora SaaS de eGovernment local (170+ autarquias). 6 agents, 9 commands `/wire-*`, 6 skills, cadeia de hooks PreToolUse/PostToolUse/Stop. Assume `wire-base` instalado. |
+| **wire-base** | 0.3.0 | Foundacional — `vault-toolkit` (5 commands `/vault-*` + 2 bootstraps `/wire-vault-bootstrap` e `/wire-vault-kv-migrate` + hook SessionStart auto-unseal), skills `mempalace-doctor` e `claude-deep-audit`, helpers bash partilhados (`lib/wire-common.sh`, `lib/vault-env.sh`), hook PreToolUse `audit-guard` que dá defense-in-depth ao `wire-devkit`. **Instalar primeiro.** |
+| **wire-secops** | 0.3.0 | SecOps com Agentes IA para a Wire enquanto fornecedora SaaS de eGovernment local (170+ autarquias). 6 agents, 10 commands `/wire-*` (inclui `/wire-secops-bootstrap` para provisionar policies + AppRoles + Keychain numa só corrida), 6 skills, cadeia de hooks PreToolUse/PostToolUse/Stop. Assume `wire-base` instalado. |
 | **wire-devkit** | 0.2.2 | Toolkit de auditoria de developer — `full-audit`, `security-scan`, `infra-audit`, `ux-audit`, `code-quality`, `performance-audit`, agente `local-reviewer` e `ngrok-expose`. **Read-only por defeito**: relatórios não tocam em ficheiros; correcção é opt-in via `--apply`. Dependência soft do `wire-base`. |
 
 ## Estrutura
@@ -16,16 +16,16 @@ Marketplace privado **jump2new** com o ecossistema de plugins **Wire** para Clau
 .
 ├── .claude-plugin/
 │   └── marketplace.json          ← declaração do marketplace 'jump2new'
-├── base/                         ← plugin wire-base v0.2.1
+├── base/                         ← plugin wire-base v0.3.0
 │   ├── .claude-plugin/plugin.json
 │   ├── lib/      (wire-common.sh, vault-env.sh)
 │   ├── hooks/    (SessionStart → vault-session-check.sh; PreToolUse → pre-tool-audit-guard.sh)
-│   ├── commands/ (5 commands /vault-*)
+│   ├── commands/ (5 commands /vault-* + 2 bootstraps /wire-vault-{bootstrap,kv-migrate})
 │   └── skills/   (mempalace-doctor, claude-deep-audit)
-├── secops/                       ← plugin wire-secops v0.2.0
+├── secops/                       ← plugin wire-secops v0.3.0
 │   ├── .claude-plugin/plugin.json
 │   ├── agents/   (6 agents wire-*-01)
-│   ├── commands/ (9 commands /wire-*)
+│   ├── commands/ (10 commands /wire-* incl. /wire-secops-bootstrap)
 │   ├── hooks/    (4 pre + 1 post + 1 stop)
 │   ├── skills/   (6 skills wire-*)
 │   ├── CLAUDE.md
@@ -66,10 +66,22 @@ Depois do primeiro install, **`/wire-onboard`** (vive no `wire-base`) detecta o 
 ## Verificar
 
 ```
-/plugin list      # wire-base · 0.2.1 · user  +  wire-secops · 0.2.0 · user  +  wire-devkit · 0.2.2 · user
+/plugin list      # wire-base · 0.3.0 · user  +  wire-secops · 0.3.0 · user  +  wire-devkit · 0.2.2 · user
 /agents           # 6 agents wire-*-01
 /wire-onboard     # sanity check do ecossistema + sugestões de smoke test
 ```
+
+## Bootstrap do Vault (v0.3.0)
+
+Setup completo do Vault local em 3 comandos (provisiona audit, kv-v2, AppRoles, transit, ssh, Keychain). Documentado em detalhe nos READMEs de `base/` e `secops/`:
+
+```
+/wire-vault-bootstrap --plan && /wire-vault-bootstrap --apply       # base · infra genérica
+/wire-secops-bootstrap --plan && /wire-secops-bootstrap --apply     # secops · policies + 7 AppRoles + Keychain
+/wire-vault-doctor                                                  # confirma findings resolvidos
+```
+
+Se já tens dados em `secret/` kv-v1: corre primeiro `/wire-vault-kv-migrate --plan` / `--backup` / `WIRE_VAULT_MIGRATE_CONFIRM=migrate-now /wire-vault-kv-migrate --apply` para migrar para kv-v2 sem perder dados.
 
 ## Stack assumido (`wire-secops`)
 

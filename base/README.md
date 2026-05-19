@@ -1,6 +1,6 @@
 # wire-base
 
-Plugin-base do ecossistema Wire para Claude Code · v0.2.1
+Plugin-base do ecossistema Wire para Claude Code · v0.3.0
 
 ---
 
@@ -19,6 +19,8 @@ Plugin foundacional. Três skills/toolkits que assentam em convenções partilha
 | **mempalace-doctor** | skill | Saúde do tool MemPalace (vector DB com drawers/HNSW/KG em `~/.mempalace/`) |
 | **claude-deep-audit** | skill | Auditoria profunda Claude Code via 10 sub-agentes paralelos (CLAUDE.md, settings, skills, hooks, MCPs, memory, plugins, x-refs) |
 | **vault-toolkit** | 5 commands + skill + hook | `/vault-list`, `/vault-set`, `/vault-audit`, `/vault-backup`, `/vault-integrate` · skill thin que roteia intenções "segredos"→command · auto-unseal no SessionStart |
+| **wire-vault-bootstrap** | command | `/wire-vault-bootstrap [--plan\|--apply]` · provisiona infra Vault genérica idempotente (audit em `/vault/audit/audit.log`, kv-v2 em `secret/`, approle auth, transit, ssh engines). Refuse-and-redirect para `wire-vault-kv-migrate` se detectar kv-v1 com dados. Valida `policies includes "root"` antes de qualquer escrita. **Novidade v0.3.0.** |
+| **wire-vault-kv-migrate** | command | `/wire-vault-kv-migrate [--plan\|--backup\|--apply]` · migra `secret/` de kv-v1 para kv-v2 destrutivo em 3 etapas (walk recursivo → backup JSONL chmod 600 → re-import via HTTP API). `--apply` exige backup <24h e env `WIRE_VAULT_MIGRATE_CONFIRM=migrate-now` (gate explícito anti-acidente). **Novidade v0.3.0.** |
 | **wire-onboard** | command + skill | `/wire-onboard` · setup wizard end-to-end do ecossistema Wire (base/secops/devkit) · detecta gaps, emite linhas de install, sugere smoke tests · idempotente |
 | **wire-doctor** | command + skill | `/wire-doctor` · meta-doctor read-only · orquestra mempalace-doctor + claude-deep-audit + /vault-audit + /wire-vault-doctor em paralelo, consolida num relatório de saúde do setup local |
 | **wire-mode** | command + skill | `/wire-mode [prod\|dev\|lab\|status]` · lê/escreve `~/.wire/mode` e gere marker `~/.wire/lab-mode` · controla fail-closed vs warn-only vs bypass nos hooks downstream |
@@ -45,6 +47,8 @@ Os três domínios são **independentes** mas **conscientes uns dos outros** —
 | "há updates dos plugins wire?", "estou actualizado?" | `/wire-upgrade` |
 | "cria policy vault para X", "nova approle" | `/wire-vault-policy <nome>` |
 | "smoke test wire", "instalei e funciona?" | `/wire-smoke [plugin]` |
+| "provisiona vault do zero", "audit + kv-v2 + transit + ssh" | `/wire-vault-bootstrap` |
+| "secret/ está em kv-v1, migra para v2" | `/wire-vault-kv-migrate` |
 | "audita o meu CLAUDE.md", "deep audit", "review my config" | `claude-deep-audit` |
 | "diagnóstico mempalace", "saúde do palace", "repair drawers" | `mempalace-doctor` |
 | "que segredos tem este projecto?" | `/vault-list` |
@@ -149,7 +153,9 @@ base/
 │   ├── wire-onboard.md                # /wire-onboard
 │   ├── wire-doctor.md                 # /wire-doctor
 │   ├── wire-mode.md                   # /wire-mode [prod|dev|lab|status]
-│   └── wire-context-pack.md           # /wire-context-pack <ir|release|audit|all>
+│   ├── wire-context-pack.md           # /wire-context-pack <ir|release|audit|all>
+│   ├── wire-vault-bootstrap.md        # /wire-vault-bootstrap [--plan|--apply]      (v0.3.0)
+│   └── wire-vault-kv-migrate.md       # /wire-vault-kv-migrate [--plan|--backup|--apply] (v0.3.0)
 └── skills/
     ├── mempalace-doctor/
     │   ├── SKILL.md
@@ -250,7 +256,7 @@ zip -r /tmp/wire-base.plugin . -x "*.DS_Store" "*.bak.*"
 mkdir -p ~/.wire && echo dev > ~/.wire/mode    # ou: prod
 
 # 3 · Sanity check
-/plugin list                                  # verificar wire-base v0.2.1
+/plugin list                                  # verificar wire-base v0.3.0
 ls ~/.claude/plugins/wire-base/           # estrutura completa
 
 # 5 · Primeiros usos
@@ -268,6 +274,7 @@ ls ~/.claude/plugins/wire-base/           # estrutura completa
 - ~~`wire-onboard` · setup wizard end-to-end~~ — **feito em v0.1.0**: `/wire-onboard` + skill thin detectam plugins na cache, guiam instalação dos gaps e sugerem smoke tests
 - ~~`wire-context-pack` · prepara contexto cross-plugin para sessões IR / release / audit~~ — **feito em v0.1.0**: cheat-sheet por scope (`ir | release | audit | all`), marca itens de plugins em falta
 - ~~Integração com `wire-secops` · refactor de `pre-tool-vault-ttl.sh` para usar `wire_fail_or_warn` (mode-aware)~~ — **feito em v0.1.0**: os 6 hooks do secops sourceiam `wire-common.sh` via shim `_lib.sh` com fallback stubs
+- ~~`wire-vault-bootstrap` + `wire-vault-kv-migrate` · automatizar provisionamento Vault que estava só documentado em CLAUDE.md~~ — **feito em v0.3.0**: dois comandos idempotentes em `wire-base` que resolvem findings #1, #2 e parte de #4 do `/wire-vault-doctor` (audit device, kv-v2, transit/ssh engines, com refuse-and-redirect para migração destrutiva)
 
 ---
 
