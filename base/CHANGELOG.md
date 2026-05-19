@@ -2,6 +2,21 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.3.0 — 2026-05-19
+
+### Adicionado
+
+- **`/wire-vault-bootstrap`** — provisiona infra Vault genérica (audit device em `/vault/audit/audit.log`, kv-v2 em `secret/`, approle auth, transit engine, ssh engine). Idempotente. Padrão `--plan` (default) / `--apply`. Valida policy='root' antes de qualquer escrita (defesa em profundidade contra allowlist do hook secops). Refuse-and-redirect para `/wire-vault-kv-migrate` se detectar kv-v1 com dados.
+
+- **`/wire-vault-kv-migrate`** — migra `secret/` de kv-v1 para kv-v2. Destrutivo, fluxo em 3 etapas exclusivas: `--plan` (walker recursivo, conta paths+keys, não escreve), `--backup` (exporta para `~/vault/backups/kv-v1-<ts>.json` em JSONL com chmod 600, valida JSON), `--apply` (exige backup <24h, faz disable→re-enable v2→re-import, confirmação interactiva `migrate-now`).
+
+- `base/smoke.sh`: asserts dos 2 novos commands.
+
+### Fonte
+
+Plano: `docs/superpowers/plans/2026-05-19-wire-vault-bootstraps/`.
+Resolve findings #1, #2 e parte de #4 do `/wire-vault-doctor`.
+
 ## [0.2.1] — 2026-05-15
 
 ### Added

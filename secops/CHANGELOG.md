@@ -2,6 +2,27 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.3.0 — 2026-05-19
+
+### Adicionado
+
+- **`/wire-secops-bootstrap`** — provisiona conteúdo Wire-specific no Vault assumindo infra base já provisionada. Inclui: 7 policies wire-* via split do `vault-policies.hcl` shipado, 7 AppRoles com TTLs hardcoded (espelham comentários do HCL), `transit/keys/forensics`, `ssh/config/ca`, `ssh/roles/wire-srv-role` + `ssh/roles/wire-ir-role`. Popula macOS Keychain + `~/vault/approle-credentials.json` (chmod 600) por cada AppRole. Idempotente, `--plan` (default) / `--apply`. Marca rotações de secret-id como `⟳` no plano para confirmação explícita.
+
+### Alterado
+
+- `hooks/pre-tool-vault-ttl.sh`: adicionados 3 patterns à `ALLOWLIST_PATTERNS` (`wire-vault-bootstrap`, `wire-secops-bootstrap`, `wire-vault-kv-migrate`) para resolver o chicken-and-egg de bootstrap (precisa de root pre-AppRole). Defesa em profundidade: cada comando valida policy='root' internamente; allowlist sozinha não autoriza nada destrutivo.
+
+- `smoke.sh`: asserts do novo command + presença dos 3 patterns no hook.
+
+### Adicionado (validate.sh)
+
+- Nova secção 7c em `scripts/validate.sh` que verifica a presença dos 3 patterns na allowlist do hook.
+
+### Fonte
+
+Plano: `docs/superpowers/plans/2026-05-19-wire-vault-bootstraps/`.
+Resolve findings #3 e parte de #4 do `/wire-vault-doctor`.
+
 ## [0.2.0] — 2026-05-15
 
 ### Added
