@@ -2,7 +2,7 @@
 
 Plugin Claude Code · SecOps com Agentes IA especializado para a **Wire** enquanto fornecedora SaaS de eGovernment local (170+ autarquias portuguesas).
 
-**Versão:** 0.3.0 · **Data:** 2026-05-19 · **Autor:** jump2new · geral@jump2new.pt
+**Versão:** 0.4.0 · **Data:** 2026-05-19 · **Autor:** jump2new · geral@jump2new.pt
 
 ---
 
@@ -29,21 +29,21 @@ A Wire é o fornecedor SaaS por trás de 170+ autarquias portuguesas. Está suje
 wire-secops/
 ├── .claude-plugin/
 │   └── plugin.json
-├── skills/                       # Skills especializadas, disparam por contexto
-│   ├── wire-tenant-isolation/
-│   ├── wire-saas-monitoring/
-│   ├── wire-ir-multitenant/
-│   ├── wire-release-safety/
-│   ├── wire-compliance-provider/
-│   └── wire-cliente-dossier/
-├── agents/                       # Subagentes (Claude Code)
+├── skills/                       # 6 skills + 20 templates references/ (progressive disclosure)
+│   ├── wire-tenant-isolation/       (+ references/: template-cliente, queries-evidencia, painel-template)
+│   ├── wire-saas-monitoring/        (+ references/: wazuh-rules, wazuh-fortigate-pairs, zabbix-canonical-templates, runbook-correlacao)
+│   ├── wire-ir-multitenant/         (+ references/: severity-matrix, timeline-template, distribuicao-classificacao)
+│   ├── wire-release-safety/         (+ references/: canary-plan-template, rollback-template, changelog-template)
+│   ├── wire-compliance-provider/    (+ references/: mapping-nis2, mapping-iso27001, anexoII-template, dpia-template, caiq-pre-filled)
+│   └── wire-cliente-dossier/        (+ references/: dossier-template, sla-calculation)
+├── agents/                       # 6 subagentes (Claude Code)
 │   ├── wire-monitor-01.md
 │   ├── wire-ir-saas-01.md
 │   ├── wire-tenant-01.md
 │   ├── wire-srv-saas-01.md
 │   ├── wire-deploy-01.md
 │   └── wire-compliance-01.md
-├── commands/                     # Slash commands (todos prefixados wire-)
+├── commands/                     # 10 slash commands (todos prefixados wire-)
 │   ├── wire-saas-health.md           # operação
 │   ├── wire-tenant-audit.md          # operação
 │   ├── wire-incident-spread.md       # operação
@@ -54,8 +54,18 @@ wire-secops/
 │   ├── wire-vault-doctor.md          # diagnóstico · Vault
 │   ├── wire-ollama-doctor.md         # diagnóstico · Ollama
 │   └── wire-secops-bootstrap.md      # provisioning · 7 policies + 7 AppRoles + transit + ssh + Keychain (v0.3.0)
-├── hooks/
-│   └── hooks.json                # Pre-tool e post-tool
+├── hooks/                        # 4 pre + 1 post + 1 stop + 1 SessionStart (+ _lib.sh shim)
+│   ├── hooks.json
+│   ├── pre-tool-vault-ttl.sh         # PreToolUse · gate TTL Vault (allowlist diagnósticos)
+│   ├── pre-tool-approval-gate.sh     # PreToolUse · WIRE_APPROVE=N1/N2/N3 em ops destrutivas
+│   ├── pre-tool-pii-redact.sh        # PreToolUse · fail-closed em PII (NIF/IBAN/CC/email/tel PT)
+│   ├── pre-tool-second-opinion.sh    # PreToolUse · Ollama qwen3-coder valida ops destrutivas
+│   ├── post-tool-cef-wazuh.sh        # PostToolUse · CEF → Wazuh
+│   ├── post-tool-vault-revoke.sh     # Stop · revoga token + limpa keys efémeras
+│   └── check-recommends.sh           # SessionStart · hint se wire-base ausente
+├── CHANGELOG.md
+├── CLAUDE.md                      # runtime context (Vault topology, AppRoles, env vars)
+├── vault-policies.hcl             # 7 policies (6 subagent + Cowork external)
 └── README.md
 ```
 
@@ -176,4 +186,4 @@ Total: **10 commands** (6 operação · 3 diagnóstico · 1 provisioning).
 
 ---
 
-© 2026 jump2new · Uso interno · Versão 0.3.0
+© 2026 jump2new · Uso interno · Versão 0.4.0

@@ -12,7 +12,7 @@ Nenhuma. É a **fundação** do ecossistema — outros plugins Wire (`wire-secop
 
 ## O que faz
 
-Plugin foundacional. Três skills/toolkits que assentam em convenções partilhadas, mais um hook `SessionStart` que deixa o teu Vault local operacional sem fricção.
+Plugin foundacional. 14 commands e 10 skills que assentam em convenções partilhadas, mais um hook `SessionStart` que deixa o teu Vault local operacional sem fricção e um hook `PreToolUse` (`audit-guard`) que dá defense-in-depth ao `wire-devkit`.
 
 | Componente | Tipo | Domínio |
 |------------|------|---------|
@@ -144,7 +144,7 @@ base/
 │   ├── hooks.json                     # SessionStart → vault-session-check.sh; PreToolUse → pre-tool-audit-guard.sh
 │   ├── vault-session-check.sh         # auto-unseal + context injection
 │   └── pre-tool-audit-guard.sh        # defense-in-depth para wire-devkit (bloqueia destrutivos sem WIRE_AUDIT_APPLY=1)
-├── commands/
+├── commands/                          # 14 commands
 │   ├── vault-audit.md                 # /vault-audit
 │   ├── vault-backup.md                # /vault-backup
 │   ├── vault-integrate.md             # /vault-integrate
@@ -154,9 +154,12 @@ base/
 │   ├── wire-doctor.md                 # /wire-doctor
 │   ├── wire-mode.md                   # /wire-mode [prod|dev|lab|status]
 │   ├── wire-context-pack.md           # /wire-context-pack <ir|release|audit|all>
+│   ├── wire-upgrade.md                # /wire-upgrade
+│   ├── wire-smoke.md                  # /wire-smoke [base|secops|devkit|all]
+│   ├── wire-vault-policy.md           # /wire-vault-policy <nome> [--kv-read|...]
 │   ├── wire-vault-bootstrap.md        # /wire-vault-bootstrap [--plan|--apply]      (v0.3.0)
 │   └── wire-vault-kv-migrate.md       # /wire-vault-kv-migrate [--plan|--backup|--apply] (v0.3.0)
-└── skills/
+└── skills/                            # 10 skills
     ├── mempalace-doctor/
     │   ├── SKILL.md
     │   └── references/
@@ -169,7 +172,10 @@ base/
     ├── wire-onboard/SKILL.md
     ├── wire-doctor/SKILL.md
     ├── wire-mode/SKILL.md
-    └── wire-context-pack/SKILL.md
+    ├── wire-context-pack/SKILL.md
+    ├── wire-upgrade/SKILL.md
+    ├── wire-smoke/SKILL.md
+    └── wire-vault-policy/SKILL.md
 ```
 
 ---
