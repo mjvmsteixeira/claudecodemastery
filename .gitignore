@@ -14,6 +14,7 @@
 !base/
 !secops/
 !devkit/
+!craft/
 !scripts/
 !.github/
 

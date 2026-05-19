@@ -1,0 +1,29 @@
+# Changelog — wire-craft
+
+Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
+
+## v0.1.0 — 2026-05-19
+
+### Adicionado
+
+- **Plugin inicial** — 4º plugin do marketplace `jump2new`, ao lado de `wire-base`, `wire-secops`, `wire-devkit`. Categoria: tooling generativo com disciplina.
+
+- **Skill `html-plan`** — produz HTML designed em 2 fases.
+  - Phase 1: roadmap markdown (brief, type scale múltiplos de 8, palette com contraste calculado, layout 8px, components, interactive states, real data, self-critique 5-dimensões com score 1-5).
+  - Phase 2: HTML self-contained (single file, inline CSS, system fonts ou Google Fonts CDN, todos os valores trazem-se do roadmap).
+  - Hard constraints: 8px baseline grid, sem `#000000`/`#ffffff` (off-whites / near-blacks), contraste ≥ 4.5 body / ≥ 3 display, um único accent saturado, `:focus-visible` real, soft shadow + rounded corners (excepto brutalist/swiss/print), real data sem lorem ipsum, CJK-aware font stack quando aplicável, tokens CSS no `:root`.
+  - 5 surfaces: web (landing/dashboard/article/docs), deck (1920×1080), poster (1080×1920 ou A4), frame (1920×1080 video), mockup (device chrome SVG).
+  - Trigger **explícito por nome** apenas — não auto-triggera em pedidos genéricos como "make me a webpage".
+
+- **Command `/html-plan`** — wrapper fino que invoca a skill `html-plan`. Padrão B+C (skill é o cérebro, command é a entrada discoverable via `/`). Aceita `<surface>` e `<brief>` como argumentos iniciais.
+
+- **smoke.sh** — sanity check read-only: `plugin.json` válido, frontmatter da skill, references presentes, frontmatter do command.
+
+### Ajuste local à skill original
+
+- Output path da Phase 2 foi alterado de `/mnt/user-data/outputs/` (path do sandbox Anthropic onde a skill foi originalmente desenhada) para `${WORKSPACE:-$PWD}` — torna a skill nativa em Claude Code sem assumir paths Anthropic. Edição cirúrgica de 1 linha; resto do SKILL.md vem byte-a-byte do `.skill` original.
+
+### Roadmap
+
+- **v0.2.0** — `logo-generator` (SVG logos + showcase via Gemini). Requer Python venv + `GEMINI_API_KEY` via Vault `secret/ai/gemini`. Iteração dedicada para bootstrap de deps externas sem fricção (provável `/wire-craft-bootstrap`).
+- **v0.3.0+** — possíveis: deck-builder, copy-generator, data-poster.

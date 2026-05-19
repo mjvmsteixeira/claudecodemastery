@@ -9,6 +9,7 @@ Marketplace privado **jump2new** com o ecossistema de plugins **Wire** para Clau
 | **wire-base** | 0.3.0 | Foundacional — `vault-toolkit` (5 commands `/vault-*` + 2 bootstraps `/wire-vault-bootstrap` e `/wire-vault-kv-migrate` + hook SessionStart auto-unseal), skills `mempalace-doctor` e `claude-deep-audit`, helpers bash partilhados (`lib/wire-common.sh`, `lib/vault-env.sh`), hook PreToolUse `audit-guard` que dá defense-in-depth ao `wire-devkit`. **Instalar primeiro.** |
 | **wire-secops** | 0.3.0 | SecOps com Agentes IA para a Wire enquanto fornecedora SaaS de eGovernment local (170+ autarquias). 6 agents, 10 commands `/wire-*` (inclui `/wire-secops-bootstrap` para provisionar policies + AppRoles + Keychain numa só corrida), 6 skills, cadeia de hooks PreToolUse/PostToolUse/Stop. Assume `wire-base` instalado. |
 | **wire-devkit** | 0.2.2 | Toolkit de auditoria de developer — `full-audit`, `security-scan`, `infra-audit`, `ux-audit`, `code-quality`, `performance-audit`, agente `local-reviewer` e `ngrok-expose`. **Read-only por defeito**: relatórios não tocam em ficheiros; correcção é opt-in via `--apply`. Dependência soft do `wire-base`. |
+| **wire-craft** | 0.1.0 | Tooling generativo — `html-plan` (HTML designed em 2 fases com disciplina anti-AI-slop: 8px grid, contraste WCAG AA, real data, 5 surfaces). Standalone, zero deps externas. **Novidade v0.1.0.** Roadmap: `logo-generator` em v0.2.0. |
 
 ## Estrutura
 
@@ -36,16 +37,20 @@ Marketplace privado **jump2new** com o ecossistema de plugins **Wire** para Clau
 │   ├── skills/   (8 skills: 6 audits + local-reviewer + ngrok-expose)
 │   ├── agents/   (local-reviewer)
 │   └── shared/   (scoring, ci-mode, report-format, safe-apply)
+├── craft/                         ← plugin wire-craft v0.1.0
+│   ├── .claude-plugin/plugin.json
+│   ├── commands/ (1 wrapper · /html-plan)
+│   └── skills/   (1 skill · html-plan + 2 references)
 └── scripts/
     ├── validate.sh                ← checks estáticos (JSON, frontmatter, shellcheck)
-    └── package.sh                 ← empacotador unificado dos 3 plugins
+    └── package.sh                 ← empacotador unificado dos 4 plugins
 ```
 
 ## Desenvolvimento
 
 ```bash
 ./scripts/validate.sh                  # validar tudo antes de tagar/publicar
-./scripts/package.sh                   # empacotar os 3 em /tmp/*.plugin
+./scripts/package.sh                   # empacotar os 4 em /tmp/*.plugin
 ./scripts/package.sh base              # só wire-base
 ./scripts/package.sh --out ./dist      # outdir alternativo
 ```
@@ -57,6 +62,7 @@ Marketplace privado **jump2new** com o ecossistema de plugins **Wire** para Clau
 /plugin install wire-base@jump2new
 /plugin install wire-secops@jump2new
 /plugin install wire-devkit@jump2new
+/plugin install wire-craft@jump2new       # opcional · tooling generativo, standalone
 ```
 
 Ordem importa: `wire-base` primeiro — fornece convenções e helpers que o `wire-secops` assume e que o `ngrok-expose` do `wire-devkit` usa. `wire-secops` e `wire-devkit` são independentes entre si.
@@ -66,7 +72,7 @@ Depois do primeiro install, **`/wire-onboard`** (vive no `wire-base`) detecta o 
 ## Verificar
 
 ```
-/plugin list      # wire-base · 0.3.0 · user  +  wire-secops · 0.3.0 · user  +  wire-devkit · 0.2.2 · user
+/plugin list      # wire-base · 0.3.0  +  wire-secops · 0.3.0  +  wire-devkit · 0.2.2  +  wire-craft · 0.1.0
 /agents           # 6 agents wire-*-01
 /wire-onboard     # sanity check do ecossistema + sugestões de smoke test
 ```

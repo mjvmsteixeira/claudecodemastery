@@ -20,6 +20,11 @@
       "name": "wire-devkit",
       "source": "./devkit",
       "description": "Toolkit de auditoria de developer — full-audit, security-scan, infra-audit, ux-audit, code-quality, performance-audit, agente local-reviewer e ngrok-expose. **Read-only por defeito**: relatórios não tocam em ficheiros; correcção é opt-in via `--apply` com gates de modo, sample-detection e confirmação humana para acções destrutivas. Dependência soft do wire-base (também recomendado para ganhar o PreToolUse audit-guard de defense-in-depth)."
+    },
+    {
+      "name": "wire-craft",
+      "source": "./craft",
+      "description": "Plugin de tooling generativo do ecossistema Wire — html-plan (HTML designed em 2 fases com disciplina anti-AI-slop: 8px baseline grid, contraste WCAG AA, sem pure black/white, real data, focus-visible real; 5 surfaces — web/deck/poster/frame/mockup). Standalone, zero deps externas, sem hooks. Roadmap v0.2.0 adiciona logo-generator (SVG via Gemini)."
     }
   ]
 }

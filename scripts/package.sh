@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# scripts/package.sh — empacotador unificado dos 3 plugins jump2new.
+# scripts/package.sh — empacotador unificado dos 4 plugins jump2new.
 #
 # Substitui o antigo secops/package.sh (asymmetric — só existia um).
 # Corre validate.sh antes para apanhar problemas estruturais; salta com --no-validate.
 #
 # Uso:
-#   ./scripts/package.sh                   # empacota os 3
+#   ./scripts/package.sh                   # empacota os 4
 #   ./scripts/package.sh base              # só wire-base
 #   ./scripts/package.sh base secops       # subset
 #   ./scripts/package.sh --no-validate     # salta a validação prévia
@@ -37,12 +37,12 @@ while [ $# -gt 0 ]; do
       grep -E '^# ' "$0" | sed 's/^# \{0,1\}//' | head -20
       exit 0
       ;;
-    base|secops|devkit) SELECTED+=("$1"); shift ;;
+    base|secops|devkit|craft) SELECTED+=("$1"); shift ;;
     *) echo "package.sh: argumento desconhecido: $1" >&2; exit 2 ;;
   esac
 done
 
-[ "${#SELECTED[@]}" -eq 0 ] && SELECTED=(base secops devkit)
+[ "${#SELECTED[@]}" -eq 0 ] && SELECTED=(base secops devkit craft)
 mkdir -p "$OUT_DIR"
 
 # ──────────────────────── 1. validação prévia ────────────────────────
@@ -73,6 +73,7 @@ for p in "${SELECTED[@]}"; do
       -x "*.DS_Store" \
       -x "__MACOSX*" \
       -x "package.sh" \
+      -x "smoke.sh" \
       -x ".orphaned_at" )
 
   size=$(du -h "$zip_path" | awk '{print $1}')

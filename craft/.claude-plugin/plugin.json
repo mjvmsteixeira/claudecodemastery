@@ -1,0 +1,23 @@
+{
+  "name": "wire-craft",
+  "version": "0.1.0",
+  "description": "Plugin de tooling generativo do ecossistema Wire para Claude Code. Ship inicial: html-plan — produz HTML designed com disciplina anti-AI-slop (8px baseline grid, contraste WCAG AA, sem pure black/white, real data, focus-visible real, 5 surfaces: web/deck/poster/frame/mockup). Roadmap markdown primeiro, HTML self-contained depois. Invocação explícita por nome. Standalone — não recomenda wire-base nem outro plugin; zero deps externas (markdown+bash, sem Python, sem API keys). Roadmap v0.2.0 inclui logo-generator (SVG via Gemini) com bootstrap de venv + API key via Vault.",
+  "author": {
+    "name": "jump2new",
+    "email": "geral@jump2new.pt"
+  },
+  "homepage": "https://jump2new.pt/",
+  "license": "Proprietary - Uso interno jump2new",
+  "keywords": [
+    "craft",
+    "design",
+    "html",
+    "generative",
+    "wire",
+    "claude-code",
+    "anti-slop",
+    "8px-grid",
+    "wcag",
+    "html-plan"
+  ]
+}
