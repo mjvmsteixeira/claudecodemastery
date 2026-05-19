@@ -71,6 +71,23 @@ else
   warn "~/vault/ ausente — vault-toolkit em modo degradado"
 fi
 
+# 6. Comandos novos do plano 2026-05-19 (bootstrap + kv-migrate)
+if [ -n "$manifest" ]; then
+  for cmd in wire-vault-bootstrap wire-vault-kv-migrate; do
+    cmd_file="$plugin_root/commands/${cmd}.md"
+    if [ -f "$cmd_file" ]; then
+      # frontmatter parseia e tem allowed-tools: Bash
+      if head -n 10 "$cmd_file" | grep -qE '^allowed-tools:.*Bash'; then
+        ok "commands/${cmd}.md presente com allowed-tools: Bash"
+      else
+        fail "commands/${cmd}.md sem 'allowed-tools: Bash' no frontmatter"
+      fi
+    else
+      fail "commands/${cmd}.md ausente"
+    fi
+  done
+fi
+
 # Resumo
 echo
 echo "  passed=$PASSED  failed=$FAILED  warned=$WARNED"
