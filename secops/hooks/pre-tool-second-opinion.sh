@@ -5,7 +5,7 @@ set -euo pipefail
 # shellcheck source=_lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 
-CMD="${1:-$(cat)}"
+CMD=$(hook_tool_payload "${1:-}")
 
 OLLAMA_HOST="${OLLAMA_HOST:-http://127.0.0.1:11434}"
 OLLAMA_MODEL="${OLLAMA_MODEL:-qwen3-coder:30b}"

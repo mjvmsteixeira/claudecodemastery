@@ -39,3 +39,40 @@ if ! declare -F wire_fail_or_warn >/dev/null 2>&1; then
     exit 2
   }
 fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# hook_tool_payload — extrai o "comando/texto" relevante do input do hook.
+#
+# O Claude Code entrega aos hooks de tipo `command` um JSON via STDIN, ex:
+#   {"hook_event_name":"PreToolUse","tool_name":"Bash",
+#    "tool_input":{"command":"vault read secret/foo"}}
+#
+# Para Write/Edit, tool_input tem file_path/content/old_string/new_string.
+#
+# Esta função aceita 3 formas de input (por ordem de precedência):
+#   1. argumento $1 (testes/CLI directo)
+#   2. JSON do Claude Code via stdin → extrai tool_input
+#   3. texto cru via stdin (compat legacy)
+#
+# Devolve a string sobre a qual os patterns dos hooks devem correr.
+hook_tool_payload() {
+  if [ -n "${1:-}" ]; then
+    printf '%s' "$1"
+    return
+  fi
+  local raw
+  raw=$(cat)
+  if command -v jq >/dev/null 2>&1 && printf '%s' "$raw" | jq -e '.tool_input' >/dev/null 2>&1; then
+    local extracted
+    extracted=$(printf '%s' "$raw" | jq -r '
+      .tool_input.command //
+      ([.tool_input.file_path, .tool_input.content, .tool_input.old_string, .tool_input.new_string]
+        | map(select(. != null and . != "")) | join("\n")) //
+      empty')
+    if [ -n "$extracted" ]; then
+      printf '%s' "$extracted"
+      return
+    fi
+  fi
+  printf '%s' "$raw"
+}

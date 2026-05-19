@@ -20,7 +20,7 @@ set -euo pipefail
 # shellcheck source=_lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 
-CMD="${1:-$(cat)}"
+CMD=$(hook_tool_payload "${1:-}")
 
 # ────────────────────────────────────────────────────────────────────────────
 # ALLOWLIST · padrões de comandos que não precisam de auth Vault.

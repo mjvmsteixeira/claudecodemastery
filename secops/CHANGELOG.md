@@ -42,6 +42,7 @@ Se tinhas workflows que dependiam de bypass, agora precisam de autorização exp
 
 ### Corrigido
 
+- **Hook input parsing (crítico)**: o Claude Code entrega aos hooks de tipo `command` um **JSON via stdin** (`{"tool_name":"Bash","tool_input":{"command":"..."}}`), não o comando cru. Os hooks liam `${1:-$(cat)}` e faziam grep sobre o JSON inteiro — a allowlist do `vault-ttl` (patterns ancorados a `^`) nunca batia, bloqueando **todos** os comandos diagnósticos em runtime (diagnose-deadlock). Adicionado parser partilhado `hook_tool_payload` em `_lib.sh`; os 4 hooks PreToolUse extraem `.tool_input.command` (Bash) / `.tool_input.{file_path,content,old_string,new_string}` (Write/Edit). `post-tool-cef-wazuh.sh` parseia o evento JSON em vez de env vars `CLAUDE_TOOL_*` (que não existem). Retro-compatível com texto cru (CLI/testes)
 - **Hook timeout schema**: `timeout_ms` → `timeout` em segundos em todas as 7 entradas de `hooks.json` (Claude Code schema)
 - **`pre-tool-approval-gate.sh`** reescrito — env var `WIRE_APPROVE=N1/N2/N3` (substitui `read` interactivo broken). Aceita combinações de flags (`-rfv`, `-fr`), trailing args (`cap production deploy --branch X`), SQL comments (`DROP/**/TABLE`), `git push -f`, payloads multi-line, `--force-with-lease`
 - **`pre-tool-pii-redact.sh`** reescrito — fail-closed-on-detected-PII com regex calibradas (NIF, IBAN PT 25 chars, CC PT, email, **telefone PT 9 dígitos** — corrigido de 8). Skip binary content portable (BSD grep compatible)

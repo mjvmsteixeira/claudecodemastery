@@ -5,7 +5,7 @@ set -euo pipefail
 # shellcheck source=_lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 
-INPUT="${1:-$(cat)}"
+INPUT=$(hook_tool_payload "${1:-}")
 
 if [ "${WIRE_PII_DISABLE:-}" = "1" ]; then
   echo "[hook] pii-redact · WIRE_PII_DISABLE=1 — bypass (NÃO recomendado em prod)" >&2

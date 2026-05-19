@@ -16,7 +16,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 
 # Normaliza whitespace: newlines+tabs viram espaços simples para que grep line-
 # oriented veja o comando como uma única linha. Idempotente em comandos curtos.
-RAW_CMD="${1:-$(cat)}"
+RAW_CMD=$(hook_tool_payload "${1:-}")
 CMD=$(printf '%s' "$RAW_CMD" | tr '\n\t' '  ')
 
 LEVEL=""

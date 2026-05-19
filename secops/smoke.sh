@@ -152,6 +152,23 @@ if [ -x "$plugin_root/hooks/pre-tool-vault-ttl.sh" ]; then
   fi
 fi
 
+# 12b. Hooks parseiam o JSON do Claude Code (stdin), não só texto cru.
+# Regressão: em v0.4.0 inicial os hooks liam o input cru e a allowlist (ancorada a ^)
+# nunca batia no JSON → bloqueava todos os diagnósticos (diagnose-deadlock).
+if [ -x "$plugin_root/hooks/pre-tool-vault-ttl.sh" ]; then
+  set +e
+  unset VAULT_TOKEN
+  json_diag='{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls -la /tmp"}}'
+  printf '%s' "$json_diag" | "$plugin_root/hooks/pre-tool-vault-ttl.sh" >/dev/null 2>&1
+  json_rc=$?
+  set -e 2>/dev/null || true
+  if [ $json_rc -eq 0 ]; then
+    ok "JSON parsing: vault-ttl allowlista comando diagnóstico em JSON do Claude Code (rc=0)"
+  else
+    fail "JSON parsing FALHOU: vault-ttl bloqueia 'ls' diagnóstico quando recebe JSON (rc=$json_rc) — diagnose-deadlock"
+  fi
+fi
+
 # 13. Each skill tem references/ populadas
 for skill in wire-ir-multitenant wire-compliance-provider wire-saas-monitoring wire-tenant-isolation wire-release-safety wire-cliente-dossier; do
   refs_dir="$plugin_root/skills/$skill/references"
