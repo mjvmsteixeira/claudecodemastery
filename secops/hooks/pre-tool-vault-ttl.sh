@@ -48,6 +48,15 @@ ALLOWLIST_PATTERNS=(
   'wire-ollama-doctor'
   'wire-stack-doctor'
 
+  # Bootstraps · precisam de correr quando ainda não há AppRole token.
+  # Lêem root de vault-init.json internamente via lib/vault-env.sh.
+  # Defesa em profundidade: cada comando valida policy='root' antes de
+  # qualquer escrita — a allowlist não autoriza nada destrutivo sozinha.
+  # Origem: plano docs/superpowers/plans/2026-05-19-wire-vault-bootstraps/
+  'wire-vault-bootstrap'
+  'wire-secops-bootstrap'
+  'wire-vault-kv-migrate'
+
   # Setup inicial · ler ficheiros de init/credentials (não usa Vault)
   'vault-init\.json'
   'approle-credentials\.json'

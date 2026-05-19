@@ -307,6 +307,24 @@ for p in "${PLUGINS[@]}"; do
 done
 [ $ERRORS -eq 0 ] && pass "nenhuma description promete auto-fix sem confirmação"
 
+# ──────────────────────── 7c. hook allowlist contém bootstrap patterns ────────────────────────
+section "secops/hooks/pre-tool-vault-ttl.sh: allowlist de bootstraps"
+
+ttl_hook="secops/hooks/pre-tool-vault-ttl.sh"
+if [ -f "$ttl_hook" ]; then
+  missing_allowlist=()
+  for pat in wire-vault-bootstrap wire-secops-bootstrap wire-vault-kv-migrate; do
+    grep -q "'${pat}'" "$ttl_hook" || missing_allowlist+=("$pat")
+  done
+  if [ "${#missing_allowlist[@]}" -eq 0 ]; then
+    pass "$ttl_hook contém os 3 patterns de bootstrap/migrate"
+  else
+    fail "$ttl_hook não contém patterns: ${missing_allowlist[*]} (ver plano 2026-05-19-wire-vault-bootstraps)"
+  fi
+else
+  info "$ttl_hook ausente — check skip"
+fi
+
 # ──────────────────────── 8. shellcheck (opcional) ────────────────────────
 if [ $SKIP_SHELLCHECK -eq 0 ] && [ $have_shellcheck -eq 1 ]; then
   section "shellcheck (hooks + lib)"

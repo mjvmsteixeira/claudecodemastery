@@ -91,6 +91,28 @@ else
   warn "ollama não instalado — second-opinion fail-closed em ops destrutivas"
 fi
 
+# 8. Comando novo do plano 2026-05-19 (secops-bootstrap)
+cmd_file="$plugin_root/commands/wire-secops-bootstrap.md"
+if [ -f "$cmd_file" ]; then
+  if head -n 10 "$cmd_file" | grep -qE '^allowed-tools:.*Bash'; then
+    ok "commands/wire-secops-bootstrap.md presente com allowed-tools: Bash"
+  else
+    fail "commands/wire-secops-bootstrap.md sem 'allowed-tools: Bash' no frontmatter"
+  fi
+else
+  fail "commands/wire-secops-bootstrap.md ausente"
+fi
+
+# 9. Hook pre-tool-vault-ttl.sh tem os 3 patterns de allowlist do plano 2026-05-19
+hook="$plugin_root/hooks/pre-tool-vault-ttl.sh"
+if [ -f "$hook" ]; then
+  missing=0
+  for pat in wire-vault-bootstrap wire-secops-bootstrap wire-vault-kv-migrate; do
+    grep -q "'${pat}'" "$hook" || { fail "hook não tem pattern allowlist: $pat"; missing=$((missing+1)); }
+  done
+  [ "$missing" -eq 0 ] && ok "hook pre-tool-vault-ttl.sh contém os 3 patterns de bootstrap/migrate"
+fi
+
 echo
 echo "  passed=$PASSED  failed=$FAILED  warned=$WARNED"
 
