@@ -5,6 +5,32 @@ description: Auditar e validar o isolamento multi-tenant entre municípios clien
 
 # Wire · Auditoria de Isolamento Multi-Tenant
 
+## Pré-requisitos
+
+- AppRole Vault `wire-tenant` (read em `secret/data/db/schemas/tenant-*`).
+- Env vars: `${WIRE_PG_HOST}` (default `postgres-wire.internal`).
+- Referências:
+  - `references/template-cliente.md` — relatório Art. 28 RGPD por cliente.
+  - `references/queries-evidencia.md` — queries SQL canónicas para os 16 CTRL-W-T-*.
+  - `references/painel-template.md` — painel consolidado de isolamento.
+
+## Padrão de query RLS (sem wrappers)
+
+```bash
+# Validação RLS para tenant X
+TENANT_DB_USER=$(V kv get -field=audit_user secret/data/db/schemas/tenant-X)
+TENANT_DB_PASS=$(V kv get -field=audit_pass secret/data/db/schemas/tenant-X)
+
+PGPASSWORD="$TENANT_DB_PASS" psql \
+  -h "${WIRE_PG_HOST:-postgres-wire.internal}" \
+  -U "$TENANT_DB_USER" \
+  -d "wire_main" \
+  -c "SET app.current_tenant = 'tenant-X'; SELECT count(*) FROM wirepaper_docs WHERE tenant_id != 'tenant-X';"
+# Expected: 0 (RLS bloqueia leakage)
+```
+
+`references/queries-evidencia.md` tem a lista completa para os 16 CTRL-W-T-*.
+
 A Wire hospeda dados de 170+ municípios na mesma plataforma. O isolamento entre tenants é o controlo crítico mais importante: uma falha aqui produz simultaneamente um incidente NIS2 (fornecedor crítico) **e** uma violação RGPD (subcontratante a expor dados pessoais de munícipes). Esta skill formaliza a auditoria.
 
 ## Quando aplicar

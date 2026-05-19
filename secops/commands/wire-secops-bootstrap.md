@@ -258,7 +258,14 @@ for entry in "${ACTIONS[@]}"; do
       # ficheiros host para o container; policy write CLI exigiria isso).
       CURL_CACERT="${VAULT_CACERT:-${VAULT_HOME:-$HOME/vault}/tls/ca.pem}"
       CURL_ARGS=()
-      [ -f "$CURL_CACERT" ] && CURL_ARGS+=(--cacert "$CURL_CACERT")
+      if [[ "$VAULT_ADDR" == https://* ]]; then
+        if [ ! -f "$CURL_CACERT" ]; then
+          echo "ERRO: VAULT_ADDR é HTTPS mas VAULT_CACERT ausente ou inválido: $CURL_CACERT" >&2
+          echo "       Export VAULT_CACERT ou use VAULT_ADDR=http:// para dev." >&2
+          exit 1
+        fi
+        CURL_ARGS+=(--cacert "$CURL_CACERT")
+      fi
       POLICY_BODY=$(jq -n --arg p "$(cat "$pf")" '{policy: $p}')
       HTTP=$(curl -s -o /dev/null -w '%{http_code}' "${CURL_ARGS[@]}" \
         -H "X-Vault-Token: $VAULT_TOKEN" \

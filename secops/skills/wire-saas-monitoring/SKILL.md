@@ -5,6 +5,28 @@ description: Monitorização contínua e triagem de alertas da stack SaaS Wire (
 
 # Wire · Monitorização e Auditoria de Monitorização
 
+## Pré-requisitos
+
+- `wire-base` instalado (para `V()` de `lib/vault-env.sh` — abstracção native/docker do CLI Vault).
+- Vault acessível com AppRole `wire-monitor` (read em `secret/data/observability/*`).
+- Env vars exportadas (ou defaults aceites): `${WIRE_WAZUH_HOST}`, `${WIRE_FORTIGATE_HOST}`, `${ZABBIX_URL}`, `${OLLAMA_HOST}`.
+- Referências de progressive disclosure: `references/wazuh-rules.md`, `references/wazuh-fortigate-pairs.md`, `references/zabbix-canonical-templates.md`, `references/runbook-correlacao.md`.
+
+## Padrão de query (sem wrappers)
+
+Esta skill usa **curl directo** contra as APIs Wazuh/Fortigate/Zabbix com auth via Vault. Sem dependência de scripts externos.
+
+```bash
+# Exemplo: pull Wazuh alerts por rule_id
+WAZUH_TOKEN=$(V kv get -field=api_token secret/data/observability/wazuh)
+WAZUH_HOST="${WIRE_WAZUH_HOST:-${WAZUH_HOST:-wazuh-manager.wire.internal}}"
+curl -s -k -H "Authorization: Bearer $WAZUH_TOKEN" \
+  "${WAZUH_HOST}/security/alerts?rule_id=100012&since_minutes=60" \
+  | jq -r '.data.affected_items[] | "\(.timestamp) | \(.agent.name) | \(.rule.description)"'
+```
+
+Patterns equivalentes para Fortigate (FortiAPI) e Zabbix (JSON-RPC) — ver `references/runbook-correlacao.md`.
+
 A skill central de SecOps operacional. Tem três responsabilidades distintas, todas igualmente importantes:
 
 1. **Health checking** — saúde dos produtos wire* e da infraestrutura subjacente.
@@ -25,6 +47,11 @@ A skill central de SecOps operacional. Tem três responsabilidades distintas, to
 | **Vault audit** | Operações sobre o broker | Eventos para Wazuh |
 
 O subagente `wire-monitor-01` opera sobre estas fontes em modo read-only (AppRole `wire-monitor`, TTL=30m).
+
+**Endpoints (override via env):**
+- Wazuh manager: `${WIRE_WAZUH_HOST:-${WAZUH_HOST:-wazuh-manager.wire.internal}}` (3-tier fallback — namespace canónico → legacy → default Wire).
+- Fortigate: `${WIRE_FORTIGATE_HOST:-fortigate.wire.internal}`.
+- Zabbix API: `${ZABBIX_URL:-https://zabbix.wire.internal/api_jsonrpc.php}`.
 
 ## Severidades
 

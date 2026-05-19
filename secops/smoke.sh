@@ -113,6 +113,60 @@ if [ -f "$hook" ]; then
   [ "$missing" -eq 0 ] && ok "hook pre-tool-vault-ttl.sh contém os 3 patterns de bootstrap/migrate"
 fi
 
+# 10. hooks.json JSON válido + zero timeout_ms
+hooks_json="$plugin_root/hooks/hooks.json"
+if [ -f "$hooks_json" ]; then
+  if jq empty "$hooks_json" 2>/dev/null; then
+    if grep -q "timeout_ms" "$hooks_json"; then
+      fail "hooks.json contém 'timeout_ms' (schema correcto é 'timeout' em segundos)"
+    else
+      ok "hooks.json JSON válido, sem timeout_ms (v0.4.0)"
+    fi
+  else
+    fail "hooks.json JSON inválido"
+  fi
+fi
+
+# 11. vault-policies.hcl existe + tem 7 policies
+hcl_file="$plugin_root/vault-policies.hcl"
+if [ -f "$hcl_file" ]; then
+  if grep -qE '^# wire-[a-z-]+ —' "$hcl_file"; then
+    n_policies=$(grep -cE '^# wire-[a-z-]+ —' "$hcl_file")
+    [ "$n_policies" -eq 7 ] && ok "vault-policies.hcl tem 7 policies" || warn "vault-policies.hcl tem $n_policies policies (esperado 7 em v0.4.0)"
+  else
+    fail "vault-policies.hcl sem headers '# wire-X —'"
+  fi
+fi
+
+# 12. Negative test allowlist
+if [ -x "$plugin_root/hooks/pre-tool-vault-ttl.sh" ]; then
+  set +e
+  unset VAULT_TOKEN
+  echo "vault read secret/foo" | "$plugin_root/hooks/pre-tool-vault-ttl.sh" >/dev/null 2>&1
+  neg_rc=$?
+  set -e 2>/dev/null || true
+  if [ $neg_rc -ne 0 ]; then
+    ok "allowlist negative test: vault-ttl bloqueia 'vault read' sem VAULT_TOKEN (rc=$neg_rc)"
+  else
+    fail "allowlist negative test FALHOU"
+  fi
+fi
+
+# 13. Each skill tem references/ populadas
+for skill in wire-ir-multitenant wire-compliance-provider wire-saas-monitoring wire-tenant-isolation wire-release-safety wire-cliente-dossier; do
+  refs_dir="$plugin_root/skills/$skill/references"
+  if [ -d "$refs_dir" ]; then
+    count=$(find "$refs_dir" -type f -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$count" -gt 0 ]; then
+      ok "skills/$skill/references/ tem $count templates"
+    else
+      warn "skills/$skill/references/ vazio (Fase 3 vai resolver)"
+    fi
+  else
+    warn "skills/$skill/references/ ausente (Fase 3 vai resolver)"
+  fi
+done
+
 echo
 echo "  passed=$PASSED  failed=$FAILED  warned=$WARNED"
 

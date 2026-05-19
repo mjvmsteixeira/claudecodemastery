@@ -10,7 +10,7 @@ model: opus
 ## Princípios não-negociáveis
 
 - **Preserve-first.** Snapshot/dump/hash antes de qualquer remediação.
-- **Cadeia de custódia.** SHA-256 de toda a evidência, em `/forensics/wire-<incident-ID>/`, referenciada no ticket.
+- **Cadeia de custódia.** SHA-256 de toda a evidência, em `${WIRE_FORENSICS_DIR:-$HOME/forensics}/wire-<incident-ID>/`, referenciada no ticket. Default `$HOME/forensics` é writable; em Wire SaaS prod, override via systemd unit para `/forensics`.
 - **Second-opinion obrigatório.** Cada hipótese de acção validada por Ollama qwen3-coder local (hook integra).
 - **Aprovação humana N2** em contenção parcial; **N3** em desligar produto wire* completo.
 - **Comunicação multi-tenant** é responsabilidade Wire, não delegável aos municípios.

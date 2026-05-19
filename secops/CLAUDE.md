@@ -29,6 +29,8 @@ Este projecto usa HashiCorp Vault como **broker central de credenciais**. Toda a
 - `secret/data/tenants/metadata/*` — metadados de tenants (sem payload)
 - `secret/data/compliance/*` — evidência regulatória
 - `secret/data/ir/*` — case files de Incident Response
+- `secret/data/db/schemas/*` — schemas e metadados para validation de RLS (acesso: wire-tenant)
+- `sys/policies/acl/*` — read-only para audit cross-policy (acesso: wire-tenant)
 - `transit/encrypt/forensics` · `transit/decrypt/forensics` — cifra de evidência IR
 - `ssh/sign/wire-srv-role` — certificados SSH efémeros (TTL=15m) para servidores
 - `ssh/sign/wire-ir-role` — certificados SSH efémeros para IR
@@ -43,7 +45,7 @@ Este projecto usa HashiCorp Vault como **broker central de credenciais**. Toda a
 | `wire-srv` | `wire-srv-saas-01` | 15m | 30m |
 | `wire-deploy` | `wire-deploy-01` | 15m | 30m |
 | `wire-compliance` | `wire-compliance-01` | 30m | 1h |
-| `wire-cowork-reporting` | Cowork `ai-rep-01` | 60m | 2h |
+| `wire-cowork-reporting` | Cowork `ai-rep-01` *(externo — sem subagent neste plugin)* | 60m | 2h |
 
 Policies HCL completas em `vault-policies.hcl`. Versionado em git, code review obrigatório.
 
@@ -101,6 +103,33 @@ Stack runtime: Puma + systemd + Capistrano. Sem orquestrador de containers.
 - Releases têm gate. Nenhum `cap production deploy` sem `/wire-release-gate` aprovado e canary multi-tenant.
 - Monitorização Zabbix tem que ser auditada: hosts sem agente, sem template adequado, alertas silenciosos > 90d são tratados como dívida operacional.
 
+## Variáveis de ambiente do plugin
+
+Convenção `WIRE_*` + alguns `OLLAMA_*`/`WAZUH_*` legacy aceites. Defaults sensatos para o stack Wire; override apenas onde necessário.
+
+| Var | Default | Propósito |
+|-----|---------|-----------|
+| `WIRE_OPERATING_MODE` | `prod` | prod/dev/lab — fail-closed em prod, warn-only em dev, bypass em lab |
+| `WIRE_LOG_DIR` | `$HOME/.wire/log` | Audit logs locais do plugin (cef.log, approvals.log, pii-blocks.log) |
+| `WIRE_APPROVE` | (unset) | N1/N2/N3 — autorização explícita para ops destrutivas (ver `pre-tool-approval-gate.sh`) |
+| `WIRE_FORENSICS_DIR` | `$HOME/forensics` | Case files de Incident Response (timeline, artefactos, queries) |
+| `WIRE_EPHEMERAL_KEY_DIR` | `/dev/shm` (Linux) / `$(mktemp -d)` (macOS) | SSH cert temp storage; auto-fallback macOS |
+| `WIRE_RAILS_DEPLOY_BASE` | `/var/www` | Capistrano `deploy_to` root. Path final: `${WIRE_RAILS_DEPLOY_BASE}/<produto>/current/` |
+| `WIRE_WAZUH_HOST` | `wazuh-manager.wire.internal` | Endpoint Wazuh manager (namespace canónico; legacy `WAZUH_HOST` ainda aceite) |
+| `WIRE_PII_DISABLE` | (unset) | `=1` em dev desactiva `pre-tool-pii-redact.sh`. NÃO recomendado em prod (uso é audit-tracked) |
+| `WIRE_SECOND_OPINION_BYPASS` | (unset) | `=1` salta `pre-tool-second-opinion.sh` se Ollama down. Audit-tracked |
+| `WIRE_VAULT_AUTO_UP` | (unset) | Auto-up do Vault Docker em prod (override do default off) |
+| `OLLAMA_HOST` | `http://127.0.0.1:11434` | Endpoint Ollama (second-opinion hook + `/wire-ollama-doctor`) |
+| `OLLAMA_MODEL` | `qwen3-coder:30b` | Modelo Ollama com tag explícita |
+| `VAULT_ADDR` | (sem default — exigido) | Endpoint Vault. `/wire-vault-doctor` fails-fast se ausente |
+| `VAULT_TOKEN` | (sem default — exigido) | Token Vault, ou login via AppRole |
+| `VAULT_CACERT` | (depende do mode) | Cert CA Vault em prod (HTTPS) |
+| `FORTIGATE_HOST`, `ZABBIX_URL` | (sem default) | Endpoints Fortigate/Zabbix; `/wire-stack-doctor` fails-loud se ausentes |
+
+**Override em prod:** export persistente via `~/.zshrc`/`~/.bashrc` ou systemd unit ENV. Em dev: shell ad hoc.
+
+**Auditoria:** `WIRE_APPROVE`, `WIRE_PII_DISABLE`, `WIRE_SECOND_OPINION_BYPASS` são audit-tracked em `${WIRE_LOG_DIR}/`.
+
 ## Slash commands (em `commands/`)
 
 **Operação:**
@@ -108,6 +137,11 @@ Stack runtime: Puma + systemd + Capistrano. Sem orquestrador de containers.
 
 **Diagnóstico (doctors):**
 `/wire-stack-doctor` (global) · `/wire-vault-doctor` · `/wire-ollama-doctor`
+
+**Provisioning (v0.3.0+):**
+`/wire-secops-bootstrap` — 7 policies + 7 AppRoles + transit/keys/forensics + ssh CA + ssh roles + macOS Keychain. Idempotente. Requer `wire-base` e `/wire-vault-bootstrap` corrido antes.
+
+Total: **10 commands** (6 operação + 3 diagnóstico + 1 provisioning).
 
 ## Skills (em `skills/`)
 `wire-tenant-isolation` · `wire-saas-monitoring` (Wazuh+Fortigate+Zabbix) · `wire-ir-multitenant` · `wire-release-safety` · `wire-compliance-provider` · `wire-cliente-dossier`

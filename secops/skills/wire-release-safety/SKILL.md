@@ -19,7 +19,7 @@ A Wire hospeda dados de >170 municípios — um deployment defeituoso degrada si
 
 - **Nenhum release a 100% sem canary multi-tenant prévio.** Mínimo 24h em canary com 5–10% do tráfego cobrindo tenants representativos.
 - **Migrations destrutivas têm que ter rollback testado.** Não basta script de up; tem que existir script de down validado em pré-prod.
-- **Toda a feature que toca em dados de tenant entra atrás de feature flag.** Permite "deligar" rapidamente sem rollback de código.
+- **Toda a feature que toca em dados de tenant entra atrás de feature flag.** Permite "desligar" rapidamente sem rollback de código.
 - **A engenharia não aprova o seu próprio release.** Aprovação cruzada: dev + SRE + SecOps.
 
 ## Checklist (CTRL-W-R-001..018)

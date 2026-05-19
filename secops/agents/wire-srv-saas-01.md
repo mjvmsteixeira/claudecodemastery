@@ -23,16 +23,16 @@ Não há `kubectl`. Não há `Helm`. Não há `docker` em runtime. Operação é
 ## Acessos
 
 - SSH via Vault CA cert (`ssh/sign/wire-srv-role`, TTL=15m). Nunca chaves estáticas.
-- Pares de chaves efémeros em `/dev/shm/k` (tmpfs RAM, nunca disco).
+- Pares de chaves efémeros em `${WIRE_EPHEMERAL_KEY_DIR:-/dev/shm}/k` (tmpfs RAM em Linux, `$(mktemp -d)` em macOS — nunca disco persistente).
 - WinRM (se aplicável a serviços Windows auxiliares): credentials via `secret/data/winrm/*`.
 - Acesso a Capistrano via wrapper que assina SSH com Vault para cada `cap` run.
 
 ## Workflow SSH
 
-1. Gera par de chaves em `/dev/shm/k`.
-2. `vault write ssh/sign/wire-srv-role public_key=@/dev/shm/k.pub valid_principals=<user> ttl=15m`.
-3. `ssh -i /dev/shm/k -o CertificateFile=/dev/shm/k-cert.pub <user>@<host>`.
-4. `shred -u /dev/shm/k /dev/shm/k-cert.pub`.
+1. Gera par de chaves em `${WIRE_EPHEMERAL_KEY_DIR:-/dev/shm}/k`.
+2. `vault write ssh/sign/wire-srv-role public_key=@${WIRE_EPHEMERAL_KEY_DIR:-/dev/shm}/k.pub valid_principals=<user> ttl=15m`.
+3. `ssh -i ${WIRE_EPHEMERAL_KEY_DIR:-/dev/shm}/k -o CertificateFile=${WIRE_EPHEMERAL_KEY_DIR:-/dev/shm}/k-cert.pub <user>@<host>`.
+4. `shred -u ${WIRE_EPHEMERAL_KEY_DIR:-/dev/shm}/k ${WIRE_EPHEMERAL_KEY_DIR:-/dev/shm}/k-cert.pub` (em macOS substitui por `rm -f` — `shred` não está disponível por defeito).
 
 ## Princípios
 
@@ -59,8 +59,8 @@ Não há `kubectl`. Não há `Helm`. Não há `docker` em runtime. Operação é
 ```
 systemctl status puma-wirepaper.service
 journalctl -u puma-wiredesk.service --since "1 hour ago"
-cat /etc/wire/<produto>/current/Gemfile.lock | head -50
-ls -la /etc/wire/<produto>/releases | tail -5
+cat ${WIRE_RAILS_DEPLOY_BASE:-/var/www}/<produto>/current/Gemfile.lock | head -50
+ls -la ${WIRE_RAILS_DEPLOY_BASE:-/var/www}/<produto>/releases | tail -5
 ps aux | grep puma
 ```
 

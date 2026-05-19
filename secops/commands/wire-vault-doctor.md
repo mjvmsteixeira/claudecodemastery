@@ -16,8 +16,25 @@ Corre checks **em sequência**, parando no primeiro fail crítico. Usa `Bash` pa
 ### Check 1 · Endpoint reachable
 
 ```bash
-VAULT_ADDR="${VAULT_ADDR:-http://127.0.0.1:8200}"
-curl -sf -m 3 "${VAULT_ADDR}/v1/sys/health" > /tmp/vault-health.json
+: "${VAULT_ADDR:?VAULT_ADDR não definido.
+
+Produção:
+  export VAULT_ADDR=https://vault.wire.internal:8200
+  export VAULT_CACERT=/path/para/wire-prod-ca.pem
+
+Local dev:
+  export VAULT_ADDR=https://127.0.0.1:8200
+  export VAULT_CACERT=\$HOME/vault/tls/ca.pem
+}"
+
+TMP_HEALTH=$(mktemp -t vault-doctor-health.XXXXXX)
+TMP_TOK=$(mktemp -t vault-doctor-tok.XXXXXX)
+TMP_AUDIT=$(mktemp -t vault-doctor-audit.XXXXXX)
+TMP_MOUNTS=$(mktemp -t vault-doctor-mounts.XXXXXX)
+TMP_APPROLES=$(mktemp -t vault-doctor-approles.XXXXXX)
+trap 'rm -f "$TMP_HEALTH" "$TMP_TOK" "$TMP_AUDIT" "$TMP_MOUNTS" "$TMP_APPROLES"' EXIT
+
+curl -sf -m 3 "${VAULT_ADDR}/v1/sys/health" > "$TMP_HEALTH"
 ```
 
 - **OK** → continua
@@ -27,8 +44,8 @@ curl -sf -m 3 "${VAULT_ADDR}/v1/sys/health" > /tmp/vault-health.json
 ### Check 2 · Seal status
 
 ```bash
-SEALED=$(jq -r '.sealed' /tmp/vault-health.json)
-INITIALIZED=$(jq -r '.initialized' /tmp/vault-health.json)
+SEALED=$(jq -r '.sealed' "$TMP_HEALTH")
+INITIALIZED=$(jq -r '.initialized' "$TMP_HEALTH")
 ```
 
 - **OK** se `sealed=false` e `initialized=true`
@@ -39,14 +56,25 @@ INITIALIZED=$(jq -r '.initialized' /tmp/vault-health.json)
 
 ```bash
 [ -n "$VAULT_TOKEN" ] || exit_fail "VAULT_TOKEN não definido na shell"
-vault token lookup -format=json > /tmp/vault-tok.json 2>&1
-TTL=$(jq -r '.data.ttl // 0' /tmp/vault-tok.json)
-POLICIES=$(jq -r '.data.policies | join(",")' /tmp/vault-tok.json)
+vault token lookup -format=json > "$TMP_TOK" 2>&1
+TTL=$(jq -r '.data.ttl // 0' "$TMP_TOK")
+POLICIES=$(jq -r '.data.policies | join(",")' "$TMP_TOK")
 ```
 
 - **OK** se TTL ≥ 300s (5 min) e policies não-vazias
-- **WARN** se TTL < 300s → token vai expirar em breve. Acção: `vault token renew` ou re-login com `wire-secops-login`.
-- **FAIL** se token inválido (404/permission denied) → expirado/revogado. Acção: `wire-secops-login`.
+- **WARN** se TTL < 300s → token vai expirar em breve. Acção: `vault token renew` ou re-login AppRole (ver Re-login abaixo).
+- **FAIL** se token inválido (404/permission denied) → expirado/revogado. Acção: re-login AppRole.
+
+#### Re-login AppRole (substitui o antigo `wire-secops-login`)
+
+```bash
+export VAULT_ROLE_ID=$(security find-generic-password -a wire-secops -s vault-role-id-wire-monitor -w)
+export VAULT_SECRET_ID=$(security find-generic-password -a wire-secops -s vault-secret-id-wire-monitor -w)
+export VAULT_TOKEN=$(vault write -field=token auth/approle/login \
+  role_id="$VAULT_ROLE_ID" secret_id="$VAULT_SECRET_ID")
+```
+
+(Substitui `wire-monitor` por outro AppRole conforme o contexto.)
 
 ### Check 4 · HA status (se aplicável)
 
@@ -61,8 +89,8 @@ HA=$(curl -sf "${VAULT_ADDR}/v1/sys/ha-status" -H "X-Vault-Token: $VAULT_TOKEN" 
 ### Check 5 · Audit device activo
 
 ```bash
-vault audit list -format=json > /tmp/vault-audit.json
-COUNT=$(jq 'keys | length' /tmp/vault-audit.json)
+vault audit list -format=json > "$TMP_AUDIT"
+COUNT=$(jq 'keys | length' "$TMP_AUDIT")
 ```
 
 - **OK** se ≥1 audit device activo
@@ -71,7 +99,7 @@ COUNT=$(jq 'keys | length' /tmp/vault-audit.json)
 ### Check 6 · Backends esperados
 
 ```bash
-vault secrets list -format=json > /tmp/vault-mounts.json
+vault secrets list -format=json > "$TMP_MOUNTS"
 ```
 
 Verifica que estes paths estão montados:
@@ -89,7 +117,7 @@ Verifica que estes paths estão montados:
 ### Check 7 · AppRoles do plugin
 
 ```bash
-vault list -format=json auth/approle/role | jq -r '.[]' > /tmp/vault-approles.txt
+vault list -format=json auth/approle/role | jq -r '.[]' > "$TMP_APPROLES"
 ```
 
 Espera-se ver:
@@ -139,7 +167,7 @@ Action items:
 
 ## Cadência sugerida
 
-- **Início do turno** após `wire-secops-login`
+- **Início do turno** após re-login AppRole (ver secção acima)
 - **Antes de exercício IR** (depende do Vault para SSH CA)
 - **Em onboarding de novo engineer** (verifica que AppRoles estão ok antes de dar acesso)
 - **Schedule diário** via cron, alerta para SRE se BROKEN >5 min

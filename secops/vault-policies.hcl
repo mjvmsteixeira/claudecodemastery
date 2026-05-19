@@ -1,7 +1,9 @@
 # ============================================================================
 # Wire SecOps · Vault Policies HCL
 # ============================================================================
-# Seis AppRoles dedicados, um por subagent. TTLs deliberadamente curtos.
+# Sete AppRoles: 6 com subagent local (wire-monitor-01, wire-ir-saas-01, wire-tenant-01,
+# wire-srv-saas-01, wire-deploy-01, wire-compliance-01) + Cowork `wire-cowork-reporting`
+# externo (Cowork agent `ai-rep-01`, sem subagent neste plugin). TTLs deliberadamente curtos.
 # Os comandos de criação dos AppRoles estão no fim do ficheiro.
 # ============================================================================
 
@@ -36,6 +38,9 @@ path "transit/encrypt/forensics" {
 path "transit/decrypt/forensics" {
   capabilities = ["create", "update"]
 }
+# audit-hash: necessário para correlation evidence em IR (HMAC dos audit log entries
+# para cross-reference sem expor o input cleartext). Wide scope deliberado — wire-ir
+# é o único AppRole que precisa de assinar evidência durante uma investigação.
 path "sys/audit-hash/*" {
   capabilities = ["create", "update"]
 }
@@ -50,6 +55,8 @@ path "secret/data/db/schemas/*" {
   capabilities = ["read"]
 }
 # NÃO tem acesso a chaves transit por tenant — só metadados.
+# sys/policies/acl: read-only para audit cross-tenant (validar que outras policies
+# não dão acesso indevido a tenant data). Apenas introspecção, sem escrita.
 path "sys/policies/acl/*" {
   capabilities = ["read"]
 }

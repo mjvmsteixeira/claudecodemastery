@@ -27,6 +27,8 @@ Chama internamente o playbook do `/wire-ollama-doctor`. Sem Ollama, hook `pre-to
 ### 3. Wazuh quick-check (crítico para audit)
 
 ```bash
+: "${WIRE_WAZUH_HOST:?WIRE_WAZUH_HOST não definido. Export antes de correr stack-doctor.}"
+WAZUH_HOST="${WIRE_WAZUH_HOST:-${WAZUH_HOST}}"
 curl -sf -m 5 -k "https://${WAZUH_HOST}:${WAZUH_API_PORT:-55000}/" -o /dev/null -w "%{http_code}\n"
 ```
 
@@ -36,6 +38,7 @@ curl -sf -m 5 -k "https://${WAZUH_HOST}:${WAZUH_API_PORT:-55000}/" -o /dev/null 
 ### 4. Fortigate quick-check (importante para correlação)
 
 ```bash
+: "${FORTIGATE_HOST:?FORTIGATE_HOST não definido. Export antes de correr stack-doctor.}"
 curl -sf -m 5 -k "https://${FORTIGATE_HOST}/api/v2/monitor/system/status" -o /dev/null -w "%{http_code}\n"
 ```
 
@@ -45,6 +48,7 @@ curl -sf -m 5 -k "https://${FORTIGATE_HOST}/api/v2/monitor/system/status" -o /de
 ### 5. Zabbix quick-check (importante para monitorização activa)
 
 ```bash
+: "${ZABBIX_URL:?ZABBIX_URL não definido. Export antes de correr stack-doctor.}"
 curl -sf -m 5 "${ZABBIX_URL}" -X POST -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"apiinfo.version","id":1}' | jq -r '.result // empty'
 ```
@@ -55,7 +59,14 @@ curl -sf -m 5 "${ZABBIX_URL}" -X POST -H "Content-Type: application/json" \
 ### 6. Conectividade ao GitHub marketplace
 
 ```bash
-curl -sf -m 5 https://github.com/mjvmsteixeira/claudecodemastery.git/info/refs?service=git-upload-pack -o /dev/null -w "%{http_code}\n"
+# Parse marketplace.json para obter repo URL (evita hardcode de private repos)
+MARKETPLACE_JSON=$(find "$HOME/.claude/plugins/cache" -name "marketplace.json" -type f 2>/dev/null | head -1)
+REPO_URL=$(jq -r '.repo // empty' "$MARKETPLACE_JSON" 2>/dev/null)
+if [ -z "$REPO_URL" ]; then
+  echo "  ! marketplace.json sem 'repo' field — skip git remote check"
+else
+  curl -sf -m 5 "${REPO_URL}/info/refs?service=git-upload-pack" -o /dev/null -w "%{http_code}\n"
+fi
 ```
 
 - **OK** se HTTP 200 → `/plugin marketplace update` vai funcionar

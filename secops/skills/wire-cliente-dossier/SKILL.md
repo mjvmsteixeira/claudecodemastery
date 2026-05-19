@@ -5,6 +5,33 @@ description: Gerar dossier consolidado de segurança e operação por município
 
 # Wire · Dossier de Cliente
 
+## Pré-requisitos
+
+- AppRole Vault `wire-tenant` (read em `secret/data/tenants/metadata/*`).
+- Subagent `wire-tenant-01` (capability metadata-fetch — ver agent definition).
+- Referências:
+  - `references/dossier-template.md` — skeleton com placeholders por secção.
+  - `references/sla-calculation.md` — fórmulas exactas (uptime, MTTR, MTTD, exclusões).
+
+## Padrão de fetch (sem wrappers)
+
+```bash
+# Metadados do cliente via wire-tenant AppRole
+TENANT_NIPC="$1"
+METADATA=$(V kv get -format=json "secret/data/tenants/metadata/$TENANT_NIPC" \
+  | jq -r '.data.data')
+
+if [ -z "$METADATA" ] || [ "$METADATA" = "null" ]; then
+  echo "Sem metadata para tenant $TENANT_NIPC em secret/data/tenants/metadata/." \
+       "Pede ao admin para criar primeiro."
+  exit 1
+fi
+
+echo "$METADATA" | jq -r '"Produtos: \(.products | join(", "))\nSLA target: \(.sla.uptime_percent)%\nDPO contact: \(.dpo_email)"'
+```
+
+Cross-link: `references/dossier-template.md` tem placeholders para fillin baseado em metadata + SLA queries + incident history (12m).
+
 Cada município é um cliente, mas também é uma entidade essencial NIS2, com obrigações próprias e DPO próprio. Esta skill produz uma vista 360° consolidada sobre o cliente, pronta para reunião, auditoria ou resposta a pedido de informação.
 
 ## Quando produzir

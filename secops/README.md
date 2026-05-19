@@ -98,8 +98,8 @@ wire-secops/
 
 # 3. Bootstrap automático (v0.3.0+) — uma única corrida cria policies, AppRoles, transit, ssh CA, ssh roles, Keychain
 export VAULT_TOKEN=$(jq -r .root_token ~/vault/vault-init.json)
-/wire-vault-bootstrap --plan && /wire-vault-bootstrap --apply        # infra base (audit, kv-v2, approle, transit, ssh)
-/wire-secops-bootstrap --plan && /wire-secops-bootstrap --apply       # 7 policies + 7 AppRoles + transit/keys/forensics + ssh/config/ca + ssh roles + Keychain
+/wire-vault-bootstrap --plan && /wire-vault-bootstrap --apply        # (wire-base) infra Vault genérica: audit, kv-v2, approle, transit, ssh
+/wire-secops-bootstrap --plan && /wire-secops-bootstrap --apply       # (wire-secops) 7 policies + 7 AppRoles + transit/keys/forensics + ssh/config/ca + ssh roles + Keychain
 
 # 3b. (Alternativa pre-v0.3.0 · manual, em vias de ficar legacy)
 # vault write auth/approle/role/wire-monitor   token_ttl=30m token_max_ttl=1h
@@ -124,6 +124,25 @@ export VAULT_TOKEN=$(jq -r .root_token ~/vault/vault-init.json)
 | **cliente-dossier** | "Quero ver tudo do município X" | Dossier consolidado por cliente: produtos activos, SLA, incidentes 12m, DPIA |
 
 Cada skill tem o seu `SKILL.md` em `skills/<nome>/SKILL.md`.
+
+---
+
+## Commands (resumo)
+
+| Command | Tipo | Quando |
+|---------|------|--------|
+| `/wire-saas-health` | operação | Início do turno; correlação Wazuh+Fortigate+Zabbix |
+| `/wire-tenant-audit <municipio>` | operação | Auditoria de isolamento por cliente |
+| `/wire-incident-spread <id>` | operação | IR multi-tenant; blast radius + comunicação |
+| `/wire-release-gate <release>` | operação | Pré-deploy gate Capistrano |
+| `/wire-cliente-dossier <municipio>` | operação | Dossier 360° por cliente |
+| `/wire-compliance-snapshot` | operação | NIS2 / RGPD / ISO 27001 evidence snapshot |
+| `/wire-stack-doctor` | diagnóstico | Health check global (Wazuh+Fortigate+Zabbix+Vault+Ollama) |
+| `/wire-vault-doctor` | diagnóstico | Vault de PRODUÇÃO (fail-fast se `VAULT_ADDR` ausente) |
+| `/wire-ollama-doctor` | diagnóstico | Ollama + modelo qwen3-coder para second-opinion |
+| `/wire-secops-bootstrap` | provisioning | Provisiona 7 policies + AppRoles + transit + ssh CA + Keychain (v0.3.0+) |
+
+Total: **10 commands** (6 operação · 3 diagnóstico · 1 provisioning).
 
 ---
 

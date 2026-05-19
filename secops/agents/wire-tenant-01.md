@@ -22,6 +22,7 @@ model: sonnet
 - Validar prefixos de storage e IAM scope.
 - Validar logs aplicacionais com tenant_id em todas as entradas.
 - Validar configuração de cache/filas com keyspace por tenant.
+- **Metadata fetch para dossiers**: ler `secret/data/tenants/metadata/*` para alimentar a skill `wire-cliente-dossier` (produtos contratados, SLA, contactos, DPIA status). Read-only — não escreve em `secret/data/tenants/*`.
 
 ## Workflow
 

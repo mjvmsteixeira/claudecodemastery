@@ -69,7 +69,15 @@ ALLOWLIST_PATTERNS=(
 
   # Manipulação de arquivos locais · não envolve Vault nem tenants
   '^[[:space:]]*(unzip|zip|tar|gunzip|bunzip2|xz|gzip|bzip2)[[:space:]]'
-  '^[[:space:]]*(mkdir|cp|mv|rm|chmod|chown|ln|touch)[[:space:]]'
+  '^[[:space:]]*(mkdir|cp|mv|chmod|chown|ln|touch)[[:space:]]'
+  # rm é split — permitido em /tmp/, $HOME/.wire/, ou paths relativos puros.
+  # Pattern 3 exige que o primeiro char do target NÃO seja '/' (system path),
+  # NÃO seja '-' (flag solto a contar como target), NÃO seja '$' (qualquer
+  # $HOME/<x> excepto $HOME/.wire/ vai pelo approval-gate). Operações
+  # destrutivas em system paths exigem VAULT_TOKEN; cross-tenant exige N2.
+  '^[[:space:]]*rm[[:space:]]+(-[^[:space:]/]+[[:space:]]+)?/tmp(/|[[:space:]]|$)'
+  '^[[:space:]]*rm[[:space:]]+(-[^[:space:]/]+[[:space:]]+)?\$HOME/\.wire(/|[[:space:]]|$)'
+  '^[[:space:]]*rm[[:space:]]+(-[^[:space:]/]+[[:space:]]+)?[^/$[:space:]-]'
 
   # Navegação git read-only e tooling local
   '^[[:space:]]*git[[:space:]]+(status|log|diff|show|branch|tag|remote|fetch|ls-files|rev-parse|config[[:space:]]+--get)'

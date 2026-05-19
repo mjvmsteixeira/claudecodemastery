@@ -18,7 +18,9 @@ model: sonnet
 ## Capacidades
 
 - Puxar status de CI/CD (GitLab/GitHub Actions): SBOM, SAST, SCA, secrets scan, cosign.
-- Validar assinatura de imagens (cosign verify).
+- Validar integridade do release artefacto:
+  - **Containers** (Vault HA, Wazuh, futuros serviços ancillary): `cosign verify` antes de pull (CTRL-W-R-008).
+  - **Apps Rails** (`wirePAPER`, `wireDESK`, etc.): Capistrano deploy via VMs em `${WIRE_RAILS_DEPLOY_BASE:-/var/www}/<produto>/` — sem container image. Equivalência: checksum SHA-256 do tarball gerado pelo `cap deploy:build` (CTRL-W-R-008b — equivalence in artefact-signing scope; canónico ainda em definição na Wire SaaS).
 - Cruzar dependências com base de CVEs (NVD, GitHub Advisories).
 - Identificar migrations e validar rollback.
 - Identificar mudanças em endpoints de auth / cifra → exige revisão SecOps explícita.

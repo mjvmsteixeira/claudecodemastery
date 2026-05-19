@@ -5,6 +5,27 @@ description: Resposta a Incidentes (IR) para incidentes que afectam dois ou mais
 
 # Wire · Resposta a Incidentes Multi-Tenant
 
+## Pré-requisitos
+
+- `wire-base` instalado para `V()` (`lib/vault-env.sh`).
+- AppRole Vault `wire-ir` activo (TTL=15m).
+- Env vars: `${WIRE_FORENSICS_DIR}` (default `$HOME/forensics`), `${WIRE_LOG_DIR}`.
+- Referências de progressive disclosure:
+  - `references/severity-matrix.md` — decision tree S1/S2/S3/S4.
+  - `references/timeline-template.md` — formato canónico de timeline cruzada.
+  - `references/distribuicao-classificacao.md` — TLP + templates de comunicação a clientes/CNCS.
+
+## Vault audit hash (para correlation evidence — CTRL-W-IR-007)
+
+```bash
+# Hash HMAC de token suspeito para correlacionar com Vault audit log sem expor o token
+curl -s -k -H "X-Vault-Token: $VAULT_TOKEN" \
+  --data '{"input":"<token-suspeito-base64>"}' \
+  "${VAULT_ADDR}/v1/sys/audit-hash/file" | jq -r '.data.hash'
+```
+
+(O AppRole `wire-ir` tem `update` em `sys/audit-hash/*` per `vault-policies.hcl`.)
+
 A diferença operacional crítica: enquanto um município gere o seu próprio incidente, a Wire pode estar a gerir um incidente que **atinge dezenas em simultâneo**. As decisões têm consequência colectiva e contratual.
 
 ## Critério para activar esta skill
@@ -80,7 +101,7 @@ Toda a contenção em produção exige aprovação **N2** explícita do Coordena
 
 ## Cadeia de custódia
 
-- Evidência hashada (SHA-256), guardada em `/forensics/wire-<incident-ID>/`.
+- Evidência hashada (SHA-256), guardada em `${WIRE_FORENSICS_DIR:-$HOME/forensics}/wire-<incident-ID>/`.
 - Toda a evidência referenciada no ticket institucional (GLPI ou equivalente Wire).
 - Acesso à evidência audit-logado.
 

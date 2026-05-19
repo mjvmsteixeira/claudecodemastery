@@ -21,22 +21,22 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-vault-ttl.sh",
-            "timeout_ms": 5000
+            "timeout": 5
           },
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-pii-redact.sh",
-            "timeout_ms": 3000
+            "timeout": 3
           },
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-approval-gate.sh",
-            "timeout_ms": 60000
+            "timeout": 5
           },
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-second-opinion.sh",
-            "timeout_ms": 20000
+            "timeout": 20
           }
         ]
       },
@@ -46,7 +46,7 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-pii-redact.sh",
-            "timeout_ms": 3000
+            "timeout": 3
           }
         ]
       }
@@ -58,7 +58,7 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/post-tool-cef-wazuh.sh",
-            "timeout_ms": 5000
+            "timeout": 5
           }
         ]
       }
@@ -69,7 +69,7 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/post-tool-vault-revoke.sh",
-            "timeout_ms": 5000
+            "timeout": 5
           }
         ]
       }

@@ -115,7 +115,7 @@ Estas vêm do `~/.wire/secops.conf` ou env vars exportadas. Se ausentes, usa def
 
 ## Cadência sugerida
 
-- **Início do turno**, após `wire-secops-login` e antes de operar.
+- **Início do turno**, após re-login AppRole Vault (ver `/wire-vault-doctor`) e antes de operar.
 - **Antes de exercício IR**, quando o second-opinion vai ser intensamente usado.
 - **Depois de update de Ollama** (`brew upgrade ollama`) — modelo pode precisar de re-pull.
 - **Schedule diário** automatizado via cron/launchd, alerta se BROKEN >10 min.
