@@ -77,6 +77,7 @@ if [ -z "$LEVEL" ] && match 'git[[:space:]]+push[[:space:]]+([^[:space:]]+[[:spa
   LEVEL="N1"
 fi
 # rm de $HOME ou /tmp com flags variáveis
+# shellcheck disable=SC2016  # regex literal: casa a string '$HOME', não expande
 if [ -z "$LEVEL" ] && match 'rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*\$HOME(/|[[:space:]]|$)'; then
   LEVEL="N1"
 fi
