@@ -327,9 +327,9 @@ fi
 
 # ──────────────────────── 8. shellcheck (opcional) ────────────────────────
 if [ $SKIP_SHELLCHECK -eq 0 ] && [ $have_shellcheck -eq 1 ]; then
-  section "shellcheck (hooks + lib)"
+  section "shellcheck (hooks + lib + skill scripts)"
   for p in "${PLUGINS[@]}"; do
-    for sh in "$p"/hooks/*.sh "$p"/lib/*.sh; do
+    for sh in "$p"/hooks/*.sh "$p"/lib/*.sh "$p"/skills/*/scripts/*.sh; do
       [ ! -f "$sh" ] && continue
       if shellcheck -x -e SC1091 "$sh" >/dev/null 2>&1; then
         pass "$sh"
