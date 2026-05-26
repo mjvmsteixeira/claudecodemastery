@@ -71,3 +71,11 @@ O devkit **não** empacota templates nem oferece `--update-rules`.
   `lib/vault-env.sh` do base. Os 5 audits individuais e o `local-reviewer` funcionam standalone.
 - `local-reviewer` precisa de Ollama local; degrada para análise própria se offline.
 - A integração MemPalace do `full-audit` é opcional, gated em `.mempalace/` existir.
+- `chrome-live` é a **única peça não-bash**: requer **Node 22+** (WebSocket built-in) e
+  remote-debugging activo no Chrome. O motor `skills/chrome-live/scripts/cdp.mjs` é
+  vendorado do chrome-cdp-skill (MIT © pasky) — **não editar** o `.mjs`; ao actualizar,
+  re-vendorar e preservar o header de atribuição + `scripts/NOTICE`. Toda a execução passa
+  por `cdp-guard.sh` (nunca `node cdp.mjs` directo): verbos activos são fail-closed em
+  `prod` (`WIRE_CHROME_LIVE_ACTIVE=1`) e bloqueados em contexto de audit sem
+  `WIRE_AUDIT_APPLY=1`. `ux-audit`/`security-scan` consomem-no de forma aditiva (degradam
+  sem Chrome).

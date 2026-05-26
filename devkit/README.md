@@ -18,6 +18,7 @@ Terceiro plugin do marketplace `jump2new`, ao lado de `wire-base` e `wire-secops
 | **performance-audit** | command + skill | Bundle size, N+1 queries, I/O bloqueante, resource leaks |
 | **local-reviewer** | agent + skill | Segunda opinião via Ollama qwen3-coder local — read-only, sem cloud |
 | **ngrok-expose** | command + skill | Túnel ngrok HTTPS (authtoken via Vault do wire-base) |
+| **chrome-live** | command + skill | Inspecção/interacção da sessão Chrome real via CDP (sem extensão). Read-only por defeito; verbos activos gateados por modo. Consumido por `ux-audit`/`security-scan` para verificação ao vivo. Motor `cdp.mjs` vendorado (MIT © pasky). Requer Node 22+. **Novidade v0.3.0.** |
 
 Cada audit tem um command explícito (`/security-scan --scope=secrets`) e uma skill que
 auto-dispara por intenção ("audita a segurança disto"). O material de referência pesado
