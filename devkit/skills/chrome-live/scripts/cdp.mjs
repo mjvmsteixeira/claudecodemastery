@@ -3,7 +3,8 @@
 // VENDORED from chrome-cdp-skill — https://github.com/pasky/chrome-cdp-skill
 // MIT License © 2026 pasky. Full license text in ./NOTICE (kept verbatim).
 // Wrapped by wire-devkit `chrome-live` via cdp-guard.sh (mode/verb gating).
-// Upstream pinned: main @ v1.0.x. To update: re-vendor cdp.mjs + diff this header.
+// Vendored 2026-05-26 from cdp.mjs @ commit 59199f1 (main HEAD 1fd55c7 at that date).
+// To update: re-vendor, bump this SHA, diff. Do NOT hand-edit the logic below.
 // ─────────────────────────────────────────────────────────────────────────
 // cdp - lightweight Chrome DevTools Protocol CLI
 // Uses raw CDP over WebSocket, no Puppeteer dependency.

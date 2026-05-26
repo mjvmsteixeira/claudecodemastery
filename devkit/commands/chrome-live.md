@@ -25,9 +25,12 @@ chmod +x "$GUARD" 2>/dev/null || true
 
 ## 2. Preflight (Node 22+ e remote-debugging)
 
-O `cdp-guard.sh` já recusa Node < 22. Se o utilizador ainda não activou o
-remote-debugging, lembrá-lo: abrir `chrome://inspect/#remote-debugging` e ligar o toggle
-(modal "Allow debugging" uma vez por tab).
+O `cdp-guard.sh` já recusa Node < 22. Se não houver `DevToolsActivePort`, lembrar o
+utilizador de lançar o Chrome com a porta + perfil próprio:
+`open -na "Google Chrome" --args --remote-debugging-port=9222 --user-data-dir="$HOME/.cache/chrome-cdp"`
+(modal "Allow debugging" 1×/tab). No **Chrome 136+** o `--user-data-dir` separado é
+obrigatório — é um perfil limpo, **não a sessão logada**. Para a sessão autenticada real,
+usar o MCP `claude-in-chrome`.
 
 ## 3. Executar o verbo pedido
 

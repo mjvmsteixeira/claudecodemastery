@@ -17,7 +17,7 @@ Iteração **live-browser**: traz inspecção/interacção da sessão Chrome rea
 ### Notes
 
 - Única dependência **não-bash** do devkit: Node 22+ (built-in WebSocket). Assumido explicitamente.
-- Requer o utilizador activar `chrome://inspect/#remote-debugging` (toggle + modal "Allow debugging" 1×/tab).
+- Requer lançar o Chrome com `--remote-debugging-port` **e** `--user-data-dir` próprio (modal "Allow debugging" 1×/tab). **Chrome 136+ ignora a flag no perfil default** (mitigação de roubo de sessão) → o perfil separado é obrigatório, logo é um perfil limpo, **não a sessão logada**. Para a sessão autenticada real em Chrome moderno, o MCP `claude-in-chrome` (API de extensão) é o caminho. O toggle em `chrome://inspect` não activa o porto local.
 - `eval`/`evalraw` executam JS arbitrário numa página autenticada — daí o gating fail-closed em prod e o bloqueio em contexto de audit. Para uso desktop interactivo, o MCP `claude-in-chrome` continua preferível; o valor do `chrome-live` é headless/CI/remoto + auditabilidade.
 
 ## [0.2.2] — 2026-05-15

@@ -32,11 +32,16 @@ um **Chrome remoto** (`CDP_HOST`), sem extensão instalada, ou quando se quer um
 
 1. **Node 22+** (`node -v`) — o `cdp.mjs` usa o WebSocket built-in. O `cdp-guard.sh`
    recusa (`exit 69`) com Node < 22.
-2. **Remote debugging activo** no Chrome: abrir `chrome://inspect/#remote-debugging` e
-   ligar o toggle. Na primeira utilização de cada tab, o Chrome mostra um modal
-   "Allow debugging" — aprovar uma vez por tab.
+2. **Remote debugging activo.** Lançar o Chrome com a porta de debug **e um perfil próprio**:
+   `open -na "Google Chrome" --args --remote-debugging-port=9222 --user-data-dir="$HOME/.cache/chrome-cdp"`.
+   Na 1ª utilização de cada tab o Chrome mostra um modal "Allow debugging" — aprovar 1×/tab.
+   > ⚠ **Chrome 136+** (Maio 2025) **ignora `--remote-debugging-port` no perfil default**
+   > (mitigação contra roubo de sessão). O `--user-data-dir` separado é **obrigatório** — ou
+   > seja, um **perfil limpo, não a tua sessão logada**. Para conduzir a sessão autenticada
+   > real em Chrome moderno, usar o MCP `claude-in-chrome` (API de extensão, não afectada).
+   > O toggle em `chrome://inspect` **não** activa o porto local (serve para targets remotos/USB).
 3. Suporta Chrome/Chromium/Brave/Edge/Vivaldi em macOS/Linux/Windows. Para localização
-   não-standard do `DevToolsActivePort`, definir `CDP_PORT_FILE`.
+   não-standard do `DevToolsActivePort`, definir `CDP_PORT_FILE`; para um Chrome remoto, `CDP_HOST`.
 
 Se o preflight falhar, **parar e explicar** — não há fallback. Não inventar tabs.
 
