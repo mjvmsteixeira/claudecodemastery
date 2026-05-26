@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2016  # patterns de allowlist são regex literais com '$' (não expandir)
 # Wire SecOps · pre-tool · Vault TTL guard
 #
 # Política · "fail-open para diagnóstico, fail-closed para ops privilegiadas":

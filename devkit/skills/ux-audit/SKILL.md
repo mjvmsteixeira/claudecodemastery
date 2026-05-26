@@ -48,6 +48,23 @@ qualidade). Se não existir, prosseguir só com o baseline universal. (o devkit 
 
 Lançar um agente por scope activo, em paralelo.
 
+### 3b. Verificação ao vivo (opcional, via `chrome-live`)
+
+Se a skill `chrome-live` estiver disponível (`cdp.mjs` vendorado no `wire-devkit`) **e**
+houver uma tab relevante aberta no Chrome, enriquecer os findings com o **DOM renderizado
+real** em vez de só inferir do código. Aditivo — sem Chrome/tab, ignorar e seguir estático.
+
+```bash
+GUARD="$(find ~/.claude/plugins/cache -path '*/wire-devkit/*/skills/chrome-live/scripts/cdp-guard.sh' -print -quit 2>/dev/null)"
+[ -n "$GUARD" ] && bash "$GUARD" list   # escolher o targetId da página a auditar
+```
+
+Usar **só verbos read-only** (`snap`, `shot`, `html`) — receitas em
+`chrome-live/references/verbs.md`: `snap` confirma landmarks/headings/labels reais, `shot`
+dá evidência de contraste/overflow/estado vazio. Emular viewport para responsividade exige
+verbo **active** (gateado) — só com autorização explícita; senão ficar pelo viewport actual.
+Marcar no relatório que o sinal veio de verificação ao vivo (e de que URL/tab).
+
 ### 4. Scoring
 
 Score por dimensão e total conforme `${CLAUDE_PLUGIN_ROOT}/shared/scoring.md`.

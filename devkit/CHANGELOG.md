@@ -2,6 +2,24 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] — 2026-05-26
+
+Iteração **live-browser**: traz inspecção/interacção da sessão Chrome real (autenticada) ao devkit, gateada pelo modelo de segurança Wire, e liga-a às audits.
+
+### Added
+
+- **Skill `chrome-live` (+ command `/chrome-live`)** — conduz o Chrome já aberto via Chrome DevTools Protocol (WebSocket, sem extensão nem Puppeteer). Motor: `cdp.mjs` **vendorado** do [chrome-cdp-skill](https://github.com/pasky/chrome-cdp-skill) (MIT © pasky; licença preservada em `skills/chrome-live/scripts/NOTICE`). Verbos: `list shot snap html net` (read-only) · `eval evalraw click clickxy type nav open loadall` (active) · `stop`.
+- **`skills/chrome-live/scripts/cdp-guard.sh`** — wrapper de gating obrigatório (nunca chamar `node cdp.mjs` directo). Classifica verbos read-only vs active; verbos activos (executam JS / mudam estado de página autenticada) são **fail-closed em `prod`** (exigem `WIRE_CHROME_LIVE_ACTIVE=1`), bloqueados em **contexto de audit** sem `WIRE_AUDIT_APPLY=1`, e warn-only em `dev`. Preflight Node 22+ (`exit 69`). Sourceia `wire-common.sh` do `wire-base` se presente; fallback fail-closed se ausente. Invocações audit-tracked via `wire_log`.
+- **`skills/chrome-live/references/verbs.md`** — referência de verbos + receitas read-only para audits.
+- **Integração `ux-audit` e `security-scan`** — nova etapa "3b. Verificação ao vivo (opcional)": detectam o `cdp.mjs` e, com uma tab aberta, enriquecem findings com o DOM renderizado real (ux: landmarks/headings/contraste; sec: cookies/HttpOnly, handlers inline, CSP meta, autocomplete). **Aditivo** — sem Chrome/tab, degradam para a análise estática habitual.
+- **`smoke.sh`** — asserts de `chrome-live` (skill, command, scripts) + check Node 22+.
+
+### Notes
+
+- Única dependência **não-bash** do devkit: Node 22+ (built-in WebSocket). Assumido explicitamente.
+- Requer o utilizador activar `chrome://inspect/#remote-debugging` (toggle + modal "Allow debugging" 1×/tab).
+- `eval`/`evalraw` executam JS arbitrário numa página autenticada — daí o gating fail-closed em prod e o bloqueio em contexto de audit. Para uso desktop interactivo, o MCP `claude-in-chrome` continua preferível; o valor do `chrome-live` é headless/CI/remoto + auditabilidade.
+
 ## [0.2.2] — 2026-05-15
 
 Iteração de **defense-in-depth + extensão a todas as audit skills + prevenção de regressão**.

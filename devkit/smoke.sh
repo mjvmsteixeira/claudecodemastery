@@ -37,7 +37,7 @@ for f in scoring.md ci-mode.md report-format.md; do
 done
 
 # 3. Skills esperadas presentes
-for s in full-audit security-scan infra-audit ux-audit code-quality performance-audit local-reviewer ngrok-expose; do
+for s in full-audit security-scan infra-audit ux-audit code-quality performance-audit local-reviewer ngrok-expose chrome-live; do
   if [ -f "$plugin_root/skills/$s/SKILL.md" ]; then
     ok "skill $s"
   else
@@ -46,7 +46,7 @@ for s in full-audit security-scan infra-audit ux-audit code-quality performance-
 done
 
 # 4. Commands esperados presentes
-for c in full-audit security-scan infra-audit ux-audit code-quality performance-audit ngrok-expose; do
+for c in full-audit security-scan infra-audit ux-audit code-quality performance-audit ngrok-expose chrome-live; do
   if [ -f "$plugin_root/commands/$c.md" ]; then
     ok "command /$c"
   else
@@ -84,6 +84,24 @@ if command -v ngrok >/dev/null 2>&1; then
   ok "ngrok CLI instalado"
 else
   warn "ngrok CLI ausente — /ngrok-expose não funcional"
+fi
+
+# 9. chrome-live: script vendorado + wrapper de gating + NOTICE; Node 22+ (opcional)
+cl="$plugin_root/skills/chrome-live/scripts"
+if [ -f "$cl/cdp.mjs" ] && [ -f "$cl/cdp-guard.sh" ] && [ -f "$cl/NOTICE" ]; then
+  ok "chrome-live: cdp.mjs + cdp-guard.sh + NOTICE presentes"
+else
+  fail "chrome-live: scripts/cdp.mjs, cdp-guard.sh ou NOTICE em falta"
+fi
+if command -v node >/dev/null 2>&1; then
+  node_major=$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)
+  if [ "${node_major:-0}" -ge 22 ]; then
+    ok "node ${node_major}.x (≥22 · chrome-live operacional)"
+  else
+    warn "node ${node_major}.x < 22 — chrome-live exige Node 22+ (WebSocket built-in)"
+  fi
+else
+  warn "node ausente — chrome-live exige Node 22+"
 fi
 
 echo

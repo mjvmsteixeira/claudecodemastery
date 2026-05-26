@@ -54,6 +54,25 @@ Para cada scope activo, carregar a reference e aplicar as verificações:
 Para o scope `code`, lançar agentes em paralelo (um por grupo de subsecções OWASP) se o
 codebase for grande.
 
+### 3b. Verificação ao vivo (opcional, via `chrome-live`)
+
+Se a skill `chrome-live` estiver disponível **e** houver uma tab relevante aberta,
+complementar o scan estático com sinais de **runtime** que só existem na página viva.
+Aditivo — sem Chrome/tab, ignorar e seguir estático.
+
+```bash
+GUARD="$(find ~/.claude/plugins/cache -path '*/wire-devkit/*/skills/chrome-live/scripts/cdp-guard.sh' -print -quit 2>/dev/null)"
+[ -n "$GUARD" ] && bash "$GUARD" list
+```
+
+Receitas em `chrome-live/references/verbs.md`: cookies de sessão visíveis a JS (falta
+`HttpOnly`), handlers inline (CSP fraca), CSP via meta-tag, password fields sem
+`autocomplete` seguro. **Read-only** (`html`, `net`) corre directo; sinais que exigem
+`eval`/`evalraw` (ex.: `document.cookie`, captura de headers via `Network.*`) são verbos
+**active** — gateados por modo e bloqueados em contexto de audit sem `WIRE_AUDIT_APPLY=1`.
+Marcar cada finding ao vivo como tal (URL/tab) para distinguir dos estáticos. Nunca tratar
+a verificação ao vivo como substituto do scan estático.
+
 ### 4. Scoring
 
 Calcular o score por dimensão e total conforme `${CLAUDE_PLUGIN_ROOT}/shared/scoring.md`.

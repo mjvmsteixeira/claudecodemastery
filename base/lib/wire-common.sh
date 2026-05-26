@@ -17,7 +17,10 @@ WIRE_MODE_FILE="${WIRE_HOME}/mode"
 WIRE_LAB_MARKER="${WIRE_HOME}/lab-mode"
 
 CLAUDE_GLOBAL_DIR="${HOME}/.claude"
+# Constantes da API da lib — consumidas por scripts downstream, não dentro desta lib.
+# shellcheck disable=SC2034
 CLAUDE_GLOBAL_MEMORY="${CLAUDE_GLOBAL_DIR}/CLAUDE.md"
+# shellcheck disable=SC2034
 CLAUDE_GLOBAL_SETTINGS="${CLAUDE_GLOBAL_DIR}/settings.json"
 
 # ────────────────────────────────────────────────────────────────────────────

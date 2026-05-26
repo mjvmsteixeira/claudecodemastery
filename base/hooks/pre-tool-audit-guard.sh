@@ -24,6 +24,7 @@ if [ -r "$HELPER" ]; then
 else
   # Fallback: prod fail-closed
   wire_log() { :; }
+  # shellcheck disable=SC2329  # stub de paridade com a API da lib; não chamado neste hook
   wire_mode() { echo prod; }
   wire_is_dev() { [ "${WIRE_OPERATING_MODE:-prod}" = "dev" ]; }
   wire_fail_or_warn() {

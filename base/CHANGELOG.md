@@ -2,6 +2,13 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.4.0 — 2026-05-26
+
+### Adicionado
+
+- **`/wire-style` (command + skill)** — activa/remove um estilo de output conciso e directo, injectando um bloco versionado e delimitado por marcadores (`<!-- wire-style BEGIN vN -->` / `<!-- wire-style END -->`) num `CLAUDE.md`. Inspirado no [talk-normal](https://github.com/hexiecs/talk-normal) (MIT), mas no canal nativo do Claude Code em vez de `AGENTS.md`. `/wire-style` (status) · `/wire-style on [--user]` · `/wire-style off [--user]`. Scope **projecto** por default (`./CLAUDE.md`); `--user` para `~/.claude/CLAUDE.md`. Idempotente (substitui versão antiga em vez de duplicar), uninstall cirúrgico (só remove entre marcadores), backup automático em `~/.wire/backups/` antes de qualquer escrita via `wire_backup`. Não é hook nem reescrita runtime — injecção de config; não respeita `WIRE_OPERATING_MODE`.
+- `base/smoke.sh`: assert do novo command.
+
 ## v0.3.0 — 2026-05-19
 
 ### ⚠ Upgrade · OBRIGATÓRIO desinstalar a versão antiga antes de instalar v0.3.0

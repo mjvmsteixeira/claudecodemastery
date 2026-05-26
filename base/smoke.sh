@@ -73,7 +73,7 @@ fi
 
 # 6. Comandos novos do plano 2026-05-19 (bootstrap + kv-migrate)
 if [ -n "$manifest" ]; then
-  for cmd in wire-vault-bootstrap wire-vault-kv-migrate; do
+  for cmd in wire-vault-bootstrap wire-vault-kv-migrate wire-style; do
     cmd_file="$plugin_root/commands/${cmd}.md"
     if [ -f "$cmd_file" ]; then
       # frontmatter parseia e tem allowed-tools: Bash
