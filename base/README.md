@@ -12,7 +12,7 @@ Nenhuma. É a **fundação** do ecossistema — outros plugins Wire (`wire-secop
 
 ## O que faz
 
-Plugin foundacional. 14 commands e 10 skills que assentam em convenções partilhadas, mais um hook `SessionStart` que deixa o teu Vault local operacional sem fricção e um hook `PreToolUse` (`audit-guard`) que dá defense-in-depth ao `wire-devkit`.
+Plugin foundacional. 15 commands e 11 skills que assentam em convenções partilhadas, mais um hook `SessionStart` que deixa o teu Vault local operacional sem fricção e um hook `PreToolUse` (`audit-guard`) que dá defense-in-depth ao `wire-devkit`.
 
 | Componente | Tipo | Domínio |
 |------------|------|---------|
@@ -146,7 +146,7 @@ base/
 │   ├── hooks.json                     # SessionStart → vault-session-check.sh; PreToolUse → pre-tool-audit-guard.sh
 │   ├── vault-session-check.sh         # auto-unseal + context injection
 │   └── pre-tool-audit-guard.sh        # defense-in-depth para wire-devkit (bloqueia destrutivos sem WIRE_AUDIT_APPLY=1)
-├── commands/                          # 14 commands
+├── commands/                          # 15 commands
 │   ├── vault-audit.md                 # /vault-audit
 │   ├── vault-backup.md                # /vault-backup
 │   ├── vault-integrate.md             # /vault-integrate
