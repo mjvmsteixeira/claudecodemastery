@@ -24,6 +24,7 @@ Plugin foundacional. 14 commands e 10 skills que assentam em convenções partil
 | **wire-onboard** | command + skill | `/wire-onboard` · setup wizard end-to-end do ecossistema Wire (base/secops/devkit) · detecta gaps, emite linhas de install, sugere smoke tests · idempotente |
 | **wire-doctor** | command + skill | `/wire-doctor` · meta-doctor read-only · orquestra mempalace-doctor + claude-deep-audit + /vault-audit + /wire-vault-doctor em paralelo, consolida num relatório de saúde do setup local |
 | **wire-mode** | command + skill | `/wire-mode [prod\|dev\|lab\|status]` · lê/escreve `~/.wire/mode` e gere marker `~/.wire/lab-mode` · controla fail-closed vs warn-only vs bypass nos hooks downstream |
+| **wire-style** | command + skill | `/wire-style [on\|off\|status] [--user]` · injecta/remove um bloco de output conciso ("talk-normal", MIT) num `CLAUDE.md`, delimitado por marcadores, idempotente e versionado · scope projecto por default, `--user` para o global · backup automático antes de escrever. **Novidade v0.4.0.** |
 | **wire-context-pack** | command + skill | `/wire-context-pack <ir\|release\|audit\|all>` · cheat-sheet curado cross-plugin para primar sessões IR / release / audit · lista skills, commands, Vault paths, AppRoles, logs, one-liners |
 | **wire-upgrade** | command + skill | `/wire-upgrade` · compara versões instaladas vs. remotas (raw GitHub) · emite linhas `/plugin install` para colar |
 | **wire-vault-policy** | command + skill | `/wire-vault-policy <nome> [--kv-read \|--kv-write \|--transit-key \|--ssh-role]` · gera template HCL parametrizado em `$VAULT_HOME/policies/` |
@@ -43,6 +44,7 @@ Os três domínios são **independentes** mas **conscientes uns dos outros** —
 | "setup wire", "instalar plugins wire", "estou novo no wire" | `/wire-onboard` |
 | "saúde do setup", "doutor wire", "diagnóstico geral" | `/wire-doctor` |
 | "muda para dev", "modo prod", "wire mode" | `/wire-mode` |
+| "torna o Claude conciso", "modo conciso", "tira o filler" | `/wire-style on` |
 | "prepara contexto IR / release / audit", "cheat-sheet" | `/wire-context-pack <scope>` |
 | "há updates dos plugins wire?", "estou actualizado?" | `/wire-upgrade` |
 | "cria policy vault para X", "nova approle" | `/wire-vault-policy <nome>` |
@@ -153,13 +155,14 @@ base/
 │   ├── wire-onboard.md                # /wire-onboard
 │   ├── wire-doctor.md                 # /wire-doctor
 │   ├── wire-mode.md                   # /wire-mode [prod|dev|lab|status]
+│   ├── wire-style.md                  # /wire-style [on|off|status] [--user]        (v0.4.0)
 │   ├── wire-context-pack.md           # /wire-context-pack <ir|release|audit|all>
 │   ├── wire-upgrade.md                # /wire-upgrade
 │   ├── wire-smoke.md                  # /wire-smoke [base|secops|devkit|all]
 │   ├── wire-vault-policy.md           # /wire-vault-policy <nome> [--kv-read|...]
 │   ├── wire-vault-bootstrap.md        # /wire-vault-bootstrap [--plan|--apply]      (v0.3.0)
 │   └── wire-vault-kv-migrate.md       # /wire-vault-kv-migrate [--plan|--backup|--apply] (v0.3.0)
-└── skills/                            # 10 skills
+└── skills/                            # 11 skills
     ├── mempalace-doctor/
     │   ├── SKILL.md
     │   └── references/
@@ -172,6 +175,7 @@ base/
     ├── wire-onboard/SKILL.md
     ├── wire-doctor/SKILL.md
     ├── wire-mode/SKILL.md
+    ├── wire-style/SKILL.md
     ├── wire-context-pack/SKILL.md
     ├── wire-upgrade/SKILL.md
     ├── wire-smoke/SKILL.md
