@@ -55,5 +55,32 @@ run_fow() { # $1 = mode
 if run_fow dev | grep -qE '\taudit-guard\twarn$'; then ok "fail_or_warn dev → warn"; else bad "fail_or_warn dev não registou warn"; fi
 if run_fow lab | grep -qE '\taudit-guard\tbypass$'; then ok "fail_or_warn lab → bypass"; else bad "fail_or_warn lab não registou bypass"; fi
 
+# ── camada 2: integração — os hooks emitem telemetria ─────────────────────────
+run_hook() { # $1 hook-path, $2 cmd, extra env via ambiente já exportado; imprime telemetry.tsv
+  local sb; sb="$(mktemp -d "${TMPDIR:-/tmp}/prumo-tmh.XXXXXX")"
+  mkdir -p "$sb/.claude/plugins/cache"
+  # Provisiona um pseudo-install do prumo-base dentro do sandbox: sem isto,
+  # secops/hooks/_lib.sh não encontra prumo-common.sh sob este $HOME isolado e
+  # cai nos stubs no-op de prumo_telemetry_init/record (Task 1) — a asserção de
+  # integração nunca poderia passar. Cópia (não symlink) porque _lib.sh faz
+  # `find -type f`, que não bate em symlinks.
+  mkdir -p "$sb/.claude/plugins/cache/prumo-base/0.0.0/lib" "$sb/.claude/plugins/cache/prumo-base/0.0.0/.claude-plugin"
+  cp "$LIB" "$sb/.claude/plugins/cache/prumo-base/0.0.0/lib/prumo-common.sh"
+  printf '{"name":"prumo-base"}' > "$sb/.claude/plugins/cache/prumo-base/0.0.0/.claude-plugin/plugin.json"
+  local stdin; stdin=$(jq -cn --arg c "$2" '{tool_name:"Bash",tool_input:{command:$c}}')
+  printf '%s' "$stdin" | env -u PRUMO_APPROVE -u PRUMO_SECOND_OPINION_BYPASS \
+    HOME="$sb" PRUMO_OPERATING_MODE=prod bash "$1" >/dev/null 2>&1 || true
+  cat "$sb/.prumo/log/telemetry.tsv" 2>/dev/null
+  rm -rf "$sb"
+}
+AG="$REPO_ROOT/secops/hooks/pre-tool-approval-gate.sh"
+# bloqueio: N-level sem PRUMO_APPROVE → exit 2 (negação) → trap regista block
+if run_hook "$AG" "git push -f origin main" | grep -qE '\tapproval-gate\tblock$'; then ok "hook: approval-gate block registado"; else bad "hook: approval-gate block não registado"; fi
+# allow: comando trivial → exit 0 → trap regista allow
+if run_hook "$AG" "ls -la" | grep -qE '\tapproval-gate\tallow$'; then ok "hook: approval-gate allow registado"; else bad "hook: approval-gate allow não registado"; fi
+# anti-PII: um marcador único do comando NUNCA aparece no telemetry.tsv
+MARK="ZZUNIQUEMARKER42"
+if run_hook "$AG" "git push -f origin $MARK" | grep -q "$MARK"; then bad "anti-PII: conteúdo do comando vazou para telemetry.tsv"; else ok "anti-PII: telemetry.tsv sem conteúdo de comando"; fi
+
 echo
 if [ "$FAILS" -eq 0 ]; then echo "✓ telemetry-test (lib) passou."; else echo "✗ $FAILS falha(s)."; exit 1; fi

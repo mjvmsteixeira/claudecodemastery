@@ -21,6 +21,7 @@ HELPER="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/
 if [ -r "$HELPER" ]; then
   # shellcheck disable=SC1090
   source "$HELPER"
+  prumo_telemetry_init "prumo-base" "audit-guard"
 else
   # Fallback: prod fail-closed
   prumo_log() { :; }

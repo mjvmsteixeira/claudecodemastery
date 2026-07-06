@@ -367,6 +367,14 @@ if [ -z "$ONLY_PLUGIN" ] && [ -x "$REPO_ROOT/scripts/eval/run.sh" ]; then
       info "second-opinion live-test saltado (sem python3)"
     fi
   fi
+
+  if [ -x "$REPO_ROOT/scripts/eval/telemetry-test.sh" ]; then
+    if "$REPO_ROOT/scripts/eval/telemetry-test.sh" >/dev/null 2>&1; then
+      pass "telemetria dos guardrails verde (record + summary + hooks + anti-PII)"
+    else
+      fail "telemetry-test falhou — corre ./scripts/eval/telemetry-test.sh"
+    fi
+  fi
 fi
 
 # ──────────────────────── resumo ────────────────────────

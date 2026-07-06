@@ -4,6 +4,7 @@
 set -euo pipefail
 # shellcheck source=_lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
+prumo_telemetry_init "prumo-secops" "pii-redact"
 
 INPUT=$(hook_tool_payload "${1:-}")
 

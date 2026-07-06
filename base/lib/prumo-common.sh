@@ -139,6 +139,7 @@ prumo_telemetry_record() {
 # shellcheck disable=SC2329  # invocado pelo trap EXIT
 _prumo_tm_on_exit() {
   local code=$?
+  [ "${BASH_SUBSHELL:-0}" -eq 0 ] || return   # só regista no shell de topo, nunca em subshells
   [ "${PRUMO_TM_RECORDED:-0}" = "1" ] && return
   case "$code" in
     0) prumo_telemetry_record "${PRUMO_TM_PLUGIN:-unknown}" "${PRUMO_TM_HOOK:-unknown}" allow ;;

@@ -20,6 +20,7 @@
 set -euo pipefail
 # shellcheck source=_lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
+prumo_telemetry_init "prumo-secops" "vault-ttl"
 
 RAW_CMD=$(hook_tool_payload "${1:-}")
 # Normaliza whitespace (newlines/tabs → espaço) — mirror de pre-tool-approval-gate.sh.

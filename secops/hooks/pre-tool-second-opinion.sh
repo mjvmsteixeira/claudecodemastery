@@ -7,6 +7,7 @@
 set -euo pipefail
 # shellcheck source=_lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
+prumo_telemetry_init "prumo-secops" "second-opinion"
 
 CMD=$(hook_tool_payload "${1:-}")
 
@@ -37,6 +38,9 @@ fi
 so_block_or_bypass() {
   if [ "$BYPASS" = "1" ]; then
     echo "[hook] second-opinion · BYPASS audit-tracked: $1" >&2
+    prumo_telemetry_record "prumo-secops" "second-opinion" "bypass"
+    # shellcheck disable=SC2034  # lido pelo trap _prumo_tm_on_exit em prumo-common.sh (source dinâmico, invisível ao shellcheck -x)
+    PRUMO_TM_RECORDED=1
     exit 0
   fi
   prumo_fail_or_warn "prumo-secops" "second-opinion" "$1"
