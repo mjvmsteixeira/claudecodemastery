@@ -343,8 +343,9 @@ fi
 # ──────────────────────── 9. eval-harness (regressão dos hooks) ────────────────────────
 if [ -z "$ONLY_PLUGIN" ] && [ -x "$REPO_ROOT/scripts/eval/run.sh" ]; then
   section "eval-harness (corpus de regressão dos hooks)"
-  if "$REPO_ROOT/scripts/eval/run.sh" --quiet >/dev/null 2>&1; then
-    n=$("$REPO_ROOT/scripts/eval/run.sh" --json 2>/dev/null | jq -r '.total')
+  # uma só invocação: o exit code decide pass/fail e o JSON dá a contagem
+  if harness_json=$("$REPO_ROOT/scripts/eval/run.sh" --json 2>/dev/null); then
+    n=$(printf '%s' "$harness_json" | jq -r '.total')
     pass "corpus verde (${n}/${n} casos)"
   else
     fail "corpus com mismatch — corre ./scripts/eval/run.sh para detalhe"

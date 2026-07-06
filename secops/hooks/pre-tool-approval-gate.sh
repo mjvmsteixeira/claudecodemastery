@@ -38,7 +38,7 @@ match() {
 # token "rm" tem de ser início-de-string, espaço, "/" ou "\" — nunca uma
 # letra/dígito. Sem isto "rm" batia como substring de "confirm", "terraform",
 # "platform", etc.
-if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\|"|'"'"')rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*/forensics(/|[[:space:]]|$)'; then
+if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\)rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*/forensics(/|[[:space:]]|$)'; then
   LEVEL="N3"
 fi
 if [ -z "$LEVEL" ] && match 'systemctl[[:space:]]+(stop|disable)\b'; then
@@ -91,10 +91,10 @@ if [ -z "$LEVEL" ] && match 'git[[:space:]]+push[[:space:]]+([^[:space:]]+[[:spa
 fi
 # rm de $HOME ou /tmp com flags variáveis
 # shellcheck disable=SC2016  # regex literal: casa a string '$HOME', não expande
-if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\|"|'"'"')rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*\$HOME(/|[[:space:]]|$)'; then
+if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\)rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*\$HOME(/|[[:space:]]|$)'; then
   LEVEL="N1"
 fi
-if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\|"|'"'"')rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*/tmp(/|[[:space:]]|$)'; then
+if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\)rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*/tmp(/|[[:space:]]|$)'; then
   LEVEL="N1"
 fi
 # Catch-all: rm com flag recursiva/força (-r, -f, -rf, -fr, --recursive,
@@ -106,7 +106,7 @@ fi
 # Fronteira de palavra obrigatória: sem ela, "deploy --confirm -f" e
 # "terraform -force x" batiam falsamente porque "confirm"/"terraform" contêm
 # "rm" como substring, seguido de "-f"/"-force" que a classe de flags aceita.
-if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\|"|'"'"')rm[[:space:]]+(-[a-zA-Z]*[rf][a-zA-Z]*|--recursive|--force)\b'; then
+if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\)rm[[:space:]]+(-[a-zA-Z]*[rf][a-zA-Z]*|--recursive|--force)\b'; then
   LEVEL="N1"
 fi
 

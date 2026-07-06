@@ -72,6 +72,13 @@ run_case() {
   local hp; hp="$(hook_path "$hook")"
   [ -n "$hp" ] && [ -f "$hp" ] || { echo "error:no-hook"; return; }
 
+  # isolamento por-caso: repõe o sandbox HOME a limpo antes de cada hook, para
+  # que um caso que (hipoteticamente) escreva um marker ~/.prumo/* não contamine
+  # o caso seguinte. Os classificadores actuais não escrevem, mas isto torna a
+  # garantia hermética real e à prova de casos futuros.
+  rm -rf "$SANDBOX/.prumo" "$SANDBOX/.claude"
+  mkdir -p "$SANDBOX/.claude/plugins/cache"
+
   # env: as opções -u TÊM de vir antes de qualquer KEY=val (exigência do env(1)).
   # Ordem: env  <-u flags...>  HOME=...  <assigns do caso...>  bash hook
   local k uflags assigns
@@ -155,6 +162,13 @@ while IFS= read -r line; do
 done < "$CORPUS"
 
 [ "$LIST_ONLY" = 1 ] && exit 0
+
+# gate nunca passa vazio: 0 casos = corpus corrompido/vazio ou filtro sem match.
+# Sem isto o "0/0 verde" seria um falso-verde silencioso no CI.
+if [ "$TOTAL" -eq 0 ]; then
+  echo "${C_R}${C_B}✗ 0 casos corridos — corpus vazio/corrompido ou filtro --hook/--corpus sem match.${C_0}" >&2
+  exit 1
+fi
 
 PASS=$((TP+TN)); FAIL=$((FP+FN+ERR))
 
