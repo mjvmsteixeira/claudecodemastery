@@ -14,10 +14,17 @@ OLLAMA_HOST="${OLLAMA_HOST:-http://127.0.0.1:11434}"
 OLLAMA_MODEL="${OLLAMA_MODEL:-qwen3-coder:30b}"
 BYPASS="${PRUMO_SECOND_OPINION_BYPASS:-}"
 
-# ── zona-cinzenta: ofuscação/evasão que a regex dos outros hooks não apanha ────
-# (o destrutivo óbvio — /bin/rm, \rm, rm -rf, SQL — já é coberto por audit-guard
-#  e approval-gate via word-boundary; aqui só o que engana a regex)
-GRAYZONE_REGEX='base64[[:space:]]*(-d|--decode)|(^|[;&|[:space:]])eval([[:space:]]|$)|\$\{?IFS\}?|(^|[;&|[:space:]])(/bin/|/usr/bin/)?(bash|sh)[[:space:]]+-c\b|(python[0-9]?|perl|ruby|node)[[:space:]]+-(c|e)\b|(printf|echo)[[:space:]].*\\x[0-9a-fA-F]{2}|xxd[[:space:]]+-r|(curl|wget)[[:space:]].+\|[[:space:]]*(/bin/|/usr/bin/)?(bash|sh)([[:space:]]|$)'
+# ── zona-cinzenta ─────────────────────────────────────────────────────────────
+# O trigger cobre (a) ofuscação/evasão que a regex dos outros hooks não apanha, e
+# (b) ops destrutivas/cross-tenant sem cobertura em NENHUM outro hook. O destrutivo
+# óbvio já coberto por audit-guard/approval-gate (systemctl stop puma, cap
+# deploy:rollback, SQL, rm -rf /forensics) fica de fora — sem re-avaliação redundante.
+# shellcheck disable=SC2016  # regex literal com ${IFS}, não expandir
+# 1) ofuscação/evasão que a regex dos outros hooks não apanha
+GRAYZONE_OBFUSCATION='base64[[:space:]]*(-d|--decode)|(^|[;&|[:space:]])eval([[:space:]]|$)|\$\{?IFS\}?|(^|[;&|[:space:]])(/bin/|/usr/bin/)?(bash|sh)[[:space:]]+-c\b|(python[0-9]?|perl|ruby|node)[[:space:]]+-(c|e)\b|(printf|echo)[[:space:]].*\\x[0-9a-fA-F]{2}|xxd[[:space:]]+-r|(curl|wget)[[:space:]].+\|[[:space:]]*(/bin/|/usr/bin/)?(bash|sh)([[:space:]]|$)'
+# 2) ops destrutivas/cross-tenant que NENHUM outro hook cobre (retidas do baseline)
+GRAYZONE_UNGUARDED='cross-tenant|all-tenants|vault[[:space:]]+operator[[:space:]]+seal|vault[[:space:]]+write[[:space:]]+transit.*rotate'
+GRAYZONE_REGEX="${GRAYZONE_OBFUSCATION}|${GRAYZONE_UNGUARDED}"
 
 if ! printf '%s' "$CMD" | grep -qiE "$GRAYZONE_REGEX"; then
   exit 0
