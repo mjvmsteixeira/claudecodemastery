@@ -27,6 +27,7 @@ Corre este bloco. É self-contained (status sempre; `on`/`off` só agem quando p
 set -u
 STYLE_VERSION="1"
 BEGIN_RE='<!-- prumo-style BEGIN'
+LEGACY_RE='<!-- wire-style BEGIN'  # marcador antigo (pré-rebrand); tratado como alias
 
 # ── helpers (backup/log) da prumo-common.sh; fallback se a lib não estiver presente ──
 LIB="${CLAUDE_PLUGIN_ROOT:-}/lib/prumo-common.sh"
@@ -53,15 +54,18 @@ for a in $ARGUMENTS; do
 done
 
 target_for() { [ "$1" = user ] && echo "${HOME}/.claude/CLAUDE.md" || echo "${PWD}/CLAUDE.md"; }
+has_block() { grep -Eq "$BEGIN_RE|$LEGACY_RE" "$1" 2>/dev/null; }
 present_version() {
   [ -f "$1" ] || { echo ""; return; }
-  grep -o '<!-- prumo-style BEGIN v[0-9][0-9]*' "$1" 2>/dev/null | grep -o 'v[0-9][0-9]*' | head -1
+  grep -Eo '<!-- (prumo|wire)-style BEGIN v[0-9][0-9]*' "$1" 2>/dev/null | grep -o 'v[0-9][0-9]*' | head -1
 }
-strip_block() {  # imprime $1 sem o bloco prumo-style
+strip_block() {  # imprime $1 sem o bloco prumo-style ou o legacy wire-style
   awk '
     /<!-- prumo-style BEGIN/ { skip=1 }
+    /<!-- wire-style BEGIN/  { skip=1 }
     skip==0 { print }
     /<!-- prumo-style END -->/ { skip=0; next }
+    /<!-- wire-style END -->/  { skip=0; next }
   ' "$1"
 }
 build_block() {
@@ -101,7 +105,7 @@ if [ "$ACTION" = "on" ]; then
     echo "criado $TARGET (não existia)"
   fi
   tmp="$(mktemp)"
-  if grep -q "$BEGIN_RE" "$TARGET" 2>/dev/null; then
+  if has_block "$TARGET"; then
     strip_block "$TARGET" > "$tmp"
     printf '\n' >> "$tmp"; build_block >> "$tmp"; mv "$tmp" "$TARGET"
     echo "OK · bloco actualizado para v${STYLE_VERSION} em $TARGET"
@@ -115,7 +119,7 @@ fi
 
 # ── OFF ──
 if [ "$ACTION" = "off" ]; then
-  if [ ! -f "$TARGET" ] || ! grep -q "$BEGIN_RE" "$TARGET" 2>/dev/null; then
+  if [ ! -f "$TARGET" ] || ! has_block "$TARGET"; then
     echo "nada a remover · $TARGET não tem bloco prumo-style"
   else
     bk="$(prumo_backup "claude-md-$SCOPE" "$TARGET")"; [ -n "$bk" ] && echo "backup: $bk"
@@ -138,6 +142,7 @@ fi
 
 - O bloco é delimitado por `<!-- prumo-style BEGIN vN -->` / `<!-- prumo-style END -->`. Tudo fora dos marcadores nunca é tocado.
 - Versionado: `on` com uma versão antiga presente substitui o bloco em vez de duplicar.
+- Migração: blocos legacy `<!-- wire-style BEGIN/END -->` (de antes do rebrand wire→prumo) são reconhecidos como alias — `on` substitui-os pelo bloco `prumo-style` actual, `off` remove-os na mesma.
 - Backup automático antes de qualquer escrita → `~/.prumo/backups/claude-md-<scope>-<ts>.tgz`.
 - O efeito é nativo e persistente: o Claude Code relê `CLAUDE.md` no arranque da próxima sessão. **Recarrega a sessão** para ver a mudança.
 - Isto **não** é um hook nem reescreve output em runtime — é injecção de config. Não respeita `PRUMO_OPERATING_MODE` (não há decisão fail-closed; só toca num `CLAUDE.md`).
