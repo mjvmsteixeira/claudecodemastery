@@ -12,6 +12,8 @@
 #   prumo_mode                                    — devolve prod|dev|lab
 #   prumo_is_prod / prumo_is_dev / prumo_is_lab     — predicados
 #   prumo_fail_or_warn <plugin> <hook> <message>  — prod=exit 2, dev=warn, lab=silent
+#   prumo_telemetry_init <plugin> <hook>          — instala trap de telemetria (no-op no fallback)
+#   prumo_telemetry_record <plugin> <hook> <decision> — regista decisão (no-op no fallback)
 #
 # Por defeito o fallback assume prod (sem distinguir modos) — comportamento
 # seguro para um plugin SecOps quando o base está em falta.

@@ -158,7 +158,7 @@ prumo_telemetry_summary() {
   local since="all" tsv="${PRUMO_LOG_DIR}/telemetry.tsv"
   while [ $# -gt 0 ]; do
     case "$1" in
-      --since) since="${2:-all}"; shift 2 ;;
+      --since) since="${2:-all}"; if [ $# -ge 2 ]; then shift 2; else shift; fi ;;
       *) shift ;;
     esac
   done
