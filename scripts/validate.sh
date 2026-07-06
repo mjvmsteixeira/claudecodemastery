@@ -350,6 +350,23 @@ if [ -z "$ONLY_PLUGIN" ] && [ -x "$REPO_ROOT/scripts/eval/run.sh" ]; then
   else
     fail "corpus com mismatch — corre ./scripts/eval/run.sh para detalhe"
   fi
+
+  # camada B: a lógica de decisão por veredicto (safe/unsafe/uncertain) do
+  # guardrail semântico só é exercida pelo live-test com stub — o corpus hermético
+  # aponta o Ollama a uma porta morta e curto-circuita no ramo fail-closed antes do
+  # parse do enum. Sem isto, uma regressão tipo trocar .verdict por .result passava
+  # o gate a verde. Opt-in por python3; salta limpo se ausente.
+  if [ -x "$REPO_ROOT/scripts/eval/second-opinion-livetest.sh" ]; then
+    if command -v python3 >/dev/null 2>&1; then
+      if "$REPO_ROOT/scripts/eval/second-opinion-livetest.sh" >/dev/null 2>&1; then
+        pass "second-opinion live-test verde (decisão + anti-injeção)"
+      else
+        fail "second-opinion live-test falhou — corre ./scripts/eval/second-opinion-livetest.sh"
+      fi
+    else
+      info "second-opinion live-test saltado (sem python3)"
+    fi
+  fi
 fi
 
 # ──────────────────────── resumo ────────────────────────
