@@ -14,6 +14,7 @@ já introduziram regressões que só um review manual apanhou.
 | `run.sh` | o runner: corre cada caso contra o hook real e compara |
 | `selftest.sh` | prova que o harness deteta regressões (mutação num hook → deve ficar vermelho) |
 | `generate.sh` | (opcional, IA) o Ollama local propõe evasões novas para revisão humana |
+| `second-opinion-livetest.sh` | (opcional, python3) sobe um stub Ollama e testa a lógica de decisão + resistência a injeção do guardrail semântico |
 
 ## Correr
 
@@ -40,7 +41,7 @@ Os hooks nunca executam o comando; só o classificam (pre-execution).
  "reason":"sed -i escreve ficheiro (nao e filtro)"}
 ```
 
-- `hook` ∈ `audit-guard | vault-ttl | pii-redact | approval-gate`
+- `hook` ∈ `audit-guard | vault-ttl | pii-redact | approval-gate | second-opinion`
 - `env` — variáveis aplicadas ao correr. As sensíveis (`VAULT_TOKEN`, `PRUMO_APPROVE`,
   `PRUMO_AUDIT_APPLY`, `PRUMO_PII_DISABLE`, `PRUMO_AUDIT_ACTIVE`, `PRUMO_OPERATING_MODE`)
   são desligadas por defeito; o caso religa só as que precisa.
@@ -64,6 +65,15 @@ O modelo local propõe evasões novas em `candidates.jsonl` (nunca toca no corpu
 Revês, juntas os bons ao corpus, e corres `run.sh`: um candidato que NÃO seja
 bloqueado é um gap real a corrigir. O modelo às vezes rotula mal (ex: propõe um
 `rm /tmp/*` como "block" quando /tmp é benigno) — daí a revisão humana.
+
+## Guardrail semântico (second-opinion)
+
+O hook `pre-tool-second-opinion.sh` dispara o modelo local só na *zona-cinzenta*
+(ofuscação que a regex não apanha). No corpus é testado de forma hermética
+(Ollama apontado a uma porta morta → exercita trigger, fail-closed e bypass, sem
+rede). A lógica de *decisão* (safe/unsafe/uncertain) e a resistência a injeção
+vivem no `second-opinion-livetest.sh` (opcional, precisa de `python3`), que sobe
+um stub HTTP — nunca há um seam de teste dentro do hook de produção.
 
 ## Como ler o resultado
 
