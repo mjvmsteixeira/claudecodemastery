@@ -1,5 +1,5 @@
 # ============================================================
-# WHITELIST MODE — só o marketplace e os quatro plugins Wire (base, secops, devkit, craft).
+# WHITELIST MODE — só o marketplace e os quatro plugins prumo (base, secops, devkit, craft).
 # Tudo o resto fica IGNORADO por defeito.
 # ============================================================
 
@@ -10,6 +10,7 @@
 !.gitignore
 !README.md
 !CHANGELOG.md
+!CLAUDE.md
 !LICENSE
 !.claude-plugin/
 !base/

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# scripts/package.sh — empacotador unificado dos 4 plugins jump2new.
+# scripts/package.sh — empacotador unificado dos 4 plugins prumo.
 #
 # Substitui o antigo secops/package.sh (asymmetric — só existia um).
 # Corre validate.sh antes para apanhar problemas estruturais; salta com --no-validate.
 #
 # Uso:
 #   ./scripts/package.sh                   # empacota os 4
-#   ./scripts/package.sh base              # só wire-base
+#   ./scripts/package.sh base              # só prumo-base
 #   ./scripts/package.sh base secops       # subset
 #   ./scripts/package.sh --no-validate     # salta a validação prévia
 #   ./scripts/package.sh --out /caminho    # outdir alternativo (default /tmp)
@@ -58,7 +58,7 @@ fi
 
 # ──────────────────────── 2. empacotar ────────────────────────
 for p in "${SELECTED[@]}"; do
-  plugin_name="wire-$p"
+  plugin_name="prumo-$p"
   zip_path="${OUT_DIR}/${plugin_name}.plugin"
 
   echo "── ${plugin_name} ──"
@@ -84,5 +84,5 @@ done
 echo
 echo "── pronto ──"
 for p in "${SELECTED[@]}"; do
-  echo "  /plugin install ${OUT_DIR}/wire-${p}.plugin"
+  echo "  /plugin install ${OUT_DIR}/prumo-${p}.plugin"
 done

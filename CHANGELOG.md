@@ -1,8 +1,13 @@
-# Changelog — marketplace jump2new
+# Changelog — marketplace prumo
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `craft/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **wire-base 0.4.0 · wire-secops 0.4.0 · wire-devkit 0.3.0 · wire-craft 0.1.0**
+Estado actual: **prumo-base 0.5.0 · prumo-secops 0.5.0 · prumo-devkit 0.4.0 · prumo-craft 0.2.0**
+
+## 2026-07-06
+
+- **Rebranding total: `jump2new` + `wire-*` → `prumo`.** Marketplace renomeado para `prumo`; plugins passam a `prumo-base` 0.5.0, `prumo-secops` 0.5.0, `prumo-devkit` 0.4.0, `prumo-craft` 0.2.0. Comandos `/wire-*` → `/prumo-*`, env `WIRE_*` → `PRUMO_*`, estado `~/.wire/` → `~/.prumo/` (migração automática), lib `wire-common.sh` → `prumo-common.sh`. O domínio Wire de produção (produtos, hostnames, AppRoles, Wazuh/Zabbix) fica intacto. Owner passa a mjvmst. Upgrade exige uninstall dos plugins `wire-*@jump2new` e install dos `prumo-*@prumo`.
+- Correcções da deep analysis de 2026-07-06 absorvidas: descrição do marketplace com os 4 plugins, READMEs alinhados com manifests, formato de changelog unificado, `CLAUDE.md` de dev guidance criado dentro do repo, tags git por plugin.
 
 ## 2026-05-26
 

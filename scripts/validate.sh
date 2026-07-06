@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/validate.sh — bateria de checks estáticos sobre os 4 plugins jump2new.
+# scripts/validate.sh — bateria de checks estáticos sobre os 4 plugins prumo.
 #
 # Verifica:
 #   1. plugin.json e marketplace.json são JSON válidos
@@ -122,9 +122,9 @@ for p in "${PLUGINS[@]}"; do
     done
     n=$(jq -r '.name' "$manifest")
     v=$(jq -r '.version' "$manifest")
-    expected_name="wire-$p"
+    expected_name="prumo-$p"
     if [ "$n" != "$expected_name" ]; then
-      fail "$manifest: name='$n' não bate com 'wire-$p'"
+      fail "$manifest: name='$n' não bate com 'prumo-$p'"
     fi
     pass "$manifest: $n v$v"
   else
@@ -195,7 +195,7 @@ for p in "${PLUGINS[@]}"; do
     fi
     pass "$smoke"
   else
-    warn "$p/smoke.sh ausente (sanity-check do plugin não disponível via /wire-smoke)"
+    warn "$p/smoke.sh ausente (sanity-check do plugin não disponível via /prumo-smoke)"
   fi
 done
 
@@ -289,7 +289,7 @@ done
 section "descriptions: anti-padrões de auto-fix"
 
 # Padrões que NÃO podem aparecer em frontmatter description: de SKILL.md ou
-# commands/*.md. Histórico: a v0.2.0 do wire-devkit prometia "fora do modo CI,
+# commands/*.md. Histórico: a v0.2.0 do prumo-devkit prometia "fora do modo CI,
 # corrige TODOS os issues automaticamente sem perguntar" no full-audit, o que
 # autorizou apagar initializers/middleware num dev shell. Esta verificação previne
 # regressão. Ver devkit/CLAUDE.md (Safety convention).
@@ -313,13 +313,13 @@ section "secops/hooks/pre-tool-vault-ttl.sh: allowlist de bootstraps"
 ttl_hook="secops/hooks/pre-tool-vault-ttl.sh"
 if [ -f "$ttl_hook" ]; then
   missing_allowlist=()
-  for pat in wire-vault-bootstrap wire-secops-bootstrap wire-vault-kv-migrate; do
+  for pat in prumo-vault-bootstrap prumo-secops-bootstrap prumo-vault-kv-migrate; do
     grep -q "'${pat}'" "$ttl_hook" || missing_allowlist+=("$pat")
   done
   if [ "${#missing_allowlist[@]}" -eq 0 ]; then
     pass "$ttl_hook contém os 3 patterns de bootstrap/migrate"
   else
-    fail "$ttl_hook não contém patterns: ${missing_allowlist[*]} (ver plano 2026-05-19-wire-vault-bootstraps)"
+    fail "$ttl_hook não contém patterns: ${missing_allowlist[*]} (ver plano 2026-05-19-prumo-vault-bootstraps)"
   fi
 else
   info "$ttl_hook ausente — check skip"
