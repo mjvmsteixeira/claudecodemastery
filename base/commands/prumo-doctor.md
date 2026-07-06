@@ -74,7 +74,23 @@ TOTAL: X críticos · Y altos · Z médios · W baixos
 PRÓXIMAS ACÇÕES (ordem de prioridade): ...
 ```
 
-## Passo 4 — Pendentes (se houver gaps de instalação)
+## Passo 4 — Telemetria dos guardrails (se prumo-base presente)
+
+Resumo compacto do que os guardrails fizeram (últimos 7 dias). Mesma fonte que `/prumo-telemetry`.
+
+```bash
+LIB="$(find ~/.claude/plugins/cache -path '*/prumo-base/*/lib/prumo-common.sh' -print -quit 2>/dev/null)"
+if [ -n "$LIB" ]; then
+  # shellcheck source=/dev/null
+  source "$LIB"
+  echo "── Telemetria dos guardrails (7d) ──"
+  prumo_telemetry_summary --since 7d
+fi
+```
+
+Sinal de gestão: hooks com muitos `block` são controlos activos; hooks com `fire=0` há muito são candidatos a rever. Detalhe completo em `/prumo-telemetry`.
+
+## Passo 5 — Pendentes (se houver gaps de instalação)
 
 Se algum plugin recomendado estiver em falta, recordar:
 
