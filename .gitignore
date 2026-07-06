@@ -1,5 +1,5 @@
 # ============================================================
-# WHITELIST MODE — só o marketplace e os três plugins Wire (base, secops, devkit).
+# WHITELIST MODE — só o marketplace e os quatro plugins Wire (base, secops, devkit, craft).
 # Tudo o resto fica IGNORADO por defeito.
 # ============================================================
 
@@ -9,6 +9,7 @@
 # 2. Whitelist apenas estes paths
 !.gitignore
 !README.md
+!CHANGELOG.md
 !LICENSE
 !.claude-plugin/
 !base/
