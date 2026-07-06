@@ -1,18 +1,18 @@
 ---
-name: wire-vault-bootstrap
+name: prumo-vault-bootstrap
 description: Provisiona infra Vault genérica (audit device, kv-v2 em secret/, approle auth, transit/ engine, ssh/ engine). Idempotente. Default --plan (read-only); --apply para executar. Requer token com policy 'root'.
 allowed-tools: Bash, Read
 argument-hint: "[--plan | --apply]"
 ---
 
-# /wire-vault-bootstrap [--plan | --apply]
+# /prumo-vault-bootstrap [--plan | --apply]
 
 <!-- Nota para o leitor: todos os blocos bash deste comando executam numa única
 shell session — variáveis declaradas em Passos anteriores estão disponíveis
 em Passos seguintes (ACTIONS, REFUSE, CREATE, SECRET_TYPE, MODE). Mesmo padrão
-de `wire-vault-policy.md`. -->
+de `prumo-vault-policy.md`. -->
 
-Provisiona infraestrutura Vault genérica e idempotente. Audit device, kv-v2 em `secret/`, approle auth method, transit engine, ssh engine. Não toca em conteúdo wire-specific (esse é o `/wire-secops-bootstrap`).
+Provisiona infraestrutura Vault genérica e idempotente. Audit device, kv-v2 em `secret/`, approle auth method, transit engine, ssh engine. Não toca em conteúdo wire-specific (esse é o `/prumo-secops-bootstrap`).
 
 ## Passo 1 — Parse flags
 
@@ -20,7 +20,7 @@ Provisiona infraestrutura Vault genérica e idempotente. Audit device, kv-v2 em 
 MODE="${1:---plan}"
 case "$MODE" in
   --plan|--apply) ;;
-  *) echo "Uso: /wire-vault-bootstrap [--plan | --apply]" >&2; exit 1 ;;
+  *) echo "Uso: /prumo-vault-bootstrap [--plan | --apply]" >&2; exit 1 ;;
 esac
 ```
 
@@ -31,7 +31,7 @@ esac
 source "${CLAUDE_PLUGIN_ROOT}/lib/vault-env.sh"
 
 if ! vault_ready; then
-  echo "Vault inacessível ou sealed. Corre /wire-vault-doctor primeiro." >&2
+  echo "Vault inacessível ou sealed. Corre /prumo-vault-doctor primeiro." >&2
   exit 1
 fi
 
@@ -44,7 +44,7 @@ Bootstrap exige token com policy 'root' — actual: ${POLICIES:-(nenhuma)}.
 Exportar root:
   export VAULT_TOKEN=\$(jq -r .root_token ~/vault/vault-init.json)
 
-Depois corre /wire-vault-bootstrap --plan novamente.
+Depois corre /prumo-vault-bootstrap --plan novamente.
 EOF
   exit 1
 fi
@@ -74,7 +74,7 @@ elif [ "$SECRET_TYPE" = "kv" ] && [ "$SECRET_VERSION" != "2" ]; then
   # kv-v1: verificar se tem dados (LIST top-level)
   HAS_DATA=$(V list -format=json secret 2>/dev/null | jq 'length // 0' 2>/dev/null || echo 0)
   if [ "${HAS_DATA:-0}" -gt 0 ]; then
-    ACTIONS+=("⚠|kv-v2 mount|secret/|refuse:kv-v1 com $HAS_DATA path(s) — corre /wire-vault-kv-migrate")
+    ACTIONS+=("⚠|kv-v2 mount|secret/|refuse:kv-v1 com $HAS_DATA path(s) — corre /prumo-vault-kv-migrate")
   else
     ACTIONS+=("+|kv-v2 mount|secret/|recreate:kv-v1 vazio, disable→re-enable")
   fi
@@ -110,7 +110,7 @@ fi
 ## Passo 4 — Imprimir plano
 
 ```bash
-echo "── Plano: /wire-vault-bootstrap ──"
+echo "── Plano: /prumo-vault-bootstrap ──"
 echo
 printf "%-3s %-22s %-32s %s\n" "" "Recurso" "Path" "Status"
 echo "─────────────────────────────────────────────────────────────────────────────"
@@ -138,7 +138,7 @@ if [ "$MODE" = "--plan" ]; then
   if [ "$CREATE" -eq 0 ]; then
     echo "Nada a fazer — infra já provisionada."
   else
-    echo "Para executar: /wire-vault-bootstrap --apply"
+    echo "Para executar: /prumo-vault-bootstrap --apply"
   fi
   exit 0
 fi
@@ -192,8 +192,8 @@ for entry in "${ACTIONS[@]}"; do
 done
 
 echo
-echo "✓ /wire-vault-bootstrap --apply completo."
-echo "Próximo: /wire-secops-bootstrap --plan (para provisionar conteúdo wire-*)."
+echo "✓ /prumo-vault-bootstrap --apply completo."
+echo "Próximo: /prumo-secops-bootstrap --plan (para provisionar conteúdo wire-*)."
 echo
 echo "Aviso: audit device 'file' é blocking — se /vault/audit/ encher, Vault para de aceitar operações."
 echo "Considera configurar logrotate no host sobre o volume vault-audit."
@@ -202,7 +202,7 @@ echo "Considera configurar logrotate no host sobre o volume vault-audit."
 ## Notas
 
 - **Idempotente**: re-correr `--apply` salta itens já feitos (skip silencioso).
-- **kv-v1 com dados**: refuse explícito + manda para `/wire-vault-kv-migrate`. Disable destruiria os dados.
+- **kv-v1 com dados**: refuse explícito + manda para `/prumo-vault-kv-migrate`. Disable destruiria os dados.
 - **Audit path**: `/vault/audit/audit.log` — o `docker-compose.yml` do utilizador já tem volume `vault-audit` com `chown vault:vault` no entrypoint.
 - **Sem rollback**: cada operação é atómica em Vault, mas o conjunto não é. Em caso de erro mid-apply, corre `--plan` para ver estado parcial e decide à mão.
 - **Token requirement**: policy "root". Bootstrap valida internamente (defesa em profundidade — allowlist do hook não substitui).

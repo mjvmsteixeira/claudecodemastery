@@ -1,31 +1,31 @@
 ---
-name: wire-smoke
-description: Corre smoke tests read-only sobre os plugins Wire instalados. Sem argumento corre os 3; com argumento (base|secops|devkit|all) limita. Cada plugin shippa um smoke.sh próprio (lib loads, hooks executáveis, ferramentas opcionais detectadas). Não substitui /wire-doctor; é mais leve e foca-se em "isto está instalado correctamente?".
+name: prumo-smoke
+description: Corre smoke tests read-only sobre os plugins prumo instalados. Sem argumento corre os 3; com argumento (base|secops|devkit|all) limita. Cada plugin shippa um smoke.sh próprio (lib loads, hooks executáveis, ferramentas opcionais detectadas). Não substitui /prumo-doctor; é mais leve e foca-se em "isto está instalado correctamente?".
 allowed-tools: Bash, Read
 ---
 
-# /wire-smoke [`base|secops|devkit|all`]
+# /prumo-smoke [`base|secops|devkit|all`]
 
 Executa o `smoke.sh` de cada plugin instalado. Read-only. Sai com código 0 se tudo passou, 1 se houve falhas críticas, 2 se só warnings (degradação aceitável).
 
-## Diferença vs `/wire-doctor`
+## Diferença vs `/prumo-doctor`
 
-- **`/wire-doctor`** — meta-doctor que **orquestra** outras skills (mempalace-doctor, claude-deep-audit, /vault-audit, /wire-vault-doctor). Mais pesado, abrangente, **read-only**. Foca em "o setup está saudável e operacional?".
-- **`/wire-smoke`** — corre o `smoke.sh` de cada plugin. Mais rápido, foca em "o plugin foi instalado correctamente? as libs carregam, os hooks têm permissões, ferramentas opcionais estão presentes?".
+- **`/prumo-doctor`** — meta-doctor que **orquestra** outras skills (mempalace-doctor, claude-deep-audit, /vault-audit, /prumo-vault-doctor). Mais pesado, abrangente, **read-only**. Foca em "o setup está saudável e operacional?".
+- **`/prumo-smoke`** — corre o `smoke.sh` de cada plugin. Mais rápido, foca em "o plugin foi instalado correctamente? as libs carregam, os hooks têm permissões, ferramentas opcionais estão presentes?".
 
-Usar `/wire-smoke` logo após `/plugin install`. Usar `/wire-doctor` para uma sessão de manutenção.
+Usar `/prumo-smoke` logo após `/plugin install`. Usar `/prumo-doctor` para uma sessão de manutenção.
 
 ## Passo 1 — Interpretar argumento
 
 ```bash
 TARGETS=()
 case "${ARGUMENTS:-all}" in
-  base)       TARGETS=("wire-base") ;;
-  secops)     TARGETS=("wire-secops") ;;
-  devkit)     TARGETS=("wire-devkit") ;;
-  all|"")     TARGETS=("wire-base" "wire-secops" "wire-devkit") ;;
+  base)       TARGETS=("prumo-base") ;;
+  secops)     TARGETS=("prumo-secops") ;;
+  devkit)     TARGETS=("prumo-devkit") ;;
+  all|"")     TARGETS=("prumo-base" "prumo-secops" "prumo-devkit") ;;
   *)
-    echo "Uso: /wire-smoke [base|secops|devkit|all]" >&2
+    echo "Uso: /prumo-smoke [base|secops|devkit|all]" >&2
     exit 1
     ;;
 esac
@@ -69,9 +69,9 @@ done
 
 ```bash
 case $TOTAL_EXIT in
-  0) echo "=== /wire-smoke · OK ===" ;;
-  1) echo "=== /wire-smoke · FAILED · há erros críticos em pelo menos um plugin ===" ;;
-  2) echo "=== /wire-smoke · DEGRADED · só warnings; ferramentas opcionais em falta ===" ;;
+  0) echo "=== /prumo-smoke · OK ===" ;;
+  1) echo "=== /prumo-smoke · FAILED · há erros críticos em pelo menos um plugin ===" ;;
+  2) echo "=== /prumo-smoke · DEGRADED · só warnings; ferramentas opcionais em falta ===" ;;
 esac
 exit $TOTAL_EXIT
 ```
@@ -81,15 +81,15 @@ exit $TOTAL_EXIT
 | Code | Significado | Acção |
 |------|-------------|-------|
 | `0` | Tudo passou | Nada a fazer — instalação saudável |
-| `1` | Falhas críticas | Reinstalar plugin afectado; correr `/wire-doctor` para detalhe |
+| `1` | Falhas críticas | Reinstalar plugin afectado; correr `/prumo-doctor` para detalhe |
 | `2` | Só warnings | Ferramentas opcionais (ollama, ngrok, ~/vault/) em falta — degradação aceitável |
 
 ## Integração
 
-- Sugerido pelo `/wire-onboard` logo após detectar plugins instalados.
+- Sugerido pelo `/prumo-onboard` logo após detectar plugins instalados.
 - Corrível em CI (`./base/smoke.sh && ./secops/smoke.sh && ./devkit/smoke.sh`) embora não esteja no workflow GitHub Actions actual.
 - Não substitui validação estática — para isso, `scripts/validate.sh` (estático, sem runtime).
-- Não substitui `/wire-doctor` — para análise profunda multi-componente.
+- Não substitui `/prumo-doctor` — para análise profunda multi-componente.
 
 ## Notas
 

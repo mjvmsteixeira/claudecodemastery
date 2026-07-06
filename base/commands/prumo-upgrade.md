@@ -1,19 +1,19 @@
 ---
-name: wire-upgrade
-description: Verifica se há versões mais recentes dos plugins Wire (base/secops/devkit) no marketplace remoto. Compara versão instalada (cache local) com a remota (raw GitHub). Read-only — não auto-instala, emite as linhas /plugin install para colar.
+name: prumo-upgrade
+description: Verifica se há versões mais recentes dos plugins prumo (base/secops/devkit) no marketplace remoto. Compara versão instalada (cache local) com a remota (raw GitHub). Read-only — não auto-instala, emite as linhas /plugin install para colar.
 allowed-tools: Bash, Read
 ---
 
-# /wire-upgrade
+# /prumo-upgrade
 
-Verifica se há updates dos plugins Wire instalados. Read-only — só reporta. Para actualizar, o utilizador cola as linhas de install emitidas.
+Verifica se há updates dos plugins prumo instalados. Read-only — só reporta. Para actualizar, o utilizador cola as linhas de install emitidas.
 
 ## Passo 1 — Detectar versões locais
 
 ```bash
 echo "=== Versões instaladas localmente ==="
 declare -A LOCAL_VER
-for p in wire-base wire-secops wire-devkit; do
+for p in prumo-base prumo-secops prumo-devkit; do
   manifest=$(find ~/.claude/plugins/cache -path "*/${p}/*/.claude-plugin/plugin.json" 2>/dev/null \
              | sort -V | tail -1)
   if [ -n "$manifest" ]; then
@@ -29,7 +29,7 @@ done
 
 ## Passo 2 — Fetch das versões remotas
 
-Raw GitHub é a fonte de verdade do marketplace `jump2new`:
+Raw GitHub é a fonte de verdade do marketplace `prumo`:
 
 ```bash
 echo
@@ -38,7 +38,7 @@ declare -A REMOTE_VER
 RAW_BASE="https://raw.githubusercontent.com/mjvmsteixeira/claudecodemastery/main"
 
 for p in base secops devkit; do
-  plugin_name="wire-$p"
+  plugin_name="prumo-$p"
   url="$RAW_BASE/$p/.claude-plugin/plugin.json"
   remote_v=$(curl -fsSL --max-time 5 "$url" 2>/dev/null | jq -r .version 2>/dev/null)
   if [ -n "$remote_v" ] && [ "$remote_v" != "null" ]; then
@@ -62,7 +62,7 @@ echo
 echo "=== Diff ==="
 UPDATES_AVAILABLE=()
 
-for p in wire-base wire-secops wire-devkit; do
+for p in prumo-base prumo-secops prumo-devkit; do
   local_v="${LOCAL_VER[$p]}"
   remote_v="${REMOTE_VER[$p]}"
 
@@ -94,7 +94,7 @@ if [ "${#UPDATES_AVAILABLE[@]}" -gt 0 ]; then
   echo
   echo "=== Para actualizar (cola estas linhas) ==="
   for p in "${UPDATES_AVAILABLE[@]}"; do
-    echo "/plugin install $p@jump2new"
+    echo "/plugin install $p@prumo"
   done
   echo
   echo "Notas:"
@@ -112,8 +112,8 @@ Caso tudo esteja up to date:
 
 ```
 === Tudo actualizado ===
-Os 3 plugins Wire (base, secops, devkit) estão na versão mais recente do marketplace jump2new.
-Próxima sanity check: /wire-doctor
+Os 3 plugins prumo (base, secops, devkit) estão na versão mais recente do marketplace prumo.
+Próxima sanity check: /prumo-doctor
 ```
 
 ## Notas
@@ -122,4 +122,4 @@ Próxima sanity check: /wire-doctor
 - Compara via `sort -V` (semver) — funciona para 0.1.0, 0.2.0-rc1, 1.0.0 etc.
 - Se a raw GitHub estiver inacessível (offline, VPN), reporta-o e sai sem decidir nada.
 - Tag git e versão no `plugin.json` devem permanecer em sync — o `validate.sh` não força isso ainda.
-- Para uma sessão totalmente nova num laptop, preferir `/wire-onboard`; o `/wire-upgrade` assume que pelo menos um plugin já está instalado.
+- Para uma sessão totalmente nova num laptop, preferir `/prumo-onboard`; o `/prumo-upgrade` assume que pelo menos um plugin já está instalado.

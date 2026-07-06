@@ -65,17 +65,17 @@ Detalhe operacional de cada etapa em `references/etapas.md` (thresholds aplicado
 
 Nunca executar `repair --yes`, `kg_invalidate`, `VACUUM`, `init` ou apagar backups sem confirmação explícita do utilizador. O modo doctor é diagnóstico primeiro, acção só com aprovação por mensagem.
 
-## Integração com wire-base
+## Integração com prumo-base
 
-Se `lib/wire-common.sh` estiver disponível, esta skill pode:
+Se `lib/prumo-common.sh` estiver disponível, esta skill pode:
 
-- Respeitar `WIRE_OPERATING_MODE`: em `dev` permite auto-fix de WARN-level após confirmação simples; em `prod` exige confirmação explícita por cada acção, mesmo benignas.
-- Emitir eventos para `~/.wire/log/mempalace-doctor.log` via `wire_log` (timestamp + acção + path).
-- Backup pré-acção em `~/.wire/backups/` em vez de `$PALACE_BACKUP`, se o utilizador preferir consolidar backups Wire num único local (ver `wire_backup`).
+- Respeitar `PRUMO_OPERATING_MODE`: em `dev` permite auto-fix de WARN-level após confirmação simples; em `prod` exige confirmação explícita por cada acção, mesmo benignas.
+- Emitir eventos para `~/.prumo/log/mempalace-doctor.log` via `prumo_log` (timestamp + acção + path).
+- Backup pré-acção em `~/.prumo/backups/` em vez de `$PALACE_BACKUP`, se o utilizador preferir consolidar backups prumo num único local (ver `prumo_backup`).
 
-A skill funciona standalone se `wire-common.sh` não existir — todas as integrações são opt-in.
+A skill funciona standalone se `prumo-common.sh` não existir — todas as integrações são opt-in.
 
 ## Ver também
 
 - `claude-deep-audit` (skill irmã, mesma plugin-base) — auditoria de **configuração Claude Code** (CLAUDE.md, settings, hooks, MCPs). Domínio distinto: este doctor olha para `~/.mempalace/`; o claude-deep-audit olha para `~/.claude/` e `./`.
-- `/wire-vault-doctor` (em wire-secops) — diagnóstico do **servidor Vault** (HA, seal, audit device, AppRoles), não confundir com os comandos `/vault-*` desta plugin-base (que são integração de segredos por-projecto).
+- `/prumo-vault-doctor` (em prumo-secops) — diagnóstico do **servidor Vault** (HA, seal, audit device, AppRoles), não confundir com os comandos `/vault-*` desta plugin-base (que são integração de segredos por-projecto).

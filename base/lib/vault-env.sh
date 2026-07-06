@@ -93,20 +93,20 @@ file_mtime() {
 }
 
 # ────────────────────────────────────────────────────────────────────────────
-# Optional integration with wire-base · lib/wire-common.sh
+# Optional integration with prumo-base · lib/prumo-common.sh
 # Defensive: silently skip if not present, so the toolkit works standalone.
-# Adds: wire_log → estruturado, wire_mode → respeitar prod/dev/lab
+# Adds: prumo_log → estruturado, prumo_mode → respeitar prod/dev/lab
 # ────────────────────────────────────────────────────────────────────────────
 _VAULT_ENV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ -f "${_VAULT_ENV_DIR}/wire-common.sh" ]; then
+if [ -f "${_VAULT_ENV_DIR}/prumo-common.sh" ]; then
   # shellcheck disable=SC1091
-  source "${_VAULT_ENV_DIR}/wire-common.sh"
+  source "${_VAULT_ENV_DIR}/prumo-common.sh"
 fi
 
 _vlog() {
-  # Wrapper · usa wire_log se disponível, senão silencioso para não poluir stdout
-  if command -v wire_log >/dev/null 2>&1; then
-    wire_log "vault-toolkit" "$1" "$2"
+  # Wrapper · usa prumo_log se disponível, senão silencioso para não poluir stdout
+  if command -v prumo_log >/dev/null 2>&1; then
+    prumo_log "vault-toolkit" "$1" "$2"
   fi
 }
 
@@ -131,7 +131,7 @@ vault_container_running() {
 # Sai com 1 se não houver docker compose.yml ou o comando falhou.
 #
 # IMPORTANTE: Esta função PODE ter efeitos secundários (arrancar container).
-# Controlada por WIRE_VAULT_AUTO_UP — não é chamada implicitamente em prod.
+# Controlada por PRUMO_VAULT_AUTO_UP — não é chamada implicitamente em prod.
 # ────────────────────────────────────────────────────────────────────────────
 vault_container_up() {
   [ "$VAULT_MODE" = "docker" ] || return 0   # native mode = nothing to start
@@ -161,15 +161,15 @@ vault_container_up() {
 #   2) unseal (3 primeiras keys de vault-init.json)
 #   3) verify ready
 #
-# Controlado por WIRE_VAULT_AUTO_UP (default: 0 em prod, 1 em dev/lab se wire_mode disponível).
+# Controlado por PRUMO_VAULT_AUTO_UP (default: 0 em prod, 1 em dev/lab se prumo_mode disponível).
 # Em prod sem auto-up explícito: assume operador humano arranca containers.
 # ────────────────────────────────────────────────────────────────────────────
 vault_arrange_up() {
-  local auto_up="${WIRE_VAULT_AUTO_UP:-}"
+  local auto_up="${PRUMO_VAULT_AUTO_UP:-}"
 
   # Sem override explícito e em prod → não toca em nada
-  if [ -z "$auto_up" ] && command -v wire_is_prod >/dev/null 2>&1 && wire_is_prod; then
-    _vlog "skip" "vault_arrange_up skipped in prod (set WIRE_VAULT_AUTO_UP=1 to override)"
+  if [ -z "$auto_up" ] && command -v prumo_is_prod >/dev/null 2>&1 && prumo_is_prod; then
+    _vlog "skip" "vault_arrange_up skipped in prod (set PRUMO_VAULT_AUTO_UP=1 to override)"
     return 1
   fi
 

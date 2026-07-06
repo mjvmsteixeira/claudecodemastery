@@ -1,11 +1,11 @@
 ---
-name: wire-vault-kv-migrate
+name: prumo-vault-kv-migrate
 description: Migra kv-v1 → kv-v2 no mount secret/. Destrutivo (disable apaga dados). Fluxo em 3 etapas exclusivas: --plan (default, conta paths/keys, não escreve), --backup (exporta para ~/vault/backups/kv-v1-<ts>.json), --apply (exige backup <24h, executa migração e re-import). Requer policy 'root'.
 allowed-tools: Bash, Read, Write
 argument-hint: "[--plan | --backup | --apply]"
 ---
 
-# /wire-vault-kv-migrate [--plan | --backup | --apply]
+# /prumo-vault-kv-migrate [--plan | --backup | --apply]
 
 <!-- Nota: todos os blocos bash partilham state. Em --apply, `walk_kv1` é
 re-derivada do backup (não do walker em runtime). MODE define qual Passo
@@ -19,7 +19,7 @@ Migra `secret/` de KV v1 para KV v2. **Destrutivo** — o disable apaga os dados
 MODE="${1:---plan}"
 case "$MODE" in
   --plan|--backup|--apply) ;;
-  *) echo "Uso: /wire-vault-kv-migrate [--plan | --backup | --apply]" >&2; exit 1 ;;
+  *) echo "Uso: /prumo-vault-kv-migrate [--plan | --backup | --apply]" >&2; exit 1 ;;
 esac
 ```
 
@@ -30,7 +30,7 @@ esac
 source "${CLAUDE_PLUGIN_ROOT}/lib/vault-env.sh"
 
 if ! vault_ready; then
-  echo "Vault inacessível ou sealed. Corre /wire-vault-doctor primeiro." >&2
+  echo "Vault inacessível ou sealed. Corre /prumo-vault-doctor primeiro." >&2
   exit 1
 fi
 
@@ -50,7 +50,7 @@ SECRET_TYPE=$(echo "$MOUNTS_JSON" | jq -r '.data["secret/"].type // "none"')
 SECRET_VERSION=$(echo "$MOUNTS_JSON" | jq -r '.data["secret/"].options.version // "1"')
 
 if [ "$SECRET_TYPE" = "none" ]; then
-  echo "secret/ não está montado. Corre /wire-vault-bootstrap primeiro." >&2
+  echo "secret/ não está montado. Corre /prumo-vault-bootstrap primeiro." >&2
   exit 1
 fi
 
@@ -89,12 +89,12 @@ walk_kv1() {
 
 ```bash
 if [ "$MODE" = "--plan" ]; then
-  echo "── /wire-vault-kv-migrate --plan ──"
+  echo "── /prumo-vault-kv-migrate --plan ──"
   echo "Estado actual: secret/ é kv-v1."
   echo
   echo "A walk-ar recursivamente (pode demorar se houver muitos paths)..."
 
-  TMPFILE=$(mktemp -t wire-kv-plan.XXXXXX)
+  TMPFILE=$(mktemp -t prumo-kv-plan.XXXXXX)
   walk_kv1 "" > "$TMPFILE"
 
   PATHS_COUNT=$(wc -l < "$TMPFILE" | tr -d ' ')
@@ -110,9 +110,9 @@ if [ "$MODE" = "--plan" ]; then
   echo "Chaves totais: $KEYS_COUNT"
   echo
   if [ "$PATHS_COUNT" -eq 0 ]; then
-    echo "secret/ kv-v1 está vazio. Podes correr /wire-vault-bootstrap --apply directamente — ele faz disable+re-enable como v2."
+    echo "secret/ kv-v1 está vazio. Podes correr /prumo-vault-bootstrap --apply directamente — ele faz disable+re-enable como v2."
   else
-    echo "Próximo passo: /wire-vault-kv-migrate --backup"
+    echo "Próximo passo: /prumo-vault-kv-migrate --backup"
   fi
   rm -f "$TMPFILE"
   exit 0
@@ -129,11 +129,11 @@ if [ "$MODE" = "--backup" ]; then
   TS=$(date +%Y%m%d-%H%M%S)
   BACKUP_FILE="$BACKUP_DIR/kv-v1-${TS}.json"
 
-  echo "── /wire-vault-kv-migrate --backup ──"
+  echo "── /prumo-vault-kv-migrate --backup ──"
   echo "Backup para: $BACKUP_FILE"
   echo
 
-  TMPFILE=$(mktemp -t wire-kv-backup.XXXXXX)
+  TMPFILE=$(mktemp -t prumo-kv-backup.XXXXXX)
   walk_kv1 "" > "$TMPFILE"
   PATHS_COUNT=$(wc -l < "$TMPFILE" | tr -d ' ')
 
@@ -173,7 +173,7 @@ if [ "$MODE" = "--backup" ]; then
 
   echo "✓ Backup criado: $LINES paths, $VALID JSON válidos. Permissões 600."
   echo
-  echo "Próximo passo (irreversível sem este backup): /wire-vault-kv-migrate --apply"
+  echo "Próximo passo (irreversível sem este backup): /prumo-vault-kv-migrate --apply"
   exit 0
 fi
 ```
@@ -187,7 +187,7 @@ if [ "$MODE" = "--apply" ]; then
   # Encontrar backup mais recente
   LATEST=$(ls -1t "$BACKUP_DIR"/kv-v1-*.json 2>/dev/null | head -1)
   if [ -z "$LATEST" ] || [ ! -f "$LATEST" ]; then
-    echo "Sem backup em $BACKUP_DIR. Corre /wire-vault-kv-migrate --backup primeiro." >&2
+    echo "Sem backup em $BACKUP_DIR. Corre /prumo-vault-kv-migrate --backup primeiro." >&2
     exit 1
   fi
 
@@ -198,29 +198,29 @@ if [ "$MODE" = "--apply" ]; then
   if [ "$AGE_S" -gt 86400 ]; then
     AGE_H=$((AGE_S / 3600))
     echo "Backup mais recente ($LATEST) tem ${AGE_H}h — >24h, demasiado velho." >&2
-    echo "Corre /wire-vault-kv-migrate --backup para refrescar." >&2
+    echo "Corre /prumo-vault-kv-migrate --backup para refrescar." >&2
     exit 1
   fi
 
   EXPECTED_COUNT=$(wc -l < "$LATEST" | tr -d ' ')
-  echo "── /wire-vault-kv-migrate --apply ──"
+  echo "── /prumo-vault-kv-migrate --apply ──"
   echo "Backup: $LATEST ($EXPECTED_COUNT paths, $((AGE_S / 60))m de idade)"
   echo
   echo "ATENÇÃO: vai correr disable→re-enable→re-import em secret/."
   echo "Estado parcial possível se algo falhar. O backup é a única recuperação."
   echo
-  if [ "${WIRE_VAULT_MIGRATE_CONFIRM:-}" != "migrate-now" ]; then
+  if [ "${PRUMO_VAULT_MIGRATE_CONFIRM:-}" != "migrate-now" ]; then
     cat >&2 <<'EOF'
 
 Para prosseguir, define a env-var de confirmação e re-corre:
 
-  WIRE_VAULT_MIGRATE_CONFIRM=migrate-now /wire-vault-kv-migrate --apply
+  PRUMO_VAULT_MIGRATE_CONFIRM=migrate-now /prumo-vault-kv-migrate --apply
 
 A env-var é deliberada — força confirmação explícita e legível em transcripts.
 EOF
     exit 0
   fi
-  echo "→ Confirmação recebida (WIRE_VAULT_MIGRATE_CONFIRM=migrate-now)"
+  echo "→ Confirmação recebida (PRUMO_VAULT_MIGRATE_CONFIRM=migrate-now)"
 
   echo
   echo "→ disable secret/ (kv-v1)"
@@ -260,7 +260,7 @@ EOF
   echo "Re-import completo: $IMPORTED / $EXPECTED_COUNT paths."
   if [ "$FAILED" -gt 0 ]; then
     echo "ERRO: $FAILED paths falharam. Estado parcial. Vê os logs acima." >&2
-    echo "O backup ainda está em $LATEST — podes re-tentar com /wire-vault-kv-migrate --apply (idempotente em kv-v2: re-import sobrepõe)." >&2
+    echo "O backup ainda está em $LATEST — podes re-tentar com /prumo-vault-kv-migrate --apply (idempotente em kv-v2: re-import sobrepõe)." >&2
     exit 1
   fi
 
@@ -273,5 +273,5 @@ fi
 
 - **Backup é a verdade.** Se algo falhar mid-apply, o backup é a única fonte. Mantém-no até confirmares que tudo está OK em kv-v2.
 - **Idempotente em re-tentativa.** Se `--apply` falhou parcialmente após o disable+enable, re-correr `--apply` (com o mesmo backup) faz re-import via `kv put` que sobrepõe — não duplica.
-- **Confirmação via env-var** (`WIRE_VAULT_MIGRATE_CONFIRM=migrate-now`) propositada — é destrutivo, não queremos enganos por copy-paste de comando incompleto. Funciona em ambientes sem TTY (ex: Claude via Bash tool).
+- **Confirmação via env-var** (`PRUMO_VAULT_MIGRATE_CONFIRM=migrate-now`) propositada — é destrutivo, não queremos enganos por copy-paste de comando incompleto. Funciona em ambientes sem TTY (ex: Claude via Bash tool).
 - **Walker recursivo** caminha o que o LIST devolve por nível; paths terminados em `/` são folders, restantes são folhas. Vault kv-v1 não tem recursive LIST nativo.

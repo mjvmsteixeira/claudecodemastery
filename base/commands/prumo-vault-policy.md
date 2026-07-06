@@ -1,10 +1,10 @@
 ---
-name: wire-vault-policy
+name: prumo-vault-policy
 description: Gera um template HCL de policy Vault para um novo AppRole ou projecto. Não aplica — escreve em $VAULT_HOME/policies/<nome>-policy.hcl para revisão e posterior `vault policy write`. Suporta KV (read/write/delete), transit (encrypt/decrypt), SSH sign roles.
 allowed-tools: Bash, Read
 ---
 
-# /wire-vault-policy `<nome>` [`--kv-read <path>...`] [`--kv-write <path>...`] [`--transit-key <nome>`] [`--ssh-role <role>`]
+# /prumo-vault-policy `<nome>` [`--kv-read <path>...`] [`--kv-write <path>...`] [`--transit-key <nome>`] [`--ssh-role <role>`]
 
 Gera um template HCL parametrizável para uma policy Vault. **Não aplica nada** — escreve um ficheiro em `$VAULT_HOME/policies/<nome>-policy.hcl` (ou `~/vault/policies/`) para o utilizador rever e depois aplicar manualmente via `vault policy write <nome> <ficheiro>`.
 
@@ -28,10 +28,10 @@ Gera um template HCL parametrizável para uma policy Vault. **Não aplica nada**
 ```bash
 NAME="${1:-}"
 if [ -z "$NAME" ]; then
-  echo "Uso: /wire-vault-policy <nome> [--kv-read <path>] [--kv-write <path>] ..."
+  echo "Uso: /prumo-vault-policy <nome> [--kv-read <path>] [--kv-write <path>] ..."
   echo "Exemplos:"
-  echo "  /wire-vault-policy wire-monitor --kv-read observability --ssh-role wire-srv-role"
-  echo "  /wire-vault-policy cmcaminha-ro --kv-read projects/cmcaminha --kv-read ai"
+  echo "  /prumo-vault-policy wire-monitor --kv-read observability --ssh-role wire-srv-role"
+  echo "  /prumo-vault-policy cmcaminha-ro --kv-read projects/cmcaminha --kv-read ai"
   exit 1
 fi
 
@@ -66,8 +66,8 @@ Esqueleto:
 ```hcl
 # ──────────────────────────────────────────────────────────────
 # Policy Vault: <NAME>
-# Gerado por /wire-vault-policy em <DATA-ISO>
-# Plugin: wire-base @ jump2new
+# Gerado por /prumo-vault-policy em <DATA-ISO>
+# Plugin: prumo-base @ prumo
 #
 # REVÊ ANTES DE APLICAR. Não há rollback automático em Vault.
 # Aplicar com:
@@ -146,5 +146,5 @@ echo "  vault policy read $NAME"
 
 - O comando **não aplica** a policy. É template; precisas de rever e correr `vault policy write` à mão. Razão: policies aplicadas mal podem desbloquear paths críticos. Mantemo-lo manual por segurança.
 - Comenta-se a header com data e origem para auditoria — facilita code review do `vault-policies.hcl` em git.
-- Para o stack `wire-secops`, há um ficheiro consolidado em `secops/vault-policies.hcl` com as 7 AppRoles. Este comando ajuda a adicionar **novas** policies sem perder o padrão.
+- Para o stack `prumo-secops`, há um ficheiro consolidado em `secops/vault-policies.hcl` com as 7 AppRoles. Este comando ajuda a adicionar **novas** policies sem perder o padrão.
 - Se um path KV não estiver `secret/data/...` (ex: KV v1 em outro mount), editar à mão depois — o template assume KV v2 (`secret/data/*` para data + `secret/metadata/*` para metadados/delete).

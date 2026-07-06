@@ -1,23 +1,23 @@
 ---
-name: wire-doctor
-description: Meta-doctor — orquestra mempalace-doctor, claude-deep-audit, /vault-audit e (se wire-secops instalado) /wire-vault-doctor numa única corrida; consolida num relatório de saúde do setup local. Read-only.
+name: prumo-doctor
+description: Meta-doctor — orquestra mempalace-doctor, claude-deep-audit, /vault-audit e (se prumo-secops instalado) /prumo-vault-doctor numa única corrida; consolida num relatório de saúde do setup local. Read-only.
 allowed-tools: Bash, Read, Grep
 ---
 
-# /wire-doctor
+# /prumo-doctor
 
-Meta-doctor do ecossistema Wire. Corre os doctors disponíveis em paralelo, consolida num relatório único. **Read-only** — nada é alterado; o output sugere acções concretas para o utilizador.
+Meta-doctor do ecossistema prumo. Corre os doctors disponíveis em paralelo, consolida num relatório único. **Read-only** — nada é alterado; o output sugere acções concretas para o utilizador.
 
-Domínios diferentes de `/full-audit` (que vive no `wire-devkit` e audita um **projecto**): o `/wire-doctor` audita o **setup local do Claude Code + ferramentas auxiliares** (MemPalace, Vault, configuração Claude).
+Domínios diferentes de `/full-audit` (que vive no `prumo-devkit` e audita um **projecto**): o `/prumo-doctor` audita o **setup local do Claude Code + ferramentas auxiliares** (MemPalace, Vault, configuração Claude).
 
 ## Passo 1 — Detectar quais doctors estão disponíveis
 
 ```bash
 # Cada plugin pode estar instalado ou não. Detectar antes de tentar correr.
 HAS_BASE=0; HAS_SECOPS=0; HAS_DEVKIT=0
-find ~/.claude/plugins/cache -path "*/wire-base/*/.claude-plugin/plugin.json"  -print -quit 2>/dev/null | grep -q . && HAS_BASE=1
-find ~/.claude/plugins/cache -path "*/wire-secops/*/.claude-plugin/plugin.json" -print -quit 2>/dev/null | grep -q . && HAS_SECOPS=1
-find ~/.claude/plugins/cache -path "*/wire-devkit/*/.claude-plugin/plugin.json" -print -quit 2>/dev/null | grep -q . && HAS_DEVKIT=1
+find ~/.claude/plugins/cache -path "*/prumo-base/*/.claude-plugin/plugin.json"  -print -quit 2>/dev/null | grep -q . && HAS_BASE=1
+find ~/.claude/plugins/cache -path "*/prumo-secops/*/.claude-plugin/plugin.json" -print -quit 2>/dev/null | grep -q . && HAS_SECOPS=1
+find ~/.claude/plugins/cache -path "*/prumo-devkit/*/.claude-plugin/plugin.json" -print -quit 2>/dev/null | grep -q . && HAS_DEVKIT=1
 
 # MemPalace existe localmente?
 HAS_MEMPALACE=0
@@ -33,7 +33,7 @@ Lançar em paralelo os doctors aplicáveis:
 | `mempalace-doctor` (skill, base) | Saúde do MemPalace local | `HAS_BASE && HAS_MEMPALACE` |
 | `claude-deep-audit` (skill, base) | Auditoria profunda da configuração Claude Code | `HAS_BASE` |
 | `/vault-audit` (command, base) | Health da integração Vault local do projecto actual | `HAS_BASE` |
-| `/wire-vault-doctor` (command, secops) | Diagnóstico do Vault de **produção** do SaaS | `HAS_SECOPS` (e fora da VPN: pode reportar inacessível) |
+| `/prumo-vault-doctor` (command, secops) | Diagnóstico do Vault de **produção** do SaaS | `HAS_SECOPS` (e fora da VPN: pode reportar inacessível) |
 
 Cada agente devolve um resumo com status (verde/amarelo/vermelho), counts de findings por severidade, e top 3 acções recomendadas.
 
@@ -42,12 +42,12 @@ Cada agente devolve um resumo com status (verde/amarelo/vermelho), counts de fin
 Apresentar relatório único com uma secção por doctor:
 
 ```
-=== WIRE DOCTOR · <data ISO> ===
+=== PRUMO DOCTOR · <data ISO> ===
 
 PLUGINS DETECTADOS:
-  ✓ wire-base (versão X.X.X)
-  ✓ wire-secops (versão X.X.X)
-  ✗ wire-devkit (não instalado)
+  ✓ prumo-base (versão X.X.X)
+  ✓ prumo-secops (versão X.X.X)
+  ✗ prumo-devkit (não instalado)
 
 TOOLS DETECTADAS:
   ✓ MemPalace em ~/.mempalace/
@@ -66,7 +66,7 @@ Vault local (dev) · status: ...
   Top acções: ...
 
 Vault produção (se aplicável) · status: ...
-  <resumo do /wire-vault-doctor>
+  <resumo do /prumo-vault-doctor>
   Top acções: ...
 
 ────────────────────────────────────────
@@ -79,12 +79,12 @@ PRÓXIMAS ACÇÕES (ordem de prioridade): ...
 Se algum plugin recomendado estiver em falta, recordar:
 
 ```bash
-[ $HAS_BASE -eq 0 ] && echo "Falta wire-base — corre /wire-onboard"
+[ $HAS_BASE -eq 0 ] && echo "Falta prumo-base — corre /prumo-onboard"
 ```
 
 ## Notas
 
 - Read-only — nenhum doctor desta cadeia tem permissão para alterar estado.
-- O `/wire-vault-doctor` precisa de network reach ao Vault de produção; fora da VPN reporta "inacessível" (não é falha do plugin).
-- Para audit de um **projecto** (código/infra/UX/perf), usar `/full-audit` do `wire-devkit`.
-- Para auto-trigger por intenção do utilizador ("doutor wire", "saúde do setup"), ver a skill `wire-doctor` que delega para este command.
+- O `/prumo-vault-doctor` precisa de network reach ao Vault de produção; fora da VPN reporta "inacessível" (não é falha do plugin).
+- Para audit de um **projecto** (código/infra/UX/perf), usar `/full-audit` do `prumo-devkit`.
+- Para auto-trigger por intenção do utilizador ("doutor prumo", "saúde do setup"), ver a skill `prumo-doctor` que delega para este command.

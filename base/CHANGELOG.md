@@ -2,6 +2,15 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.5.0 — 2026-07-06
+
+**BREAKING — rebranding wire → prumo.** O plugin passa a chamar-se `prumo-base` no marketplace `prumo`.
+
+- Renomeados: comandos `/wire-*` → `/prumo-*`, skills, `lib/wire-common.sh` → `lib/prumo-common.sh`, funções `wire_*` → `prumo_*`, env vars `WIRE_*` → `PRUMO_*`, estado `~/.wire/` → `~/.prumo/`
+- Bridge de migração: na primeira execução, `~/.wire/mode` (e `lab-mode`) é copiado para `~/.prumo/` automaticamente
+- Owner passa a mjvmst · mjvmst@gmail.com; licença "Proprietary - uso interno"
+- Upgrade: `/plugin uninstall wire-base@jump2new` seguido de `/plugin install prumo-base@prumo`
+
 ## v0.4.0 — 2026-05-26
 
 ### Adicionado
