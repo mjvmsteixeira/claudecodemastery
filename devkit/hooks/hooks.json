@@ -1,5 +1,5 @@
 {
-  "description": "wire-devkit · verifica plugins recomendados (wire-base) ao iniciar a sessão.",
+  "description": "prumo-devkit · verifica plugins recomendados (prumo-base) ao iniciar a sessão.",
   "hooks": {
     "SessionStart": [
       {

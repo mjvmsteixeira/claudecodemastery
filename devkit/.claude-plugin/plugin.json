@@ -1,15 +1,14 @@
 {
-  "name": "wire-devkit",
-  "version": "0.3.0",
-  "description": "Devkit Wire para Claude Code — toolkit de auditoria de developer: full-audit (orquestrador paralelo), security-scan (OWASP Top 10, secrets, IaC, dependências), infra-audit (Docker/K8s/systemd/reverse-proxy/CI-CD), ux-audit (WCAG 2.1 AA, heurísticas Nielsen, responsividade, design system), code-quality (dead code, arquitectura, complexidade, cobertura de testes) e performance-audit (frontend, backend, resource leaks). **Read-only por defeito**: cada audit gera relatório sem tocar em ficheiros. Correcção é opt-in via `--apply` (`--auto-fix-safe` no security-scan), passa por gates de modo operacional (degrada em dev), sample-detection (degrada em empty-shells) e confirmação humana individual para acções destrutivas (apagar/mover ficheiros, mexer em `.gitignore`/`.env`/initializers, drop SQL). Inclui o agente local-reviewer (segunda opinião via Ollama qwen3-coder local, read-only) e ngrok-expose. Dependência soft do wire-base — usado pelo `/ngrok-expose` (Vault) e pelo PreToolUse audit-guard que dá defense-in-depth se instalado.",
+  "name": "prumo-devkit",
+  "version": "0.4.0",
+  "description": "Devkit prumo para Claude Code — toolkit de auditoria de developer: full-audit (orquestrador paralelo), security-scan (OWASP Top 10, secrets, IaC, dependências), infra-audit (Docker/K8s/systemd/reverse-proxy/CI-CD), ux-audit (WCAG 2.1 AA, heurísticas Nielsen, responsividade, design system), code-quality (dead code, arquitectura, complexidade, cobertura de testes) e performance-audit (frontend, backend, resource leaks). **Read-only por defeito**: cada audit gera relatório sem tocar em ficheiros. Correcção é opt-in via `--apply` (`--auto-fix-safe` no security-scan), passa por gates de modo operacional (degrada em dev), sample-detection (degrada em empty-shells) e confirmação humana individual para acções destrutivas (apagar/mover ficheiros, mexer em `.gitignore`/`.env`/initializers, drop SQL). Inclui o agente local-reviewer (segunda opinião via Ollama qwen3-coder local, read-only) e ngrok-expose. Dependência soft do prumo-base — usado pelo `/ngrok-expose` (Vault) e pelo PreToolUse audit-guard que dá defense-in-depth se instalado.",
   "author": {
-    "name": "jump2new",
-    "email": "geral@jump2new.pt"
+    "name": "mjvmst",
+    "email": "mjvmst@gmail.com"
   },
-  "homepage": "https://jump2new.pt/",
-  "license": "Proprietary - Uso interno jump2new",
+  "license": "Proprietary - uso interno",
   "keywords": [
-    "wire",
+    "prumo",
     "devkit",
     "audit",
     "security",
@@ -27,8 +26,8 @@
   ],
   "recommends": [
     {
-      "plugin": "wire-base",
-      "marketplace": "jump2new",
+      "plugin": "prumo-base",
+      "marketplace": "prumo",
       "reason": "Vault helpers (V, vault_ready, vault_unseal) usados pelo /ngrok-expose",
       "hard": false
     }

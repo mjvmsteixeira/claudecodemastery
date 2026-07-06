@@ -1,28 +1,28 @@
 ---
 name: ngrok-expose
-description: Expõe uma app local via ngrok HTTPS. Authtoken obtido do Vault via wire-base.
+description: Expõe uma app local via ngrok HTTPS. Authtoken obtido do Vault via prumo-base.
 allowed-tools: Bash, Read, Edit
 ---
 
 # /ngrok-expose
 
 Expõe uma aplicação local via túnel ngrok público. O authtoken está no Vault
-(`secret/tokens/ngrok`), acedido através do `lib/vault-env.sh` do plugin `wire-base`.
+(`secret/tokens/ngrok`), acedido através do `lib/vault-env.sh` do plugin `prumo-base`.
 
 ## Pré-requisito
 
-Requer o plugin `wire-base` instalado (fornece `lib/vault-env.sh`). Sem ele, este
-comando não consegue obter o authtoken — instalar com `/plugin install wire-base@jump2new`.
+Requer o plugin `prumo-base` instalado (fornece `lib/vault-env.sh`). Sem ele, este
+comando não consegue obter o authtoken — instalar com `/plugin install prumo-base@prumo`.
 
 ## Instruções
 
-### 1. Localizar e carregar o helper do wire-base
+### 1. Localizar e carregar o helper do prumo-base
 
 ```bash
-BASE_LIB=$(find ~/.claude/plugins/cache -path "*/wire-base/*/lib/vault-env.sh" 2>/dev/null \
+BASE_LIB=$(find ~/.claude/plugins/cache -path "*/prumo-base/*/lib/vault-env.sh" 2>/dev/null \
   | sort -V | tail -1)
 if [ -z "$BASE_LIB" ]; then
-  echo "wire-base não está instalado — corre: /plugin install wire-base@jump2new"
+  echo "prumo-base não está instalado — corre: /plugin install prumo-base@prumo"
   exit 1
 fi
 source "$BASE_LIB"

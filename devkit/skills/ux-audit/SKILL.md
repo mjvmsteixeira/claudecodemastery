@@ -50,12 +50,12 @@ Lançar um agente por scope activo, em paralelo.
 
 ### 3b. Verificação ao vivo (opcional, via `chrome-live`)
 
-Se a skill `chrome-live` estiver disponível (`cdp.mjs` vendorado no `wire-devkit`) **e**
+Se a skill `chrome-live` estiver disponível (`cdp.mjs` vendorado no `prumo-devkit`) **e**
 houver uma tab relevante aberta no Chrome, enriquecer os findings com o **DOM renderizado
 real** em vez de só inferir do código. Aditivo — sem Chrome/tab, ignorar e seguir estático.
 
 ```bash
-GUARD="$(find ~/.claude/plugins/cache -path '*/wire-devkit/*/skills/chrome-live/scripts/cdp-guard.sh' -print -quit 2>/dev/null)"
+GUARD="$(find ~/.claude/plugins/cache -path '*/prumo-devkit/*/skills/chrome-live/scripts/cdp-guard.sh' -print -quit 2>/dev/null)"
 [ -n "$GUARD" ] && bash "$GUARD" list   # escolher o targetId da página a auditar
 ```
 

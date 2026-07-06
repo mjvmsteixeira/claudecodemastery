@@ -2,7 +2,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 // VENDORED from chrome-cdp-skill — https://github.com/pasky/chrome-cdp-skill
 // MIT License © 2026 pasky. Full license text in ./NOTICE (kept verbatim).
-// Wrapped by wire-devkit `chrome-live` via cdp-guard.sh (mode/verb gating).
+// Wrapped by prumo-devkit `chrome-live` via cdp-guard.sh (mode/verb gating).
 // Vendored 2026-05-26 from cdp.mjs @ commit 59199f1 (main HEAD 1fd55c7 at that date).
 // To update: re-vendor, bump this SHA, diff. Do NOT hand-edit the logic below.
 // ─────────────────────────────────────────────────────────────────────────

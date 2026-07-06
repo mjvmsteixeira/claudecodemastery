@@ -1,44 +1,44 @@
 #!/usr/bin/env bash
-# wire-devkit · chrome-live · cdp-guard.sh
+# prumo-devkit · chrome-live · cdp-guard.sh
 #
 # Gateway de modo/segurança sobre o cdp.mjs (chrome-cdp-skill, MIT © pasky).
 # Toda a invocação de browser ao vivo DEVE passar por aqui — nunca chamar
-# `node cdp.mjs` directamente — para herdar o gating do ecossistema Wire.
+# `node cdp.mjs` directamente — para herdar o gating do ecossistema prumo.
 #
 # Classificação de verbos:
 #   read-only  (list shot snap html net)        → passam sempre (após preflight)
 #   active     (eval evalraw click clickxy type
 #               nav open loadall)                → executam JS / mudam o estado de uma
 #                                                   página AUTENTICADA. Gateados por:
-#                                                     - WIRE_OPERATING_MODE (prod fail-closed)
-#                                                     - contexto de audit (~/.wire/audit-active)
+#                                                     - PRUMO_OPERATING_MODE (prod fail-closed)
+#                                                     - contexto de audit (~/.prumo/audit-active)
 #   control    (stop)                            → benigno (pára daemon)
 #
-# Consentimentos (audit-tracked em ~/.wire/log/wire-devkit.log):
-#   WIRE_CHROME_LIVE_ACTIVE=1  → autoriza verbos activos em modo prod
-#   WIRE_AUDIT_APPLY=1         → autoriza verbos activos durante contexto de audit
+# Consentimentos (audit-tracked em ~/.prumo/log/prumo-devkit.log):
+#   PRUMO_CHROME_LIVE_ACTIVE=1  → autoriza verbos activos em modo prod
+#   PRUMO_AUDIT_APPLY=1         → autoriza verbos activos durante contexto de audit
 #
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 CDP="${HERE}/cdp.mjs"
-PLUGIN="wire-devkit"
+PLUGIN="prumo-devkit"
 HOOK="chrome-live"
 
-# ── helpers da wire-base (modo/log); fallback fail-closed se o base não estiver instalado ──
-LIB="$(find "${HOME}/.claude/plugins/cache" -path "*/wire-base/*/lib/wire-common.sh" -print -quit 2>/dev/null || true)"
+# ── helpers da prumo-base (modo/log); fallback fail-closed se o base não estiver instalado ──
+LIB="$(find "${HOME}/.claude/plugins/cache" -path "*/prumo-base/*/lib/prumo-common.sh" -print -quit 2>/dev/null || true)"
 if [ -n "$LIB" ] && [ -r "$LIB" ]; then
   # shellcheck disable=SC1090
   . "$LIB"
 fi
-if ! declare -F wire_mode >/dev/null 2>&1; then
-  wire_mode() {
-    local m="${WIRE_OPERATING_MODE:-}"
-    [ -z "$m" ] && [ -r "${HOME}/.wire/mode" ] && m="$(tr -d '[:space:]' < "${HOME}/.wire/mode")"
+if ! declare -F prumo_mode >/dev/null 2>&1; then
+  prumo_mode() {
+    local m="${PRUMO_OPERATING_MODE:-}"
+    [ -z "$m" ] && [ -r "${HOME}/.prumo/mode" ] && m="$(tr -d '[:space:]' < "${HOME}/.prumo/mode")"
     echo "${m:-prod}"
   }
 fi
-declare -F wire_log >/dev/null 2>&1 || wire_log() { :; }
+declare -F prumo_log >/dev/null 2>&1 || prumo_log() { :; }
 
 VERB="${1:-}"
 if [ -z "$VERB" ]; then
@@ -67,16 +67,16 @@ fi
 
 # ── gate de verbos activos ──
 if [ "$CLASS" = "active" ]; then
-  MODE="$(wire_mode)"
+  MODE="$(prumo_mode)"
 
   # Contexto de audit: read-only é a regra; verbos activos exigem apply explícito
-  # (paridade com wire-base/pre-tool-audit-guard.sh, que não cobre `node cdp.mjs`).
-  if { [ -f "${HOME}/.wire/audit-active" ] || [ "${WIRE_AUDIT_ACTIVE:-}" = "1" ]; } \
-     && [ "${WIRE_AUDIT_APPLY:-}" != "1" ]; then
-    wire_log "$PLUGIN" "$HOOK" "block active '$VERB' · audit context sem WIRE_AUDIT_APPLY"
+  # (paridade com prumo-base/pre-tool-audit-guard.sh, que não cobre `node cdp.mjs`).
+  if { [ -f "${HOME}/.prumo/audit-active" ] || [ "${PRUMO_AUDIT_ACTIVE:-}" = "1" ]; } \
+     && [ "${PRUMO_AUDIT_APPLY:-}" != "1" ]; then
+    prumo_log "$PLUGIN" "$HOOK" "block active '$VERB' · audit context sem PRUMO_AUDIT_APPLY"
     {
       echo "[chrome-live] '$VERB' executa JS/muda estado de uma página autenticada — bloqueado em contexto de audit."
-      echo "Audits são read-only. Para autorizar (após confirmação humana): export WIRE_AUDIT_APPLY=1"
+      echo "Audits são read-only. Para autorizar (após confirmação humana): export PRUMO_AUDIT_APPLY=1"
     } >&2
     exit 2
   fi
@@ -84,11 +84,11 @@ if [ "$CLASS" = "active" ]; then
   # Gate de modo
   case "$MODE" in
     prod)
-      if [ "${WIRE_CHROME_LIVE_ACTIVE:-}" != "1" ]; then
-        wire_log "$PLUGIN" "$HOOK" "block active '$VERB' · prod sem WIRE_CHROME_LIVE_ACTIVE"
+      if [ "${PRUMO_CHROME_LIVE_ACTIVE:-}" != "1" ]; then
+        prumo_log "$PLUGIN" "$HOOK" "block active '$VERB' · prod sem PRUMO_CHROME_LIVE_ACTIVE"
         {
           echo "[chrome-live] modo prod: verbos activos ('$VERB') executam JS/cliques/escrita na tua sessão Chrome real."
-          echo "Para autorizar nesta sessão: export WIRE_CHROME_LIVE_ACTIVE=1   (ou passa a dev: /wire-mode dev)"
+          echo "Para autorizar nesta sessão: export PRUMO_CHROME_LIVE_ACTIVE=1   (ou passa a dev: /prumo-mode dev)"
         } >&2
         exit 2
       fi
@@ -102,5 +102,5 @@ if [ "$CLASS" = "active" ]; then
   esac
 fi
 
-wire_log "$PLUGIN" "$HOOK" "exec ${CLASS} '$VERB'"
+prumo_log "$PLUGIN" "$HOOK" "exec ${CLASS} '$VERB'"
 exec node "$CDP" "$@"

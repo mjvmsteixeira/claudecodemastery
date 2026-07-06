@@ -21,7 +21,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ─────────────────────────────────────────────────────────────────────────────
-Provenance (added by wire-devkit — not part of the upstream MIT text above)
+Provenance (added by prumo-devkit — not part of the upstream MIT text above)
 
   Upstream:   https://github.com/pasky/chrome-cdp-skill
   File:       skills/chrome-cdp/scripts/cdp.mjs
@@ -31,5 +31,5 @@ Provenance (added by wire-devkit — not part of the upstream MIT text above)
 
 The file `cdp.mjs` is kept verbatim except for a vendoring header after the
 shebang. To update, re-vendor from upstream and bump the commit SHA here and in
-the header. Logic must not be hand-edited; the wire-devkit wrapper lives in
+the header. Logic must not be hand-edited; the prumo-devkit wrapper lives in
 `cdp-guard.sh`.

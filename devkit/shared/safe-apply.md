@@ -10,11 +10,11 @@ tem de mudar para destrancar o `apply`.
 
 ---
 
-## Gate 1 — Modo operacional Wire
+## Gate 1 — Modo operacional prumo
 
 ```bash
-# Lê WIRE_OPERATING_MODE; senão ~/.wire/mode; senão default prod
-mode="${WIRE_OPERATING_MODE:-$(cat "$HOME/.wire/mode" 2>/dev/null | tr -d '[:space:]')}"
+# Lê PRUMO_OPERATING_MODE; senão ~/.prumo/mode; senão default prod
+mode="${PRUMO_OPERATING_MODE:-$(cat "$HOME/.prumo/mode" 2>/dev/null | tr -d '[:space:]')}"
 mode="${mode:-prod}"
 ```
 
@@ -22,9 +22,9 @@ mode="${mode:-prod}"
 |------|--------------------------|
 | `prod` | Permitir apenas correcções **explicitamente seguras** da skill. Pedir confirmação humana individual em qualquer acção destrutiva. |
 | `dev` | **Degradar para report-only.** Em dev assume-se que código "morto" pode ser activado on-demand; a skill não tem competência para distinguir. Avisar: "modo dev — correcções não aplicadas; recomendações no relatório". |
-| `lab` | Permitir tudo (bypass total). Marker `~/.wire/lab-mode` exigido pelo `wire_mode`. |
+| `lab` | Permitir tudo (bypass total). Marker `~/.prumo/lab-mode` exigido pelo `prumo_mode`. |
 
-Se a skill não consegue ler o modo (devkit standalone sem wire-base), **assumir `prod`**.
+Se a skill não consegue ler o modo (devkit standalone sem prumo-base), **assumir `prod`**.
 
 ---
 
@@ -46,21 +46,21 @@ através de **qualquer** dos sinais canónicos abaixo:
 Se existir `CLAUDE.md` na raiz, procurar (case-insensitive) qualquer destas frases ou
 marcadores:
 
-- `<!-- wire-audit: dev-shell -->` (HTML comment, marker explícito)
-- `<!-- wire-audit: sample -->`
+- `<!-- prumo-audit: dev-shell -->` (HTML comment, marker explícito)
+- `<!-- prumo-audit: sample -->`
 - `empty shell`, `empty-shell`
 - `sample app`, `sample project`, `template project`, `starter template`
 - `dev only`, `dev-only`
 
 ### Variável de ambiente
 
-- `WIRE_AUDIT_PROFILE=dev-shell` (ou `sample`, `empty-shell`, `template`)
+- `PRUMO_AUDIT_PROFILE=dev-shell` (ou `sample`, `empty-shell`, `template`)
 
 Se **qualquer** sinal acima estiver presente: **degradar `apply` para report-only** e
 avisar o utilizador com a frase: "Projecto detectado como `<sinal>` — correcções não
-aplicadas. Para forçar, definir `WIRE_AUDIT_FORCE_APPLY=1` (não recomendado)."
+aplicadas. Para forçar, definir `PRUMO_AUDIT_FORCE_APPLY=1` (não recomendado)."
 
-`WIRE_AUDIT_FORCE_APPLY=1` salta este gate mas **não** salta o Gate 3.
+`PRUMO_AUDIT_FORCE_APPLY=1` salta este gate mas **não** salta o Gate 3.
 
 ---
 
@@ -103,18 +103,18 @@ Resposta default em ambiguidade: **N** (skip).
 
 ## Marcador de contexto de audit (para hard-guardrail)
 
-Se o `wire-base/hooks/pre-tool-audit-guard.sh` estiver instalado, ele bloqueia
+Se o `prumo-base/hooks/pre-tool-audit-guard.sh` estiver instalado, ele bloqueia
 operações destrutivas em qualquer Bash/Edit/Write durante contexto de audit a menos
-que `WIRE_AUDIT_APPLY=1` esteja definida. As skills devem:
+que `PRUMO_AUDIT_APPLY=1` esteja definida. As skills devem:
 
 ```bash
 # No início da Fase 4 (apply approved):
-touch "$HOME/.wire/audit-active"
-export WIRE_AUDIT_APPLY=1   # só se Gate 1, 2 e 3 passarem para a acção em causa
+touch "$HOME/.prumo/audit-active"
+export PRUMO_AUDIT_APPLY=1   # só se Gate 1, 2 e 3 passarem para a acção em causa
 
 # No fim (sucesso ou erro):
-rm -f "$HOME/.wire/audit-active"
-unset WIRE_AUDIT_APPLY
+rm -f "$HOME/.prumo/audit-active"
+unset PRUMO_AUDIT_APPLY
 ```
 
 Sem o hook instalado, a skill aplica a sua própria disciplina (este documento).

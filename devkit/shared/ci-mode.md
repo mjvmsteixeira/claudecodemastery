@@ -1,6 +1,6 @@
 # Modo CI (`--ci`)
 
-Comportamento de `--ci`, idêntico em todos os audits do `wire-devkit`.
+Comportamento de `--ci`, idêntico em todos os audits do `prumo-devkit`.
 As `SKILL.md` referenciam este ficheiro — não redefinem o comportamento.
 
 ## Regras

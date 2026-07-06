@@ -2,6 +2,15 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.4.0 — 2026-07-06
+
+**BREAKING — rebranding wire → prumo.** O plugin passa a chamar-se `prumo-devkit` no marketplace `prumo`.
+
+- Env vars `WIRE_*` → `PRUMO_*` (incl. `PRUMO_AUDIT_APPLY`, `PRUMO_CHROME_LIVE_ACTIVE`, `PRUMO_AUDIT_PROFILE`)
+- Markers de audit em projectos passam a `<!-- prumo-audit: ... -->` (os antigos `<!-- wire-audit: ... -->` deixam de ser reconhecidos)
+- `recommends` aponta para `prumo-base@prumo`
+- Upgrade: `/plugin uninstall wire-devkit@jump2new` seguido de `/plugin install prumo-devkit@prumo`
+
 ## [0.3.0] — 2026-05-26
 
 Iteração **live-browser**: traz inspecção/interacção da sessão Chrome real (autenticada) ao devkit, gateada pelo modelo de segurança Wire, e liga-a às audits.

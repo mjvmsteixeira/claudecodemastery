@@ -61,7 +61,7 @@ complementar o scan estático com sinais de **runtime** que só existem na pági
 Aditivo — sem Chrome/tab, ignorar e seguir estático.
 
 ```bash
-GUARD="$(find ~/.claude/plugins/cache -path '*/wire-devkit/*/skills/chrome-live/scripts/cdp-guard.sh' -print -quit 2>/dev/null)"
+GUARD="$(find ~/.claude/plugins/cache -path '*/prumo-devkit/*/skills/chrome-live/scripts/cdp-guard.sh' -print -quit 2>/dev/null)"
 [ -n "$GUARD" ] && bash "$GUARD" list
 ```
 
@@ -69,7 +69,7 @@ Receitas em `chrome-live/references/verbs.md`: cookies de sessão visíveis a JS
 `HttpOnly`), handlers inline (CSP fraca), CSP via meta-tag, password fields sem
 `autocomplete` seguro. **Read-only** (`html`, `net`) corre directo; sinais que exigem
 `eval`/`evalraw` (ex.: `document.cookie`, captura de headers via `Network.*`) são verbos
-**active** — gateados por modo e bloqueados em contexto de audit sem `WIRE_AUDIT_APPLY=1`.
+**active** — gateados por modo e bloqueados em contexto de audit sem `PRUMO_AUDIT_APPLY=1`.
 Marcar cada finding ao vivo como tal (URL/tab) para distinguir dos estáticos. Nunca tratar
 a verificação ao vivo como substituto do scan estático.
 
