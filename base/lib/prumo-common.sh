@@ -19,10 +19,10 @@ PRUMO_LAB_MARKER="${PRUMO_HOME}/lab-mode"
 
 # --- migração one-shot do estado wire → prumo (rebrand 2026-07) ---
 if [ ! -e "$PRUMO_MODE_FILE" ] && [ -f "${HOME}/.wire/mode" ]; then
-  mkdir -p "$PRUMO_HOME"
-  cp "${HOME}/.wire/mode" "$PRUMO_MODE_FILE"
-  [ -f "${HOME}/.wire/lab-mode" ] && cp "${HOME}/.wire/lab-mode" "$PRUMO_LAB_MARKER"
-  [ -f "${HOME}/.wire/scope" ] && cp "${HOME}/.wire/scope" "$PRUMO_SCOPE_FILE"
+  mkdir -p "$PRUMO_HOME" || true
+  cp "${HOME}/.wire/mode" "$PRUMO_MODE_FILE" || true
+  [ -f "${HOME}/.wire/lab-mode" ] && { cp "${HOME}/.wire/lab-mode" "$PRUMO_LAB_MARKER" || true; }
+  [ -f "${HOME}/.wire/scope" ] && { cp "${HOME}/.wire/scope" "$PRUMO_SCOPE_FILE" || true; }
   echo "[prumo] estado migrado de ~/.wire para ~/.prumo (o antigo não foi apagado)" >&2
 fi
 
@@ -184,6 +184,9 @@ prumo_require() {
   local test_cmd="$3"
   local error="$4"
 
+  # ATENÇÃO: eval — só invocar test_cmd com strings literais escritas por quem
+  # desenvolve o plugin. Nunca passar aqui dados vindos de tool-input, stdin,
+  # ou qualquer fonte controlada pelo utilizador/modelo (command injection via eval).
   if ! eval "$test_cmd" >/dev/null 2>&1; then
     prumo_fail_or_warn "$plugin" "$hook" "$error"
   fi

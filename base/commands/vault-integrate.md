@@ -13,16 +13,17 @@ Integra um projecto com o Vault local. Cria os segredos, policy e AppRole, e int
 ```bash
 source "${CLAUDE_PLUGIN_ROOT}/lib/vault-env.sh"
 
-# Em modo docker, arrancar o container se estiver parado
-if [ "$VAULT_MODE" = "docker" ]; then
-  STATUS=$(docker inspect "$VAULT_CONTAINER" --format='{{.State.Status}}' 2>/dev/null || echo missing)
-  if [ "$STATUS" != "running" ]; then
-    ( cd "$VAULT_HOME" && docker compose up -d ) && sleep 5
-  fi
+# vault_arrange_up() (definido em vault-env.sh) arranca o container docker e
+# faz unseal — mas só em dev/lab, ou se PRUMO_VAULT_AUTO_UP=1 for definido
+# explicitamente. Em modo prod, sem esse override, recusa-se a auto-unseal
+# silenciosamente (evita mexer no Vault de produção sem intervenção humana).
+if ! vault_ready; then
+  vault_arrange_up || {
+    echo "Vault não está operacional/unsealed e o auto-arranque está desactivado (modo prod)."
+    echo "Arranca e faz unseal manualmente, ou define PRUMO_VAULT_AUTO_UP=1 para permitir auto-unseal."
+    exit 1
+  }
 fi
-
-# Unseal automático se necessário
-vault_ready || vault_unseal
 vault_ready || { echo "Vault não ficou operacional — verificar manualmente."; exit 1; }
 ```
 
@@ -31,8 +32,9 @@ Estados possíveis e o que fazer:
 | Estado | Acção |
 |--------|-------|
 | Vault operacional, unsealed | Continuar |
-| Sealed, `vault-init.json` presente | `vault_unseal` (automático no Passo 0) |
-| Container/serviço parado (modo docker) | `docker compose up -d` em `$VAULT_HOME` |
+| Sealed, `vault-init.json` presente, modo dev/lab ou `PRUMO_VAULT_AUTO_UP=1` | `vault_arrange_up` trata (automático no Passo 0) |
+| Sealed/parado, modo prod sem `PRUMO_VAULT_AUTO_UP=1` | Parar — pedir para unseal manual (ver mensagem acima) |
+| Container/serviço parado (modo docker, auto-up permitido) | `vault_arrange_up` chama `docker compose up -d` em `$VAULT_HOME` |
 | `vault-init.json` não existe | Parar — o Vault não foi inicializado. Pedir ao utilizador para o inicializar primeiro |
 
 ## Passo 1 — Catalogar segredos
@@ -52,13 +54,29 @@ Regra de decisão:
 - **Partilhado** = usado em vários projectos (GitHub token, SSH a um servidor, LLM key) → path global, policy inclui esse path
 - **Específico** = só este projecto usa → `secret/projects/<nome>/`
 
+## Passo 1.5 — Validar nome do projecto e do serviço
+
+Antes de usar `<nome>`/`<serviço>` em qualquer comando Vault, validar o formato (kebab-case, minúsculas) — evita que um nome com caracteres especiais quebre o comando `kv put`/`write` (mesmo padrão de `/prumo-vault-policy`):
+
+```bash
+NAME="<nome>"
+SERVICE="<servico>"
+
+for v in "$NAME" "$SERVICE"; do
+  if ! echo "$v" | grep -qE '^[a-z][a-z0-9-]*$'; then
+    echo "Erro: nome inválido '$v'. Use kebab-case (a-z, 0-9, hífen)." >&2
+    exit 1
+  fi
+done
+```
+
 ## Passo 2 — Criar segredos específicos no Vault
 
 ```bash
 source "${CLAUDE_PLUGIN_ROOT}/lib/vault-env.sh"
 
 # Só para segredos específicos do projecto (não duplicar os partilhados)
-V kv put secret/projects/<nome>/<servico> key1="PLACEHOLDER" key2="PLACEHOLDER"
+V kv put "secret/projects/$NAME/$SERVICE" key1="PLACEHOLDER" key2="PLACEHOLDER"
 ```
 
 ## Passo 3 — Criar policy
@@ -82,10 +100,10 @@ path "secret/metadata/projects/<nome>/*" {
 source "${CLAUDE_PLUGIN_ROOT}/lib/vault-env.sh"
 
 if [ "$VAULT_MODE" = "docker" ]; then
-  docker cp "$VAULT_HOME/policies/<nome>-policy.hcl" "$VAULT_CONTAINER:/tmp/"
-  V policy write <nome>-policy /tmp/<nome>-policy.hcl
+  docker cp "$VAULT_HOME/policies/$NAME-policy.hcl" "$VAULT_CONTAINER:/tmp/"
+  V policy write "$NAME-policy" "/tmp/$NAME-policy.hcl"
 else
-  V policy write <nome>-policy "$VAULT_HOME/policies/<nome>-policy.hcl"
+  V policy write "$NAME-policy" "$VAULT_HOME/policies/$NAME-policy.hcl"
 fi
 ```
 
@@ -95,20 +113,26 @@ fi
 source "${CLAUDE_PLUGIN_ROOT}/lib/vault-env.sh"
 
 # write é idempotente — actualiza se já existir
-V write auth/approle/role/<nome> \
-  token_policies="<nome>-policy" \
+V write "auth/approle/role/$NAME" \
+  token_policies="$NAME-policy" \
   token_ttl=1h token_max_ttl=4h \
   secret_id_ttl=720h secret_id_num_uses=0
 
-ROLE_ID=$(V read -format=json auth/approle/role/<nome>/role-id | jq -r '.data.role_id')
-SECRET_ID=$(V write -format=json -f auth/approle/role/<nome>/secret-id | jq -r '.data.secret_id')
+ROLE_ID=$(V read -format=json "auth/approle/role/$NAME/role-id" | jq -r '.data.role_id')
+SECRET_ID=$(V write -format=json -f "auth/approle/role/$NAME/secret-id" | jq -r '.data.secret_id')
 
 # Guardar em approle-credentials.json (criar o ficheiro se não existir)
 CREDS="$VAULT_HOME/approle-credentials.json"
 [ -f "$CREDS" ] || echo '{}' > "$CREDS"
-jq --arg r "<nome>" --arg rid "$ROLE_ID" --arg sid "$SECRET_ID" \
+
+# mktemp (nome imprevisível) + chmod 600 antes de escrever — evita a janela
+# TOCTOU de um ficheiro temporário previsível e world-readable em /tmp.
+ACFILE=$(mktemp)
+chmod 600 "$ACFILE"
+jq --arg r "$NAME" --arg rid "$ROLE_ID" --arg sid "$SECRET_ID" \
   '.[$r] = {"role_id": $rid, "secret_id": $sid}' \
-  "$CREDS" > /tmp/ac.json && mv /tmp/ac.json "$CREDS"
+  "$CREDS" > "$ACFILE" && mv "$ACFILE" "$CREDS"
+rm -f "$ACFILE"
 chmod 600 "$CREDS"
 ```
 

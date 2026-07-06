@@ -61,12 +61,14 @@ if [ "$VAULT_MODE" = "native" ]; then
 else
   VAULT_CONTAINER="${VAULT_CONTAINER:-vault}"
   VAULT_CACERT_IN_CONTAINER="${VAULT_CACERT_IN_CONTAINER:-/vault/tls/ca.pem}"
+  # VAULT_TOKEN nunca vai no argv de `docker exec` (ficaria visível em
+  # `ps`/`/proc/<pid>/cmdline` no host). É passado via stdin para `env`, que o
+  # lê com `cat` e o injecta no ambiente do processo `vault` dentro do container.
   V() {
-    docker exec \
+    printf '%s' "${VAULT_TOKEN:-}" | docker exec -i \
       -e VAULT_ADDR="$VAULT_ADDR" \
       -e VAULT_CACERT="$VAULT_CACERT_IN_CONTAINER" \
-      -e VAULT_TOKEN="${VAULT_TOKEN:-}" \
-      "$VAULT_CONTAINER" vault "$@"
+      "$VAULT_CONTAINER" sh -c 'VAULT_TOKEN="$(cat)" exec vault "$@"' vault-token-sh "$@"
   }
 fi
 
