@@ -24,7 +24,7 @@ TENANT_DB_PASS=$(V kv get -field=audit_pass secret/data/db/schemas/tenant-X)
 PGPASSWORD="$TENANT_DB_PASS" psql \
   -h "${PRUMO_PG_HOST:-postgres-wire.internal}" \
   -U "$TENANT_DB_USER" \
-  -d "prumo_main" \
+  -d "wire_main" \
   -c "SET app.current_tenant = 'tenant-X'; SELECT count(*) FROM wirepaper_docs WHERE tenant_id != 'tenant-X';"
 # Expected: 0 (RLS bloqueia leakage)
 ```

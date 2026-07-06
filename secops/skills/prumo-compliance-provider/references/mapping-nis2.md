@@ -113,7 +113,7 @@ B. INCIDENTE
 C. IMPACTO PRELIMINAR
    Entidades essenciais afectadas:    [N] munícipios
    Identificação (NIPCs):             [LISTA ou "ver Anexo Restrito"]
-   Serviços essenciais comprometidos: [LISTA_PRODUTOS_PRUMO_AFECTADOS]
+   Serviços essenciais comprometidos: [LISTA_PRODUTOS_WIRE_AFECTADOS]
    Utilizadores impactados (estimativa): [N]
    Impacto transfronteiriço:          [SIM/NÃO — fundamentar]
 

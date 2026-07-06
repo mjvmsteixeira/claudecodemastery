@@ -63,8 +63,8 @@ rules custom organizadas por domínio:
   <rule id="100015" level="14">
     <if_group>postgresql</if_group>
     <field name="message">permission denied for table</field>
-    <field name="role" type="pcre2">^prumo_app_</field>
-    <description>Role aplicacional prumo_app_* tentou aceder a tabela sem permissão — possível tentativa de privilege escalation</description>
+    <field name="role" type="pcre2">^wire_app_</field>
+    <description>Role aplicacional wire_app_* tentou aceder a tabela sem permissão — possível tentativa de privilege escalation</description>
     <group>privilege_escalation,</group>
     <mitre>
       <id>T1068</id>

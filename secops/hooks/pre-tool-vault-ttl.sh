@@ -77,7 +77,7 @@ ALLOWLIST_PATTERNS=(
   # $HOME/<x> excepto $HOME/.prumo/ vai pelo approval-gate). Operações
   # destrutivas em system paths exigem VAULT_TOKEN; cross-tenant exige N2.
   '^[[:space:]]*rm[[:space:]]+(-[^[:space:]/]+[[:space:]]+)?/tmp(/|[[:space:]]|$)'
-  '^[[:space:]]*rm[[:space:]]+(-[^[:space:]/]+[[:space:]]+)?\$HOME/\.wire(/|[[:space:]]|$)'
+  '^[[:space:]]*rm[[:space:]]+(-[^[:space:]/]+[[:space:]]+)?\$HOME/\.prumo(/|[[:space:]]|$)'
   '^[[:space:]]*rm[[:space:]]+(-[^[:space:]/]+[[:space:]]+)?[^/$[:space:]-]'
 
   # Navegação git read-only e tooling local

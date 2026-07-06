@@ -109,7 +109,7 @@ ORDER BY rolname;
 
 **Expected:**
 - `postgres` (superuser) — aceitável, raramente usado em runtime.
-- Qualquer `prumo_app_*` com BYPASSRLS = **falha crítica**.
+- Qualquer `wire_app_*` com BYPASSRLS = **falha crítica**.
 
 ### 2.2 — Validar que role corrente (em runtime) não tem BYPASSRLS
 
@@ -117,7 +117,7 @@ ORDER BY rolname;
 SELECT current_user, current_setting('row_security');
 ```
 
-**Expected:** `current_user` é `prumo_app_<product>`, `row_security` é `on`.
+**Expected:** `current_user` é `wire_app_<product>`, `row_security` é `on`.
 
 ### 2.3 — Auditar grants de BYPASSRLS recentes
 
@@ -146,7 +146,7 @@ SELECT
   record_type,
   record_id,
   -- tenant inferred via record join
-  (SELECT tenant_id FROM prumo_records WHERE id = record_id) AS inferred_tenant
+  (SELECT tenant_id FROM wire_records WHERE id = record_id) AS inferred_tenant
 FROM active_storage_attachments
 LIMIT 100;
 ```

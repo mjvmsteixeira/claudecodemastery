@@ -26,7 +26,7 @@ e percorre **16 controlos canónicos CTRL-W-T-001..016**. Cada controlo gera uma
 **NIPC:** [NIPC]
 **Auditor:** prumo-tenant-01 + revisão humana [NOME]
 **Data:** [TIMESTAMP_UTC]
-**Produtos contratados:** [LISTA_PRUMO_PRODUCTS]
+**Produtos contratados:** [LISTA_WIRE_PRODUCTS]
 **Vault path metadata:** secret/data/tenants/metadata/[NIPC]
 **Versão template:** v0.4.0
 ```
@@ -54,10 +54,10 @@ Ver `queries-evidencia.md` §1.
 
 ### CTRL-W-T-002 — Roles aplicacionais sem BYPASSRLS
 
-**Descrição:** Roles PostgreSQL usados por Rails (`prumo_app_*`) não têm atributo `BYPASSRLS`.
+**Descrição:** Roles PostgreSQL usados por Rails (`wire_app_*`) não têm atributo `BYPASSRLS`.
 Apenas role administrativo (raramente usado) pode ter.
 
-**Método validação:** `SELECT rolname, rolbypassrls FROM pg_roles WHERE rolname LIKE 'prumo_app_%';`
+**Método validação:** `SELECT rolname, rolbypassrls FROM pg_roles WHERE rolname LIKE 'wire_app_%';`
 
 **Evidência esperada:** todas as rows com `rolbypassrls = false`.
 
