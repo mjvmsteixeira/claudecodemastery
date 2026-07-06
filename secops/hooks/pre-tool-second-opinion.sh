@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Wire SecOps · pre-tool · Second-opinion via Ollama local (qwen3-coder).
-# Aplica-se a comandos destrutivos/cross-tenant. Fail-closed se o modelo local estiver indisponível.
+# Wire SecOps · pre-tool · Guardrail semântico via Ollama local (qwen3-coder).
+# Dispara SÓ na zona-cinzenta (ofuscação que a regex dos outros hooks não apanha).
+# O comando entra como DADO não-confiável (anti-injeção). Veredicto estruturado
+# (JSON). Conservador: em dúvida bloqueia. Fail-closed se o modelo cair, respeitando
+# o modo; destrancável por PRUMO_SECOND_OPINION_BYPASS=1 (audit-tracked).
 set -euo pipefail
 # shellcheck source=_lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
@@ -9,52 +12,48 @@ CMD=$(hook_tool_payload "${1:-}")
 
 OLLAMA_HOST="${OLLAMA_HOST:-http://127.0.0.1:11434}"
 OLLAMA_MODEL="${OLLAMA_MODEL:-qwen3-coder:30b}"
+BYPASS="${PRUMO_SECOND_OPINION_BYPASS:-}"
 
-# Aplica-se só se for cross-tenant ou destrutivo
-if ! echo "$CMD" | grep -qiE '(cross-tenant|all-tenants|systemctl (stop|disable) puma|cap.*deploy:rollback|vault operator seal|rm -rf /forensics|vault write transit.*rotate|DROP TABLE|TRUNCATE|DELETE FROM)'; then
+# ── zona-cinzenta: ofuscação/evasão que a regex dos outros hooks não apanha ────
+# (o destrutivo óbvio — /bin/rm, \rm, rm -rf, SQL — já é coberto por audit-guard
+#  e approval-gate via word-boundary; aqui só o que engana a regex)
+GRAYZONE_REGEX='base64[[:space:]]*(-d|--decode)|(^|[;&|[:space:]])eval([[:space:]]|$)|\$\{?IFS\}?|(^|[;&|[:space:]])(/bin/|/usr/bin/)?(bash|sh)[[:space:]]+-c\b|(python[0-9]?|perl|ruby|node)[[:space:]]+-(c|e)\b|(printf|echo)[[:space:]].*\\x[0-9a-fA-F]{2}|xxd[[:space:]]+-r|(curl|wget)[[:space:]].+\|[[:space:]]*(/bin/|/usr/bin/)?(bash|sh)([[:space:]]|$)'
+
+if ! printf '%s' "$CMD" | grep -qiE "$GRAYZONE_REGEX"; then
   exit 0
 fi
 
-if ! curl -sf -m 3 "${OLLAMA_HOST}/api/tags" > /dev/null 2>&1; then
-  prumo_fail_or_warn "prumo-secops" "second-opinion" "Ollama local não responde — second-opinion indisponível para operação destrutiva"
-fi
-
-PROMPT="Analyze this command for safety. Respond with EXACTLY one of: SAFE or UNSAFE, on a single line, nothing else.
-
-Command: $CMD"
-
-REQUEST_JSON=$(jq -n \
-  --arg model "$OLLAMA_MODEL" \
-  --arg prompt "$PROMPT" \
-  '{model: $model, prompt: $prompt, stream: false}')
-
-RESPONSE=$(curl -s "${OLLAMA_HOST}/api/generate" -d "$REQUEST_JSON" 2>/dev/null \
-  | jq -r '.response // empty' 2>/dev/null || echo "")
-
-# Aceita SAFE/UNSAFE em qualquer posição na primeira linha (LLMs prefaceiam às
-# vezes com "Verdict:" ou "I think this is"). UNSAFE primeiro para que "this is
-# UNSAFE because it's SAFE only if..." caia em UNSAFE.
-FIRST_LINE=$(printf '%s' "$RESPONSE" | head -1)
-if echo "$FIRST_LINE" | grep -qiE '\bUNSAFE\b'; then
-  VERDICT="UNSAFE"
-elif echo "$FIRST_LINE" | grep -qiE '\bSAFE\b'; then
-  VERDICT="SAFE"
-else
-  VERDICT=""
-fi
-
-if [ "$VERDICT" != "SAFE" ]; then
-  cat >&2 <<EOF
-[hook] second-opinion · Ollama verdict não é SAFE.
-  Model: ${OLLAMA_MODEL}
-  Verdict raw: $(echo "$RESPONSE" | head -c 120)
-  Para autorizar mesmo assim (override): PRUMO_SECOND_OPINION_BYPASS=1 <comando>
-EOF
-  if [ "${PRUMO_SECOND_OPINION_BYPASS:-}" = "1" ]; then
+# ── bloqueio conservador com escape audit-tracked ─────────────────────────────
+# Cobre TODOS os ramos de bloqueio, incluindo Ollama-down (o baseline só cobria o
+# ramo do veredicto). Em prod prumo_fail_or_warn faz exit 2; em dev avisa e retorna,
+# caindo depois no exit 0 (warn-only = permitir).
+so_block_or_bypass() {
+  if [ "$BYPASS" = "1" ]; then
+    echo "[hook] second-opinion · BYPASS audit-tracked: $1" >&2
     exit 0
   fi
-  prumo_fail_or_warn "prumo-secops" "second-opinion" "Ollama verdict: ${VERDICT:-EMPTY}"
+  prumo_fail_or_warn "prumo-secops" "second-opinion" "$1"
+  exit 0
+}
+
+# ── modelo disponível? ────────────────────────────────────────────────────────
+if ! curl -sf -m 3 "${OLLAMA_HOST}/api/tags" >/dev/null 2>&1; then
+  so_block_or_bypass "Ollama local não responde — guardrail semântico indisponível para comando ofuscado"
 fi
 
-echo "[hook] Second-opinion: SAFE ($RESPONSE)"
-exit 0
+# ── pedido ao modelo (afinado na Task 2: anti-injeção + schema) ───────────────
+PROMPT="Classify this shell command as safe or unsafe. Respond with JSON {\"verdict\":\"safe|unsafe|uncertain\"}.
+
+Command: $CMD"
+REQUEST_JSON=$(jq -n --arg model "$OLLAMA_MODEL" --arg prompt "$PROMPT" \
+  '{model:$model, prompt:$prompt, stream:false, format:"json", options:{temperature:0}}')
+RESPONSE=$(curl -s -m 20 "${OLLAMA_HOST}/api/generate" -d "$REQUEST_JSON" 2>/dev/null \
+  | jq -r '.response // empty' 2>/dev/null || echo "")
+
+VERDICT=$(printf '%s' "$RESPONSE" | jq -r '.verdict // empty' 2>/dev/null \
+  | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]' || echo "")
+
+case "$VERDICT" in
+  safe) echo "[hook] second-opinion · veredicto: safe"; exit 0 ;;
+  *)    so_block_or_bypass "veredicto do guardrail semântico: ${VERDICT:-indeterminado} · raw: $(printf '%s' "$RESPONSE" | head -c 120)" ;;
+esac
