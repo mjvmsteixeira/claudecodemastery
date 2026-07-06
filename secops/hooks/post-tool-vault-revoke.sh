@@ -8,7 +8,7 @@ if [ -n "${VAULT_TOKEN:-}" ]; then
   # Source VAULT_* env vars — find versão mais recente (sort -V) para evitar
   # glob lexicográfico que pega v0.10 antes de v0.2.
   VAULT_ENV=$(find "${HOME}/.claude/plugins/cache" \
-    -path "*/wire-base/*/lib/vault-env.sh" -type f 2>/dev/null \
+    -path "*/prumo-base/*/lib/vault-env.sh" -type f 2>/dev/null \
     | sort -V | tail -1)
   if [ -n "$VAULT_ENV" ]; then
     # shellcheck disable=SC1090

@@ -45,18 +45,18 @@ ALLOWLIST_PATTERNS=(
   '/api/generate\b'
 
   # Doctors do plugin · existem precisamente para diagnosticar
-  'wire-vault-doctor'
-  'wire-ollama-doctor'
-  'wire-stack-doctor'
+  'prumo-vault-doctor'
+  'prumo-ollama-doctor'
+  'prumo-stack-doctor'
 
   # Bootstraps · precisam de correr quando ainda não há AppRole token.
   # Lêem root de vault-init.json internamente via lib/vault-env.sh.
   # Defesa em profundidade: cada comando valida policy='root' antes de
   # qualquer escrita — a allowlist não autoriza nada destrutivo sozinha.
-  # Origem: plano docs/superpowers/plans/2026-05-19-wire-vault-bootstraps/
-  'wire-vault-bootstrap'
-  'wire-secops-bootstrap'
-  'wire-vault-kv-migrate'
+  # Origem: plano docs/superpowers/plans/2026-05-19-prumo-vault-bootstraps/
+  'prumo-vault-bootstrap'
+  'prumo-secops-bootstrap'
+  'prumo-vault-kv-migrate'
 
   # Setup inicial · ler ficheiros de init/credentials (não usa Vault)
   'vault-init\.json'
@@ -71,10 +71,10 @@ ALLOWLIST_PATTERNS=(
   # Manipulação de arquivos locais · não envolve Vault nem tenants
   '^[[:space:]]*(unzip|zip|tar|gunzip|bunzip2|xz|gzip|bzip2)[[:space:]]'
   '^[[:space:]]*(mkdir|cp|mv|chmod|chown|ln|touch)[[:space:]]'
-  # rm é split — permitido em /tmp/, $HOME/.wire/, ou paths relativos puros.
+  # rm é split — permitido em /tmp/, $HOME/.prumo/, ou paths relativos puros.
   # Pattern 3 exige que o primeiro char do target NÃO seja '/' (system path),
   # NÃO seja '-' (flag solto a contar como target), NÃO seja '$' (qualquer
-  # $HOME/<x> excepto $HOME/.wire/ vai pelo approval-gate). Operações
+  # $HOME/<x> excepto $HOME/.prumo/ vai pelo approval-gate). Operações
   # destrutivas em system paths exigem VAULT_TOKEN; cross-tenant exige N2.
   '^[[:space:]]*rm[[:space:]]+(-[^[:space:]/]+[[:space:]]+)?/tmp(/|[[:space:]]|$)'
   '^[[:space:]]*rm[[:space:]]+(-[^[:space:]/]+[[:space:]]+)?\$HOME/\.wire(/|[[:space:]]|$)'
@@ -100,12 +100,12 @@ if [ -z "${VAULT_TOKEN:-}" ]; then
 [hook] vault-ttl · VAULT_TOKEN ausente — bloqueia (fail-closed).
 
 Diagnóstico (não exige token, está em allowlist):
-  /wire-vault-doctor      # verifica server + descobre porque falta token
-  /wire-stack-doctor      # diagnóstico global
+  /prumo-vault-doctor      # verifica server + descobre porque falta token
+  /prumo-stack-doctor      # diagnóstico global
 
 Destrancar via AppRole (preferível, TTL curto):
   export VAULT_ADDR=https://127.0.0.1:8200
-  export VAULT_CACERT=~/.wire/vault-ca.pem
+  export VAULT_CACERT=~/.prumo/vault-ca.pem
   export VAULT_ROLE_ID=$(security find-generic-password \
     -a wire-secops -s vault-role-id -w)
   export VAULT_SECRET_ID=$(security find-generic-password \
@@ -118,7 +118,7 @@ Modo dev (formação, Vault em Docker):
   export VAULT_ADDR=http://127.0.0.1:8200
   export VAULT_TOKEN=dev-only-root
 EOF
-  wire_fail_or_warn "wire-secops" "vault-ttl" "VAULT_TOKEN ausente"
+  prumo_fail_or_warn "prumo-secops" "vault-ttl" "VAULT_TOKEN ausente"
 fi
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -138,9 +138,9 @@ Re-login completo (novo token, TTL fresco):
   wire-secops-login
 
 Diagnóstico (se renew falhar):
-  /wire-vault-doctor
+  /prumo-vault-doctor
 EOF
-    wire_fail_or_warn "wire-secops" "vault-ttl" "TTL=${TTL}s abaixo do mínimo 60s"
+    prumo_fail_or_warn "prumo-secops" "vault-ttl" "TTL=${TTL}s abaixo do mínimo 60s"
   fi
 
   echo "[hook] vault-ttl · OK (TTL=${TTL}s)" >&2

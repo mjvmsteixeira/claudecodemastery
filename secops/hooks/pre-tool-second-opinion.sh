@@ -16,7 +16,7 @@ if ! echo "$CMD" | grep -qE '(cross-tenant|all-tenants|systemctl (stop|disable) 
 fi
 
 if ! curl -sf -m 3 "${OLLAMA_HOST}/api/tags" > /dev/null 2>&1; then
-  wire_fail_or_warn "wire-secops" "second-opinion" "Ollama local não responde — second-opinion indisponível para operação destrutiva"
+  prumo_fail_or_warn "prumo-secops" "second-opinion" "Ollama local não responde — second-opinion indisponível para operação destrutiva"
 fi
 
 PROMPT="Analyze this command for safety. Respond with EXACTLY one of: SAFE or UNSAFE, on a single line, nothing else.
@@ -48,12 +48,12 @@ if [ "$VERDICT" != "SAFE" ]; then
 [hook] second-opinion · Ollama verdict não é SAFE.
   Model: ${OLLAMA_MODEL}
   Verdict raw: $(echo "$RESPONSE" | head -c 120)
-  Para autorizar mesmo assim (override): WIRE_SECOND_OPINION_BYPASS=1 <comando>
+  Para autorizar mesmo assim (override): PRUMO_SECOND_OPINION_BYPASS=1 <comando>
 EOF
-  if [ "${WIRE_SECOND_OPINION_BYPASS:-}" = "1" ]; then
+  if [ "${PRUMO_SECOND_OPINION_BYPASS:-}" = "1" ]; then
     exit 0
   fi
-  wire_fail_or_warn "wire-secops" "second-opinion" "Ollama verdict: ${VERDICT:-EMPTY}"
+  prumo_fail_or_warn "prumo-secops" "second-opinion" "Ollama verdict: ${VERDICT:-EMPTY}"
 fi
 
 echo "[hook] Second-opinion: SAFE ($RESPONSE)"

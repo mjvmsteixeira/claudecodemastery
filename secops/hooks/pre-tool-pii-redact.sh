@@ -7,8 +7,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 
 INPUT=$(hook_tool_payload "${1:-}")
 
-if [ "${WIRE_PII_DISABLE:-}" = "1" ]; then
-  echo "[hook] pii-redact · WIRE_PII_DISABLE=1 — bypass (NÃO recomendado em prod)" >&2
+if [ "${PRUMO_PII_DISABLE:-}" = "1" ]; then
+  echo "[hook] pii-redact · PRUMO_PII_DISABLE=1 — bypass (NÃO recomendado em prod)" >&2
   exit 0
 fi
 
@@ -48,7 +48,7 @@ if [ "${#VIOLATIONS[@]}" -eq 0 ]; then
   exit 0
 fi
 
-LOG_DIR="${WIRE_LOG_DIR:-$HOME/.wire/log}"
+LOG_DIR="${PRUMO_LOG_DIR:-$HOME/.prumo/log}"
 mkdir -p "$LOG_DIR" 2>/dev/null || LOG_DIR=$(mktemp -d)
 HASH=$(printf '%s' "$INPUT" | shasum -a 256 | awk '{print $1}')
 TYPES=$(IFS=,; echo "${VIOLATIONS[*]}")
@@ -64,7 +64,7 @@ ou usa Vault para fetch dinâmico em vez de embedar.
 Audit log: ${LOG_DIR}/pii-blocks.log
 
 Em dev podes desactivar temporariamente:
-  WIRE_PII_DISABLE=1 <comando>
+  PRUMO_PII_DISABLE=1 <comando>
 EOF
 
 exit 2

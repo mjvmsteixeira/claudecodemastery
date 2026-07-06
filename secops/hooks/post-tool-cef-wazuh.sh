@@ -12,7 +12,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 EVENT=$(cat 2>/dev/null || echo '{}')
 get_field() { printf '%s' "$EVENT" | jq -r "$1 // empty" 2>/dev/null; }
 
-WAZUH_HOST="${WIRE_WAZUH_HOST:-${WAZUH_HOST:-wazuh-manager.wire.internal}}"
+WAZUH_HOST="${PRUMO_WAZUH_HOST:-${WAZUH_HOST:-wazuh-manager.wire.internal}}"
 WAZUH_PORT="${WAZUH_PORT:-514}"
 TOOL="$(get_field '.tool_name')"; TOOL="${TOOL:-unknown}"
 SESSION="$(get_field '.session_id')"; SESSION="${SESSION:-${CLAUDE_SESSION_ID:-unknown}}"
@@ -30,7 +30,7 @@ if command -v nc > /dev/null 2>&1; then
 fi
 
 # Também persiste localmente como fallback (best-effort)
-LOG_DIR="${WIRE_LOG_DIR:-$HOME/.wire/log}"
+LOG_DIR="${PRUMO_LOG_DIR:-$HOME/.prumo/log}"
 if mkdir -p "$LOG_DIR" 2>/dev/null; then
   echo "$(date -u +%FT%TZ) $CEF" >> "$LOG_DIR/cef.log" 2>/dev/null || true
 fi

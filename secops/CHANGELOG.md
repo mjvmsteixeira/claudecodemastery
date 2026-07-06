@@ -2,6 +2,15 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.5.0 — 2026-07-06
+
+**BREAKING — rebranding wire → prumo.** O plugin passa a chamar-se `prumo-secops` no marketplace `prumo`.
+
+- Renomeados: comandos `/wire-*` → `/prumo-*`, skills e agents `wire-*` → `prumo-*`, env vars `WIRE_*` → `PRUMO_*`
+- Intocado (domínio de produção): produtos wirepaper/wireforms/wiredesk, hostnames `wire-*`, AppRoles e policies Vault (`wire-monitor`, …), entradas Keychain (`-a wire-secops`), regras Wazuh e templates Zabbix
+- `hooks/_lib.sh` passa a descobrir `prumo-base`/`lib/prumo-common.sh` no cache (requer prumo-base ≥ 0.5.0)
+- Upgrade: `/plugin uninstall wire-secops@jump2new` seguido de `/plugin install prumo-secops@prumo`
+
 ## [0.4.0] - 2026-05-19 ("Honest")
 
 ### ⚠ Upgrade · OBRIGATÓRIO uninstall + reinstall

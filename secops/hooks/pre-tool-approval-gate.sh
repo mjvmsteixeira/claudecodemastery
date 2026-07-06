@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Wire SecOps · pre-tool · Approval gate (N1/N2/N3)
 #
-# Env-var-based — NÃO interactivo. Pattern: WIRE_APPROVE=Nx <comando>
+# Env-var-based — NÃO interactivo. Pattern: PRUMO_APPROVE=Nx <comando>
 #
 # Robustez (v0.4.0):
 #   - $CMD é normalizado: newlines→espaços, tabs→espaços. Defesa contra payloads
@@ -92,21 +92,21 @@ fi
 # Gate
 # ────────────────────────────────────────────────────────────────────────────
 
-if [ "${WIRE_APPROVE:-}" != "$LEVEL" ]; then
+if [ "${PRUMO_APPROVE:-}" != "$LEVEL" ]; then
   CMD_PREVIEW=$(printf '%s' "$CMD" | head -c 100)
   cat >&2 <<EOF
 [hook] approval-gate · Operação ${LEVEL} detectada:
   ${CMD_PREVIEW}
 
 Para autorizar, re-executa com:
-  WIRE_APPROVE=${LEVEL} <comando>
+  PRUMO_APPROVE=${LEVEL} <comando>
 
 Níveis (Wire SecOps):
   N1 = destrutivo local
   N2 = cross-tenant ou prod data
   N3 = catastrophic
 
-Audit log: ${WIRE_LOG_DIR:-\$HOME/.wire/log}/approvals.log
+Audit log: ${PRUMO_LOG_DIR:-\$HOME/.prumo/log}/approvals.log
 EOF
   exit 2
 fi
@@ -115,12 +115,12 @@ fi
 # Autorizado — log (best-effort; falha de I/O não bloqueia decisão)
 # ────────────────────────────────────────────────────────────────────────────
 
-LOG_DIR="${WIRE_LOG_DIR:-$HOME/.wire/log}"
+LOG_DIR="${PRUMO_LOG_DIR:-$HOME/.prumo/log}"
 if mkdir -p "$LOG_DIR" 2>/dev/null; then
   CMD_LOG=$(printf '%s' "$CMD" | head -c 200)
   echo "$(date -u +%FT%TZ) | level=$LEVEL | user=${USER:-unknown} | cmd=${CMD_LOG}" \
     >> "$LOG_DIR/approvals.log" 2>/dev/null || true
 fi
-echo "[hook] approval-gate · ${LEVEL} authorised by WIRE_APPROVE env var · logged." >&2
+echo "[hook] approval-gate · ${LEVEL} authorised by PRUMO_APPROVE env var · logged." >&2
 
 exit 0

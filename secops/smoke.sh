@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# wire-secops · smoke.sh — sanity check read-only do plugin.
+# prumo-secops · smoke.sh — sanity check read-only do plugin.
 # Sai 0 se OK · 1 se críticas · 2 se warns (degradação aceitável).
 set -u
 
@@ -11,10 +11,10 @@ ok()   { echo "  ✓ $*"; PASSED=$((PASSED+1)); }
 fail() { echo "  ✗ $*"; FAILED=$((FAILED+1)); }
 warn() { echo "  ! $*"; WARNED=$((WARNED+1)); }
 
-echo "── wire-secops smoke ──"
+echo "── prumo-secops smoke ──"
 
 # 1. plugin.json válido — cache (post-install) com fallback source tree (dev/CI)
-manifest=$(find ~/.claude/plugins/cache -path "*/wire-secops/*/.claude-plugin/plugin.json" -print -quit 2>/dev/null)
+manifest=$(find ~/.claude/plugins/cache -path "*/prumo-secops/*/.claude-plugin/plugin.json" -print -quit 2>/dev/null)
 if [ -z "$manifest" ]; then
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
   [ -f "$script_dir/.claude-plugin/plugin.json" ] && manifest="$script_dir/.claude-plugin/plugin.json"
@@ -27,22 +27,22 @@ else
 fi
 plugin_root="$(dirname "$(dirname "$manifest")")"
 
-# 2. _lib.sh source sem erros e wire_fail_or_warn disponível (real ou stub)
+# 2. _lib.sh source sem erros e prumo_fail_or_warn disponível (real ou stub)
 if [ -f "$plugin_root/hooks/_lib.sh" ]; then
-  if (set +u; source "$plugin_root/hooks/_lib.sh" 2>/dev/null && declare -F wire_fail_or_warn >/dev/null); then
-    ok "_lib.sh expõe wire_fail_or_warn (real ou stub)"
+  if (set +u; source "$plugin_root/hooks/_lib.sh" 2>/dev/null && declare -F prumo_fail_or_warn >/dev/null); then
+    ok "_lib.sh expõe prumo_fail_or_warn (real ou stub)"
   else
-    fail "_lib.sh não expõe wire_fail_or_warn"
+    fail "_lib.sh não expõe prumo_fail_or_warn"
   fi
 else
   fail "hooks/_lib.sh ausente"
 fi
 
-# 3. wire-base detectado (recommends)?
-if find ~/.claude/plugins/cache -path "*/wire-base/*/.claude-plugin/plugin.json" -print -quit 2>/dev/null | grep -q .; then
-  ok "wire-base detectado (hooks usam lib real)"
+# 3. prumo-base detectado (recommends)?
+if find ~/.claude/plugins/cache -path "*/prumo-base/*/.claude-plugin/plugin.json" -print -quit 2>/dev/null | grep -q .; then
+  ok "prumo-base detectado (hooks usam lib real)"
 else
-  warn "wire-base ausente — hooks com stubs fallback (prod-fail-closed)"
+  warn "prumo-base ausente — hooks com stubs fallback (prod-fail-closed)"
 fi
 
 # 4. Hooks têm bit de execução
@@ -92,22 +92,22 @@ else
 fi
 
 # 8. Comando novo do plano 2026-05-19 (secops-bootstrap)
-cmd_file="$plugin_root/commands/wire-secops-bootstrap.md"
+cmd_file="$plugin_root/commands/prumo-secops-bootstrap.md"
 if [ -f "$cmd_file" ]; then
   if head -n 10 "$cmd_file" | grep -qE '^allowed-tools:.*Bash'; then
-    ok "commands/wire-secops-bootstrap.md presente com allowed-tools: Bash"
+    ok "commands/prumo-secops-bootstrap.md presente com allowed-tools: Bash"
   else
-    fail "commands/wire-secops-bootstrap.md sem 'allowed-tools: Bash' no frontmatter"
+    fail "commands/prumo-secops-bootstrap.md sem 'allowed-tools: Bash' no frontmatter"
   fi
 else
-  fail "commands/wire-secops-bootstrap.md ausente"
+  fail "commands/prumo-secops-bootstrap.md ausente"
 fi
 
 # 9. Hook pre-tool-vault-ttl.sh tem os 3 patterns de allowlist do plano 2026-05-19
 hook="$plugin_root/hooks/pre-tool-vault-ttl.sh"
 if [ -f "$hook" ]; then
   missing=0
-  for pat in wire-vault-bootstrap wire-secops-bootstrap wire-vault-kv-migrate; do
+  for pat in prumo-vault-bootstrap prumo-secops-bootstrap prumo-vault-kv-migrate; do
     grep -q "'${pat}'" "$hook" || { fail "hook não tem pattern allowlist: $pat"; missing=$((missing+1)); }
   done
   [ "$missing" -eq 0 ] && ok "hook pre-tool-vault-ttl.sh contém os 3 patterns de bootstrap/migrate"
@@ -170,7 +170,7 @@ if [ -x "$plugin_root/hooks/pre-tool-vault-ttl.sh" ]; then
 fi
 
 # 13. Each skill tem references/ populadas
-for skill in wire-ir-multitenant wire-compliance-provider wire-saas-monitoring wire-tenant-isolation wire-release-safety wire-cliente-dossier; do
+for skill in prumo-ir-multitenant prumo-compliance-provider prumo-saas-monitoring prumo-tenant-isolation prumo-release-safety prumo-cliente-dossier; do
   refs_dir="$plugin_root/skills/$skill/references"
   if [ -d "$refs_dir" ]; then
     count=$(find "$refs_dir" -type f -name "*.md" 2>/dev/null | wc -l | tr -d ' ')

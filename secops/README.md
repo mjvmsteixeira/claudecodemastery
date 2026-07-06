@@ -1,18 +1,18 @@
-# wire-secops
+# prumo-secops
 
 Plugin Claude Code · SecOps com Agentes IA especializado para a **Wire** enquanto fornecedora SaaS de eGovernment local (170+ autarquias portuguesas).
 
-**Versão:** 0.4.0 · **Data:** 2026-05-19 · **Autor:** jump2new · geral@jump2new.pt
+**Versão:** 0.5.0 · **Data:** 2026-07-06 · **Autor:** mjvmst · mjvmst@gmail.com
 
 ---
 
 ## Dependências
 
-Recomenda **`wire-base`** — os hooks deste plugin usam `wire_log` / `wire_mode` / `wire_fail_or_warn` da `wire-common.sh` para respeitarem `WIRE_OPERATING_MODE` (prod/dev/lab). Sem o base instalado, os hooks correm com stubs de fallback (modo prod-fail-closed por defeito).
+Recomenda **`prumo-base`** — os hooks deste plugin usam `prumo_log` / `prumo_mode` / `prumo_fail_or_warn` da `prumo-common.sh` para respeitarem `PRUMO_OPERATING_MODE` (prod/dev/lab). Sem o base instalado, os hooks correm com stubs de fallback (modo prod-fail-closed por defeito).
 
 ```
-/plugin install wire-base@jump2new
-/plugin install wire-secops@jump2new
+/plugin install prumo-base@prumo
+/plugin install prumo-secops@prumo
 ```
 
 ---
@@ -26,43 +26,43 @@ A Wire é o fornecedor SaaS por trás de 170+ autarquias portuguesas. Está suje
 ## Arquitectura
 
 ```
-wire-secops/
+prumo-secops/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── skills/                       # 6 skills + 20 templates references/ (progressive disclosure)
-│   ├── wire-tenant-isolation/       (+ references/: template-cliente, queries-evidencia, painel-template)
-│   ├── wire-saas-monitoring/        (+ references/: wazuh-rules, wazuh-fortigate-pairs, zabbix-canonical-templates, runbook-correlacao)
-│   ├── wire-ir-multitenant/         (+ references/: severity-matrix, timeline-template, distribuicao-classificacao)
-│   ├── wire-release-safety/         (+ references/: canary-plan-template, rollback-template, changelog-template)
-│   ├── wire-compliance-provider/    (+ references/: mapping-nis2, mapping-iso27001, anexoII-template, dpia-template, caiq-pre-filled)
-│   └── wire-cliente-dossier/        (+ references/: dossier-template, sla-calculation)
+│   ├── prumo-tenant-isolation/       (+ references/: template-cliente, queries-evidencia, painel-template)
+│   ├── prumo-saas-monitoring/        (+ references/: wazuh-rules, wazuh-fortigate-pairs, zabbix-canonical-templates, runbook-correlacao)
+│   ├── prumo-ir-multitenant/         (+ references/: severity-matrix, timeline-template, distribuicao-classificacao)
+│   ├── prumo-release-safety/         (+ references/: canary-plan-template, rollback-template, changelog-template)
+│   ├── prumo-compliance-provider/    (+ references/: mapping-nis2, mapping-iso27001, anexoII-template, dpia-template, caiq-pre-filled)
+│   └── prumo-cliente-dossier/        (+ references/: dossier-template, sla-calculation)
 ├── agents/                       # 6 subagentes (Claude Code)
-│   ├── wire-monitor-01.md
-│   ├── wire-ir-saas-01.md
-│   ├── wire-tenant-01.md
-│   ├── wire-srv-saas-01.md
-│   ├── wire-deploy-01.md
-│   └── wire-compliance-01.md
+│   ├── prumo-monitor-01.md
+│   ├── prumo-ir-saas-01.md
+│   ├── prumo-tenant-01.md
+│   ├── prumo-srv-saas-01.md
+│   ├── prumo-deploy-01.md
+│   └── prumo-compliance-01.md
 ├── commands/                     # 10 slash commands (todos prefixados wire-)
-│   ├── wire-saas-health.md           # operação
-│   ├── wire-tenant-audit.md          # operação
-│   ├── wire-incident-spread.md       # operação
-│   ├── wire-release-gate.md          # operação
-│   ├── wire-cliente-dossier.md       # operação
-│   ├── wire-compliance-snapshot.md   # operação
-│   ├── wire-stack-doctor.md          # diagnóstico · global
-│   ├── wire-vault-doctor.md          # diagnóstico · Vault
-│   ├── wire-ollama-doctor.md         # diagnóstico · Ollama
-│   └── wire-secops-bootstrap.md      # provisioning · 7 policies + 7 AppRoles + transit + ssh + Keychain (v0.3.0)
+│   ├── prumo-saas-health.md           # operação
+│   ├── prumo-tenant-audit.md          # operação
+│   ├── prumo-incident-spread.md       # operação
+│   ├── prumo-release-gate.md          # operação
+│   ├── prumo-cliente-dossier.md       # operação
+│   ├── prumo-compliance-snapshot.md   # operação
+│   ├── prumo-stack-doctor.md          # diagnóstico · global
+│   ├── prumo-vault-doctor.md          # diagnóstico · Vault
+│   ├── prumo-ollama-doctor.md         # diagnóstico · Ollama
+│   └── prumo-secops-bootstrap.md      # provisioning · 7 policies + 7 AppRoles + transit + ssh + Keychain (v0.3.0)
 ├── hooks/                        # 4 pre + 1 post + 1 stop + 1 SessionStart (+ _lib.sh shim)
 │   ├── hooks.json
 │   ├── pre-tool-vault-ttl.sh         # PreToolUse · gate TTL Vault (allowlist diagnósticos)
-│   ├── pre-tool-approval-gate.sh     # PreToolUse · WIRE_APPROVE=N1/N2/N3 em ops destrutivas
+│   ├── pre-tool-approval-gate.sh     # PreToolUse · PRUMO_APPROVE=N1/N2/N3 em ops destrutivas
 │   ├── pre-tool-pii-redact.sh        # PreToolUse · fail-closed em PII (NIF/IBAN/CC/email/tel PT)
 │   ├── pre-tool-second-opinion.sh    # PreToolUse · Ollama qwen3-coder valida ops destrutivas
 │   ├── post-tool-cef-wazuh.sh        # PostToolUse · CEF → Wazuh
 │   ├── post-tool-vault-revoke.sh     # Stop · revoga token + limpa keys efémeras
-│   └── check-recommends.sh           # SessionStart · hint se wire-base ausente
+│   └── check-recommends.sh           # SessionStart · hint se prumo-base ausente
 ├── CHANGELOG.md
 ├── CLAUDE.md                      # runtime context (Vault topology, AppRoles, env vars)
 ├── vault-policies.hcl             # 7 policies (6 subagent + Cowork external)
@@ -79,7 +79,7 @@ wire-secops/
 4. **SSH = Vault CA cert (TTL ≤ 15min).** Nunca chaves estáticas em produção.
 5. **Second-opinion em ops destrutivas.** Ollama qwen3-coder local valida hipóteses antes de execução.
 6. **Observabilidade total.** Todas as tool calls → CEF/OTLP → Wazuh. Tokens revogados pós-sessão.
-7. **Releases têm gate.** Nenhum deploy em produção sem `/wire-release-gate` aprovado e dry-run multi-tenant.
+7. **Releases têm gate.** Nenhum deploy em produção sem `/prumo-release-gate` aprovado e dry-run multi-tenant.
 
 ---
 
@@ -102,14 +102,14 @@ wire-secops/
 # 1. Adicionar o marketplace
 /plugin marketplace add mjvmsteixeira/claudecodemastery
 
-# 2. Instalar os plugins (base primeiro — wire-secops assume-o)
-/plugin install wire-base@jump2new
-/plugin install wire-secops@jump2new
+# 2. Instalar os plugins (base primeiro — prumo-secops assume-o)
+/plugin install prumo-base@prumo
+/plugin install prumo-secops@prumo
 
 # 3. Bootstrap automático (v0.3.0+) — uma única corrida cria policies, AppRoles, transit, ssh CA, ssh roles, Keychain
 export VAULT_TOKEN=$(jq -r .root_token ~/vault/vault-init.json)
-/wire-vault-bootstrap --plan && /wire-vault-bootstrap --apply        # (wire-base) infra Vault genérica: audit, kv-v2, approle, transit, ssh
-/wire-secops-bootstrap --plan && /wire-secops-bootstrap --apply       # (wire-secops) 7 policies + 7 AppRoles + transit/keys/forensics + ssh/config/ca + ssh roles + Keychain
+/prumo-vault-bootstrap --plan && /prumo-vault-bootstrap --apply        # (prumo-base) infra Vault genérica: audit, kv-v2, approle, transit, ssh
+/prumo-secops-bootstrap --plan && /prumo-secops-bootstrap --apply       # (prumo-secops) 7 policies + 7 AppRoles + transit/keys/forensics + ssh/config/ca + ssh roles + Keychain
 
 # 3b. (Alternativa pre-v0.3.0 · manual, em vias de ficar legacy)
 # vault write auth/approle/role/wire-monitor   token_ttl=30m token_max_ttl=1h
@@ -141,16 +141,16 @@ Cada skill tem o seu `SKILL.md` em `skills/<nome>/SKILL.md`.
 
 | Command | Tipo | Quando |
 |---------|------|--------|
-| `/wire-saas-health` | operação | Início do turno; correlação Wazuh+Fortigate+Zabbix |
-| `/wire-tenant-audit <municipio>` | operação | Auditoria de isolamento por cliente |
-| `/wire-incident-spread <id>` | operação | IR multi-tenant; blast radius + comunicação |
-| `/wire-release-gate <release>` | operação | Pré-deploy gate Capistrano |
-| `/wire-cliente-dossier <municipio>` | operação | Dossier 360° por cliente |
-| `/wire-compliance-snapshot` | operação | NIS2 / RGPD / ISO 27001 evidence snapshot |
-| `/wire-stack-doctor` | diagnóstico | Health check global (Wazuh+Fortigate+Zabbix+Vault+Ollama) |
-| `/wire-vault-doctor` | diagnóstico | Vault de PRODUÇÃO (fail-fast se `VAULT_ADDR` ausente) |
-| `/wire-ollama-doctor` | diagnóstico | Ollama + modelo qwen3-coder para second-opinion |
-| `/wire-secops-bootstrap` | provisioning | Provisiona 7 policies + AppRoles + transit + ssh CA + Keychain (v0.3.0+) |
+| `/prumo-saas-health` | operação | Início do turno; correlação Wazuh+Fortigate+Zabbix |
+| `/prumo-tenant-audit <municipio>` | operação | Auditoria de isolamento por cliente |
+| `/prumo-incident-spread <id>` | operação | IR multi-tenant; blast radius + comunicação |
+| `/prumo-release-gate <release>` | operação | Pré-deploy gate Capistrano |
+| `/prumo-cliente-dossier <municipio>` | operação | Dossier 360° por cliente |
+| `/prumo-compliance-snapshot` | operação | NIS2 / RGPD / ISO 27001 evidence snapshot |
+| `/prumo-stack-doctor` | diagnóstico | Health check global (Wazuh+Fortigate+Zabbix+Vault+Ollama) |
+| `/prumo-vault-doctor` | diagnóstico | Vault de PRODUÇÃO (fail-fast se `VAULT_ADDR` ausente) |
+| `/prumo-ollama-doctor` | diagnóstico | Ollama + modelo qwen3-coder para second-opinion |
+| `/prumo-secops-bootstrap` | provisioning | Provisiona 7 policies + AppRoles + transit + ssh CA + Keychain (v0.3.0+) |
 
 Total: **10 commands** (6 operação · 3 diagnóstico · 1 provisioning).
 
@@ -158,10 +158,10 @@ Total: **10 commands** (6 operação · 3 diagnóstico · 1 provisioning).
 
 ## Cadência operacional
 
-- **Diária:** `/wire-saas-health` no início do turno; revisão de alertas Wazuh; fecho de turno com relatório.
+- **Diária:** `/prumo-saas-health` no início do turno; revisão de alertas Wazuh; fecho de turno com relatório.
 - **Semanal:** revisão drift de servidores, dossiers de clientes com SLA degradado.
-- **Quinzenal:** `/wire-release-gate` para cada release planeado.
-- **Mensal:** `/wire-compliance-snapshot` com mapping de controlos.
+- **Quinzenal:** `/prumo-release-gate` para cada release planeado.
+- **Mensal:** `/prumo-compliance-snapshot` com mapping de controlos.
 - **Trimestral:** revisão de AppRoles, rotação de keys de tenant, simulacro de IR multi-tenant.
 - **Anual:** auditoria externa (ISO 27001 + ENS), revisão da política completa.
 
@@ -186,4 +186,4 @@ Total: **10 commands** (6 operação · 3 diagnóstico · 1 provisioning).
 
 ---
 
-© 2026 jump2new · Uso interno · Versão 0.4.0
+© 2026 prumo · Uso interno · Versão 0.5.0
