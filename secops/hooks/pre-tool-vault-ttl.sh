@@ -67,7 +67,11 @@ ALLOWLIST_PATTERNS=(
   'approle-credentials\.json'
 
   # Operações puramente locais que não tocam Vault
-  '^[[:space:]]*(ls|cat|head|tail|grep|find|stat|file|wc|cut|sort|uniq|tr|sed|awk)[[:space:]]+'
+  # NOTA: 'sed' e 'awk' foram removidos deste grupo genérico — 'awk' tem
+  # 'print > file' e 'system()' demasiado flexíveis para classificar por
+  # regex simples (sem allowlist, exige VAULT_TOKEN sempre); 'sed' só é
+  # allowlisted em modo bare via o check dedicado abaixo (sem -i/w/>).
+  '^[[:space:]]*(ls|cat|head|tail|grep|find|stat|file|wc|cut|sort|uniq|tr)[[:space:]]+'
   '^[[:space:]]*(echo|printf|pwd|date|uname|whoami|env|true|false)[[:space:]]*'
   '^[[:space:]]*(which|type|command|hash)[[:space:]]+'
   '^[[:space:]]*(brew|docker|systemctl)[[:space:]]+(list|ls|ps|status|info|--help)'
@@ -115,7 +119,17 @@ esac
 
 # Filtros read-only puros aceites como segmento de pipeline mesmo sem baterem
 # num pattern da allowlist geral (ex: "grep sealed", "head -5", "jq .field").
-PIPE_FILTER_REGEX='^(grep|head|tail|awk|sed|cut|sort|uniq|wc|jq|less|cat)([[:space:]]|$)'
+# NOTA: 'awk' está deliberadamente FORA desta lista — 'print > file',
+# 'printf > file' e 'system()' são demasiado flexíveis para classificar como
+# read-only puro por regex; um segmento awk exige sempre VAULT_TOKEN.
+PIPE_FILTER_REGEX='^(grep|head|tail|cut|sort|uniq|wc|jq|less|cat)([[:space:]]|$)'
+
+# 'sed' só conta como filtro read-only quando o segmento NÃO contém formas de
+# escrita: '-i'/'-i.bak' (in-place), um comando 'w' (write, incl. precedido
+# de aspas/`;` dentro de um script -e), ou uma redirecção de output '>'.
+# Usado tanto no loop de pipeline abaixo como no allowlist de comando bare.
+SED_NAME_REGEX='^sed([[:space:]]|$)'
+UNSAFE_SED_REGEX="(-i|[[:space:];'\"]w[[:space:]]|>)"
 
 if [ "$HAS_CHAIN" -eq 0 ] && [ "$HAS_PIPE" -eq 1 ]; then
   ALLOWED_PIPE=1
@@ -128,6 +142,9 @@ if [ "$HAS_CHAIN" -eq 0 ] && [ "$HAS_PIPE" -eq 1 ]; then
     fi
     SEG_OK=0
     if printf '%s' "$SEG_TRIMMED" | grep -qE "$PIPE_FILTER_REGEX"; then
+      SEG_OK=1
+    elif printf '%s' "$SEG_TRIMMED" | grep -qE "$SED_NAME_REGEX" \
+      && ! printf '%s' "$SEG_TRIMMED" | grep -qE "$UNSAFE_SED_REGEX"; then
       SEG_OK=1
     else
       for pattern in "${ALLOWLIST_PATTERNS[@]}"; do
@@ -150,6 +167,11 @@ if [ "$HAS_CHAIN" -eq 0 ] && [ "$HAS_PIPE" -eq 1 ]; then
     echo "[hook] vault-ttl · pipeline contém segmento não-allowlisted — allowlist ignorada, exige VAULT_TOKEN" >&2
   fi
 elif [ "$HAS_CHAIN" -eq 0 ]; then
+  if printf '%s' "$CMD" | grep -qE '^[[:space:]]*sed[[:space:]]+' \
+    && ! printf '%s' "$CMD" | grep -qE "$UNSAFE_SED_REGEX"; then
+    echo "[hook] vault-ttl · allowlisted (sed read-only, sem -i/w/>)" >&2
+    exit 0
+  fi
   for pattern in "${ALLOWLIST_PATTERNS[@]}"; do
     if echo "$CMD" | grep -qE "$pattern"; then
       echo "[hook] vault-ttl · allowlisted ($pattern)" >&2
