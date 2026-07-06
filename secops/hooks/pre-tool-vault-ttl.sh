@@ -21,7 +21,11 @@ set -euo pipefail
 # shellcheck source=_lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 
-CMD=$(hook_tool_payload "${1:-}")
+RAW_CMD=$(hook_tool_payload "${1:-}")
+# Normaliza whitespace (newlines/tabs → espaço) — mirror de pre-tool-approval-gate.sh.
+# Necessário para que a defesa anti-chaining abaixo veja payloads multi-line
+# como uma única string.
+CMD=$(printf '%s' "$RAW_CMD" | tr '\n\t' '  ')
 
 # ────────────────────────────────────────────────────────────────────────────
 # ALLOWLIST · padrões de comandos que não precisam de auth Vault.
@@ -85,12 +89,26 @@ ALLOWLIST_PATTERNS=(
   '^[[:space:]]*(jq|yq|xmllint|md5|sha256sum|shasum|base64)[[:space:]]'
 )
 
-for pattern in "${ALLOWLIST_PATTERNS[@]}"; do
-  if echo "$CMD" | grep -qE "$pattern"; then
-    echo "[hook] vault-ttl · allowlisted ($pattern)" >&2
-    exit 0
-  fi
-done
+# Defesa anti-chaining: um comando com metacharacters de shell (;, &&, ||, |,
+# backtick, $() pode "esconder" uma ops privilegiada atrás de um prefixo
+# inofensivo (ex: "vault status; rm -rf /prod"). A allowlist só é um fast-path
+# válido para um comando simples único — se houver chaining, cai sempre para
+# a exigência de VAULT_TOKEN abaixo, independentemente do que a allowlist diria.
+HAS_CHAIN=0
+case "$CMD" in
+  *';'*|*'&&'*|*'||'*|*'|'*|*'`'*|*'$('*) HAS_CHAIN=1 ;;
+esac
+
+if [ "$HAS_CHAIN" -eq 0 ]; then
+  for pattern in "${ALLOWLIST_PATTERNS[@]}"; do
+    if echo "$CMD" | grep -qE "$pattern"; then
+      echo "[hook] vault-ttl · allowlisted ($pattern)" >&2
+      exit 0
+    fi
+  done
+else
+  echo "[hook] vault-ttl · comando contém chaining/substituição de shell — allowlist ignorada, exige VAULT_TOKEN" >&2
+fi
 
 # ────────────────────────────────────────────────────────────────────────────
 # Para tudo o resto · exige VAULT_TOKEN

@@ -11,7 +11,7 @@ OLLAMA_HOST="${OLLAMA_HOST:-http://127.0.0.1:11434}"
 OLLAMA_MODEL="${OLLAMA_MODEL:-qwen3-coder:30b}"
 
 # Aplica-se só se for cross-tenant ou destrutivo
-if ! echo "$CMD" | grep -qE '(cross-tenant|all-tenants|systemctl (stop|disable) puma|cap.*deploy:rollback|vault operator seal|rm -rf /forensics|vault write transit.*rotate|DROP TABLE|TRUNCATE|DELETE FROM)'; then
+if ! echo "$CMD" | grep -qiE '(cross-tenant|all-tenants|systemctl (stop|disable) puma|cap.*deploy:rollback|vault operator seal|rm -rf /forensics|vault write transit.*rotate|DROP TABLE|TRUNCATE|DELETE FROM)'; then
   exit 0
 fi
 

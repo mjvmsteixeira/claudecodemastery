@@ -64,6 +64,10 @@ fi
 if [ -z "$LEVEL" ] && match 'vault[[:space:]]+token[[:space:]]+revoke[[:space:]]+-accessor\b'; then
   LEVEL="N2"
 fi
+# Mass-delete SQL — mesma lógica de comments inline que DROP acima.
+if [ -z "$LEVEL" ] && match 'DELETE.{0,40}FROM\b'; then
+  LEVEL="N2"
+fi
 
 # ────────────────────────────────────────────────────────────────────────────
 # N1 — destrutivo local
@@ -82,6 +86,14 @@ if [ -z "$LEVEL" ] && match 'rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*\$HOM
   LEVEL="N1"
 fi
 if [ -z "$LEVEL" ] && match 'rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*/tmp(/|[[:space:]]|$)'; then
+  LEVEL="N1"
+fi
+# Catch-all: rm com flag recursiva/força (-r, -f, -rf, -fr, --recursive,
+# --force, ...) contra QUALQUER outro path não coberto pelas regras acima
+# (/forensics já é N3; $HOME/.prumo e /tmp já são N1 acima). Sem isto,
+# `rm -rf /qualquer/outro/caminho/prod` não batia nenhum pattern específico
+# e passava sem aprovação (exit 0 silencioso).
+if [ -z "$LEVEL" ] && match 'rm[[:space:]]+(-[a-zA-Z]*[rf][a-zA-Z]*|--recursive|--force)\b'; then
   LEVEL="N1"
 fi
 
@@ -115,9 +127,21 @@ fi
 # Autorizado — log (best-effort; falha de I/O não bloqueia decisão)
 # ────────────────────────────────────────────────────────────────────────────
 
+# umask 077 · approvals.log pode conter fragmentos de comandos com credenciais
+# embutidas (URLs com user:pass, tokens) — nunca criar com permissões ambiente
+# (umask por defeito pode deixar o ficheiro world/group-readable).
+umask 077
 LOG_DIR="${PRUMO_LOG_DIR:-$HOME/.prumo/log}"
 if mkdir -p "$LOG_DIR" 2>/dev/null; then
-  CMD_LOG=$(printf '%s' "$CMD" | head -c 200)
+  # Redacta formas comuns de credencial antes de persistir: URLs com
+  # user:pass@, Bearer tokens, token=..., VAULT_TOKEN=..., e o valor de -w.
+  CMD_LOG=$(printf '%s' "$CMD" | head -c 200 | sed -E \
+    -e 's#(://[^:/@[:space:]]+:)[^@[:space:]]+(@)#\1***\2#g' \
+    -e 's/([Bb]earer)[[:space:]]+[^[:space:]]+/\1 ***/g' \
+    -e 's/([Tt]oken=)[^[:space:]&]+/\1***/g' \
+    -e 's/(VAULT_TOKEN=)[^[:space:]]+/\1***/g' \
+    -e 's/(-w[[:space:]]+)[^[:space:]]+/\1***/g')
+  touch "$LOG_DIR/approvals.log" 2>/dev/null && chmod 600 "$LOG_DIR/approvals.log" 2>/dev/null || true
   echo "$(date -u +%FT%TZ) | level=$LEVEL | user=${USER:-unknown} | cmd=${CMD_LOG}" \
     >> "$LOG_DIR/approvals.log" 2>/dev/null || true
 fi

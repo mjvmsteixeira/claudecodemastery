@@ -12,35 +12,44 @@ if [ "${PRUMO_PII_DISABLE:-}" = "1" ]; then
   exit 0
 fi
 
-# Skip binary content (portable — BSD grep não tem -P; usa tr-delete + wc)
-if [ "$(printf '%s' "$INPUT" | LC_ALL=C tr -d '\t\n\r\040-\176' | wc -c | tr -d ' ')" != "0" ]; then
+# Skip binário real (portável — BSD grep não tem -P). O heurístico antigo
+# fazia tr-delete de \t\n\r + ASCII imprimível (\040-\176) e assumia binário
+# se sobrasse QUALQUER byte — mas isso inclui os bytes >=0x80 de qualquer
+# acento UTF-8 (ã, ç, é...), o que desligava o gate de PII em texto normal em
+# português. Fix: também descartar a gama de bytes altos (\200-\377, cobre
+# lead/continuation bytes UTF-8) antes de decidir — só resta algo se houver
+# bytes de controlo C0 verdadeiros (excepto tab/lf/cr), que são o sinal real
+# de conteúdo binário.
+if [ "$(printf '%s' "$INPUT" | LC_ALL=C tr -d '\t\n\r\040-\176\200-\377' | wc -c | tr -d ' ')" != "0" ]; then
   exit 0
 fi
 
 VIOLATIONS=()
 
-# NIF (9 digits, first 1-9)
-if echo "$INPUT" | grep -qE '\b[1-9][0-9]{2}[[:space:]]?[0-9]{3}[[:space:]]?[0-9]{3}\b'; then
+# NIF (9 dígitos, primeiro 1-9). Separador opcional entre grupos — espaço,
+# ponto ou traço (ou nenhum, ex: "NIF 123456789" contíguo).
+if echo "$INPUT" | grep -qiE '\b[1-9][0-9]{2}[[:space:].-]?[0-9]{3}[[:space:].-]?[0-9]{3}\b'; then
   VIOLATIONS+=("NIF")
 fi
 
-# IBAN PT
-if echo "$INPUT" | grep -qE '\bPT[0-9]{2}[[:space:]]?[0-9]{4}[[:space:]]?[0-9]{4}[[:space:]]?[0-9]{4}[[:space:]]?[0-9]{4}[[:space:]]?[0-9]{3}[[:space:]]?[0-9]{2}\b'; then
+# IBAN PT — -i para apanhar prefixo "pt" em minúsculas
+if echo "$INPUT" | grep -qiE '\bPT[0-9]{2}[[:space:]]?[0-9]{4}[[:space:]]?[0-9]{4}[[:space:]]?[0-9]{4}[[:space:]]?[0-9]{4}[[:space:]]?[0-9]{3}[[:space:]]?[0-9]{2}\b'; then
   VIOLATIONS+=("IBAN-PT")
 fi
 
-# CC PT
-if echo "$INPUT" | grep -qE '\b[0-9]{8}[[:space:]][0-9][[:space:]][A-Z]{2}[0-9]\b'; then
+# CC PT — espaço entre grupos agora opcional (nº CC surge frequentemente sem
+# separador, ex: "12345678 9ZZ4" vs "123456789ZZ4")
+if echo "$INPUT" | grep -qiE '\b[0-9]{8}[[:space:]]?[0-9][[:space:]]?[A-Z]{2}[0-9]\b'; then
   VIOLATIONS+=("CC-PT")
 fi
 
 # Email
-if echo "$INPUT" | grep -qE '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b'; then
+if echo "$INPUT" | grep -qiE '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b'; then
   VIOLATIONS+=("email")
 fi
 
 # Telefone PT — 9 dígitos começando em 2/3/9, opcionalmente +351
-if echo "$INPUT" | grep -qE '(\+351[[:space:]]?)?[239][0-9]{2}[[:space:]]?[0-9]{3}[[:space:]]?[0-9]{3}\b'; then
+if echo "$INPUT" | grep -qiE '(\+351[[:space:]]?)?[239][0-9]{2}[[:space:]]?[0-9]{3}[[:space:]]?[0-9]{3}\b'; then
   VIOLATIONS+=("telefone-PT")
 fi
 

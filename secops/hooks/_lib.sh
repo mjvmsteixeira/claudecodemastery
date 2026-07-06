@@ -18,11 +18,27 @@
 
 # Se a lib já foi carregada noutro hook desta sessão, não duplicar.
 if ! declare -F prumo_fail_or_warn >/dev/null 2>&1; then
-  PRUMO_BASE_LIB=$(find ~/.claude/plugins/cache -path "*/prumo-base/*/lib/prumo-common.sh" 2>/dev/null \
+  PRUMO_BASE_LIB=$(find ~/.claude/plugins/cache -path "*/prumo-base/*/lib/prumo-common.sh" -type f 2>/dev/null \
                   | sort -V | tail -1)
   if [ -n "${PRUMO_BASE_LIB:-}" ] && [ -r "$PRUMO_BASE_LIB" ]; then
-    # shellcheck disable=SC1090
-    source "$PRUMO_BASE_LIB"
+    # Integridade: mesma preocupação que post-tool-vault-revoke.sh — um
+    # ficheiro plantado em qualquer path que bata o padrão find acima seria
+    # sourced (e passaria a definir prumo_fail_or_warn, prumo_mode, etc. —
+    # controlos de segurança) sem verificação nenhuma. Confirma que o plugin
+    # root (dois níveis acima de lib/prumo-common.sh) é mesmo o prumo-base
+    # via .claude-plugin/plugin.json antes de o fazer source.
+    PRUMO_BASE_PLUGIN_ROOT=$(dirname "$(dirname "$PRUMO_BASE_LIB")")
+    PRUMO_BASE_PLUGIN_JSON="$PRUMO_BASE_PLUGIN_ROOT/.claude-plugin/plugin.json"
+    PRUMO_BASE_PLUGIN_NAME=""
+    if [ -r "$PRUMO_BASE_PLUGIN_JSON" ] && command -v jq >/dev/null 2>&1; then
+      PRUMO_BASE_PLUGIN_NAME=$(jq -r '.name // empty' "$PRUMO_BASE_PLUGIN_JSON" 2>/dev/null)
+    fi
+    if [ "$PRUMO_BASE_PLUGIN_NAME" = "prumo-base" ]; then
+      # shellcheck disable=SC1090
+      source "$PRUMO_BASE_LIB"
+    else
+      echo "[secops/_lib] prumo-common.sh candidato falhou verificação de integridade (plugin.json name='${PRUMO_BASE_PLUGIN_NAME:-<ausente>}', esperado 'prumo-base') — a ignorar, usar stubs fail-closed" >&2
+    fi
   fi
 fi
 
