@@ -55,27 +55,92 @@ ngrok config add-authtoken "$NGROK_TOKEN"
     não segue o redirect para 443.
 - Portas comuns: 5173 (Vite dev), 3000 (outros dev servers), 8080 / 80 (nginx prod).
 
-### 5. Iniciar o túnel
+### 5. Confirmação humana obrigatória antes de expor
+
+**CRÍTICO — nunca avançar para o passo 6 sem esta confirmação explícita.**
+
+Antes de lançar qualquer túnel, mostrar ao utilizador um resumo claro e esperar
+literalmente por `sim`:
+
+```
+Vou expor publicamente:
+  - Serviço/porta: <descrição>:<PORT>  (ex: "frontend Vite dev":5173)
+  - Ambiente: <dev|prod — resultado do passo 4>
+  - Modo de acesso: protegido por basic-auth (utilizador+password aleatórios)
+    [OU, só se o utilizador pedir explicitamente acesso sem auth:]
+    Modo de acesso: PÚBLICO SEM AUTENTICAÇÃO — qualquer pessoa com o URL acede.
+  - O URL ngrok será acessível a partir da internet enquanto o túnel estiver activo.
+
+Confirmas? (sim/não)
+```
+
+Se a resposta não for exactamente "sim" (ou equivalente inequívoco de aceitação),
+abortar e não executar o passo 6.
+
+**Basic-auth é o default.** Só omitir `--basic-auth` se o utilizador pedir
+explicitamente acesso público sem autenticação (opt-in explícito, nunca default).
+
+### 6. Iniciar o túnel
 
 ```bash
 PORT=<porta-detectada-no-passo-4>   # ex: 5173, 3000, 80
-pkill ngrok 2>/dev/null   # matar instância anterior
-sleep 1
-ngrok http "$PORT" --log=stdout > /tmp/ngrok.log 2>&1 &
+LOG_FILE=$(mktemp -t ngrok.XXXXXX.log)
+
+if [ "$SKIP_AUTH" != "1" ]; then
+  # Default: gerar credenciais basic-auth aleatórias e mostrá-las ao utilizador
+  NGROK_USER="ngrok"
+  NGROK_PASS=$(openssl rand -base64 18 | tr -dc 'A-Za-z0-9' | head -c 20)
+  echo "Basic-auth: utilizador=$NGROK_USER password=$NGROK_PASS  (guarda isto — não fica noutro lado)"
+  ngrok http "$PORT" --basic-auth="${NGROK_USER}:${NGROK_PASS}" --log=stdout > "$LOG_FILE" 2>&1 &
+else
+  # Só chega aqui se o utilizador pediu explicitamente acesso público sem auth no passo 5
+  ngrok http "$PORT" --log=stdout > "$LOG_FILE" 2>&1 &
+fi
+NGROK_PID=$!
 sleep 5
-URL=$(grep -o "https://[a-z0-9\-]*\.ngrok-free\.app" /tmp/ngrok.log | head -1)
+URL=$(grep -o "https://[a-z0-9\-]*\.ngrok-free\.app" "$LOG_FILE" | head -1)
 echo "URL: $URL"
+echo "PID: $NGROK_PID  Log: $LOG_FILE"
 ```
 
-### 6. Se a app usar Vite dev server e bloquear o host
+Guardar `$NGROK_PID` e `$LOG_FILE` — são precisos para parar o túnel no passo 9
+sem afectar outras instâncias de ngrok que possam estar a correr no host.
 
+### 7. Se a app usar Vite dev server e bloquear o host
+
+**Confirmar com o utilizador antes de editar qualquer ficheiro de configuração**
+(mostrar o diff proposto e esperar aprovação — estas alterações tornam o
+dev server aceitável a partir de qualquer Host header, o que é uma superfície
+de ataque quando combinado com exposição pública).
+
+Antes de editar, guardar uma cópia do original para permitir revert:
+```bash
+cp vite.config.ts vite.config.ts.ngrok-orig 2>/dev/null || true
+cp <ficheiro-nginx-relevante> <ficheiro-nginx-relevante>.ngrok-orig 2>/dev/null || true
+```
+
+Alterações propostas (aplicar só após aprovação):
 - Adicionar `allowedHosts: 'all'` ao `vite.config.ts` no bloco `server`.
 - Se o nginx faz proxy para o vite, mudar `proxy_set_header Host $host` para
   `proxy_set_header Host localhost` nos `location` que proxiam para o frontend.
 
-### 7. Reportar o URL ao utilizador.
+**Revert obrigatório ao terminar (passo 9):** restaurar os ficheiros originais a
+partir das cópias `.ngrok-orig` e remover as cópias:
+```bash
+[ -f vite.config.ts.ngrok-orig ] && mv vite.config.ts.ngrok-orig vite.config.ts
+[ -f <ficheiro-nginx-relevante>.ngrok-orig ] && mv <ficheiro-nginx-relevante>.ngrok-orig <ficheiro-nginx-relevante>
+```
 
-### 8. Para parar: `pkill ngrok`
+### 8. Reportar o URL ao utilizador.
+
+### 9. Para parar
+
+Parar apenas o processo ngrok lançado por este comando (nunca `pkill ngrok` —
+isso mataria outras instâncias de ngrok no host):
+```bash
+kill "$NGROK_PID" 2>/dev/null
+```
+Depois, se o passo 7 tiver editado configs, aplicar o revert documentado acima.
 
 ## Notas
 

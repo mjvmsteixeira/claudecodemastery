@@ -74,7 +74,20 @@ for p in "${SELECTED[@]}"; do
       -x "__MACOSX*" \
       -x "package.sh" \
       -x "smoke.sh" \
-      -x ".orphaned_at" )
+      -x ".orphaned_at" \
+      -x "*.env" \
+      -x "*.env.*" \
+      -x ".env" \
+      -x "*.pem" \
+      -x "*.key" \
+      -x "*credential*" \
+      -x "*secret*" \
+      -x "vault-init.json" \
+      -x "*.orig" )
+  if [ $? -ne 0 ]; then
+    echo "✗ zip falhou para ${plugin_name}" >&2
+    exit 2
+  fi
 
   size=$(du -h "$zip_path" | awk '{print $1}')
   echo "  → ${zip_path} (${size})"

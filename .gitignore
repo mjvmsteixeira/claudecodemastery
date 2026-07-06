@@ -28,3 +28,12 @@
 **/*~
 **/*.plugin
 secops/.orphaned_at
+
+# 3b. Segredos — nunca trackar mesmo dentro dos dirs whitelisted acima
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*credentials*
+**/vault-init.json
+**/id_rsa*
