@@ -3,7 +3,7 @@
 Plataforma SaaS multi-tenant para 170+ autarquias. Servidores nativos (VMs) com Ruby on Rails em várias versões. Vault broker. Operação 24x7. Zero secrets em ficheiros.
 
 ## Topologia
-- **Code** (CLI): operacional. 6 subagentes especializados. Hooks fazem cumprir N1/N2/N3.
+- **Code** (CLI): operacional. 6 subagentes especializados. Hooks aplicam defense-in-depth e audit-logging sobre N1/N2/N3 (ver "Modelo de confiança / limitações" abaixo — não é um bloqueio técnico inquebrável).
 - **Cowork** (`ai-rep-01`): documental, confinado a `/shared/reports/`. Nunca toca em Vault privilegiado.
 - **Vault HA Raft (3 nós)**: AppRoles, SSH CA, transit. Audit → Wazuh.
 - **Wazuh**: SIEM mestre. Recebe CEF/syslog de Fortigate, logs lograge de Rails, audit Vault, OTel.
@@ -97,11 +97,15 @@ Stack runtime: Puma + systemd + Capistrano. Sem orquestrador de containers.
 - Zero secrets em ficheiros. AppRole + response wrapping em runtime.
 - SSH = Vault CA cert (TTL ≤ 15min). Nunca chaves estáticas. Nem `secrets.yml` em git.
 - Isolamento multi-tenant é o controlo crítico nº 1. Tenant-key obrigatório em todas as queries (escopo via PostgreSQL RLS).
-- Operações cross-tenant exigem N2; desligar produto exige N3.
-- Second-opinion (Ollama qwen3-coder local) gate-eia ops destrutivas (`DROP`, `cap deploy:rollback`, `systemctl stop puma`). Fail-closed se o modelo cair.
+- Operações cross-tenant requerem reconhecimento explícito N2; desligar produto requer N3. É defense-in-depth e audit-tracked (`PRUMO_APPROVE`), não um bloqueio técnico que o próprio agente não consiga contornar — a barreira efectiva contra execução não-autorizada é o prompt de permissão da tool Bash do Claude Code (ver "Modelo de confiança / limitações").
+- Second-opinion (Ollama qwen3-coder local) revê ops destrutivas (`DROP`, `cap deploy:rollback`, `systemctl stop puma`) antes de prosseguir; fail-closed por defeito se o modelo cair, mas bypassável via `PRUMO_SECOND_OPINION_BYPASS` (audit-tracked) — é um crivo de qualidade adicional, não uma autoridade de aprovação.
 - Toda a tool call → CEF → Wazuh. Token revogado pós-sessão.
-- Releases têm gate. Nenhum `cap production deploy` sem `/prumo-release-gate` aprovado e canary multi-tenant.
+- Releases têm gate processual. Nenhum `cap production deploy` sem `/prumo-release-gate` aprovado e canary multi-tenant.
 - Monitorização Zabbix tem que ser auditada: hosts sem agente, sem template adequado, alertas silenciosos > 90d são tratados como dívida operacional.
+
+## Modelo de confiança / limitações
+
+Os controlos N1/N2/N3, second-opinion e pii-redact assentam em variáveis de ambiente (`PRUMO_APPROVE`, `PRUMO_SECOND_OPINION_BYPASS`, `PRUMO_PII_DISABLE`) e ficheiros-marcador (`~/.prumo/mode`, `~/.prumo/audit-active`, `~/.prumo/lab-mode`) que o **próprio agente gated** consegue definir ou criar na mesma tool call. Não são uma barreira de autorização humana inquebrável — são defense-in-depth, audit-logging e speed-bumps operando dentro do domínio de confiança do agente. A barreira humana real é o prompt de permissão nativo da tool Bash do Claude Code; é dele que depende, em última instância, impedir uma acção não desejada. Ausência dessas variáveis/marcadores não impede tecnicamente a acção — apenas garante que fica registada e sinalizada para revisão. Hardening para uma aprovação out-of-band genuína (token assinado externamente, ficheiro de ACL que o agente não tem permissão de escrever) fica em roadmap.
 
 ## Variáveis de ambiente do plugin
 

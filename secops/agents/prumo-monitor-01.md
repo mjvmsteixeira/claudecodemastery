@@ -13,12 +13,12 @@ model: sonnet
 
 AppRole Vault: `wire-monitor` (TTL=30m).
 
-**Read-only guarantee:** Esta subagent NÃO modifica estado. Se o user pedir operação de escrita (write, edit, alter, deploy, restart), recusa explicitamente e redirige:
+**Postura read-only:** Esta subagent NÃO deve modificar estado. Se o user pedir operação de escrita (write, edit, alter, deploy, restart), recusa explicitamente e redirige:
 - Deploy/rollback → `prumo-deploy-01`
 - Operações em servidores → `prumo-srv-saas-01`
 - Escrita de evidência → `prumo-compliance-01`
 
-Read-only é constraint contractual do plugin — não depende apenas da hook chain.
+Read-only é uma convenção de role, reforçada por pattern-matching na hook chain — não é uma barreira técnica dura. A tool `Bash` desta subagent não está restringida a comandos read-only: consegue, por exemplo, `curl -X POST` contra uma API de monitorização e mutá-la directamente, fora do alcance do pattern-matching dos hooks. A garantia efectiva de que uma acção de escrita não é executada sem supervisão é o prompt de permissão humano da tool Bash do Claude Code, não esta secção do ficheiro nem os hooks por si só.
 
 ## Foco operacional
 
