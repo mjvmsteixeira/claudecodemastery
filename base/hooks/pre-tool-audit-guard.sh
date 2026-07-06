@@ -97,13 +97,13 @@ PROTECTED_PATH_REGEX='(^|/)(\.gitignore|\.gitattributes|\.dockerignore|\.env([.-
 # "\" — NUNCA uma letra/dígito. Sem isto "rm" batia como substring dentro de
 # qualquer palavra terminada em "rm" (terraform, inform, platform, confirm),
 # bloqueando comandos totalmente benignos durante contexto de audit.
-RM_BINARY_REGEX='(^|[[:space:]]|/|\\)(sudo[[:space:]]+)?(\\)?(command[[:space:]]+)?((/usr)?(/local)?/(s)?bin/)?rm'
+RM_BINARY_REGEX='(^|[[:space:]]|/|\\|"|'"'"')(sudo[[:space:]]+)?(\\)?(command[[:space:]]+)?((/usr)?(/local)?/(s)?bin/)?rm'
 # RM_TARGET_REGEX aceita um target normal (qualquer coisa) OU um target raiz nu
 # ("/" seguido de espaço/fim-de-string) — o buraco original só cobria o primeiro.
 RM_TARGET_REGEX='(-[a-zA-Z]*[rRf][a-zA-Z]*[[:space:]]+)?((/[^[:space:]/]+)*[^/[:space:]]|/([[:space:]]|$))'
 # truncate também exige a mesma fronteira (evita bater dentro de "ftruncate" ou
 # palavras que terminem em "truncate").
-TRUNCATE_REGEX='(^|[[:space:]]|/|\\)(sudo[[:space:]]+)?truncate[[:space:]]+'
+TRUNCATE_REGEX='(^|[[:space:]]|/|\\|"|'"'"')(sudo[[:space:]]+)?truncate[[:space:]]+'
 BASH_DESTRUCTIVE_REGEX="${RM_BINARY_REGEX}[[:space:]]+${RM_TARGET_REGEX}|(sudo[[:space:]]+)?git[[:space:]]+rm|${TRUNCATE_REGEX}|find[[:space:]].+-delete|find[[:space:]].+-exec[[:space:]]+rm"
 SQL_DESTRUCTIVE_REGEX='(DROP|ALTER|TRUNCATE|DELETE)[[:space:]]+(TABLE|FROM|DATABASE|SCHEMA)'
 

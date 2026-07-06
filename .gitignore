@@ -28,6 +28,7 @@
 **/*~
 **/*.plugin
 secops/.orphaned_at
+scripts/eval/candidates.jsonl
 
 # 3b. Segredos — nunca trackar mesmo dentro dos dirs whitelisted acima
 **/.env
