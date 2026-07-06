@@ -1,4 +1,4 @@
-# Changelog — wire-devkit
+# Changelog — prumo-devkit
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 

@@ -22,6 +22,7 @@ if [ ! -e "$PRUMO_MODE_FILE" ] && [ -f "${HOME}/.wire/mode" ]; then
   mkdir -p "$PRUMO_HOME"
   cp "${HOME}/.wire/mode" "$PRUMO_MODE_FILE"
   [ -f "${HOME}/.wire/lab-mode" ] && cp "${HOME}/.wire/lab-mode" "$PRUMO_LAB_MARKER"
+  [ -f "${HOME}/.wire/scope" ] && cp "${HOME}/.wire/scope" "$PRUMO_SCOPE_FILE"
   echo "[prumo] estado migrado de ~/.wire para ~/.prumo (o antigo não foi apagado)" >&2
 fi
 

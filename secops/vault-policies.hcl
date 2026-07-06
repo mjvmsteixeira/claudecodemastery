@@ -1,14 +1,14 @@
 # ============================================================================
 # Wire SecOps · Vault Policies HCL
 # ============================================================================
-# Sete AppRoles: 6 com subagent local (wire-monitor-01, wire-ir-saas-01, wire-tenant-01,
-# wire-srv-saas-01, wire-deploy-01, wire-compliance-01) + Cowork `wire-cowork-reporting`
+# Sete AppRoles: 6 com subagent local (prumo-monitor-01, prumo-ir-saas-01, prumo-tenant-01,
+# prumo-srv-saas-01, prumo-deploy-01, prumo-compliance-01) + Cowork `wire-cowork-reporting`
 # externo (Cowork agent `ai-rep-01`, sem subagent neste plugin). TTLs deliberadamente curtos.
 # Os comandos de criação dos AppRoles estão no fim do ficheiro.
 # ============================================================================
 
 # ----------------------------------------------------------------------------
-# wire-monitor — wire-monitor-01 (read-only sobre observabilidade)
+# wire-monitor — prumo-monitor-01 (read-only sobre observabilidade)
 # ----------------------------------------------------------------------------
 path "secret/data/observability/wazuh/*" {
   capabilities = ["read"]
@@ -24,7 +24,7 @@ path "secret/data/observability/otel/*" {
 }
 
 # ----------------------------------------------------------------------------
-# wire-ir — wire-ir-saas-01 (IR multi-tenant, mais permissivo, TTL curto)
+# wire-ir — prumo-ir-saas-01 (IR multi-tenant, mais permissivo, TTL curto)
 # ----------------------------------------------------------------------------
 path "secret/data/ir/*" {
   capabilities = ["read", "create", "update"]
@@ -39,14 +39,14 @@ path "transit/decrypt/forensics" {
   capabilities = ["create", "update"]
 }
 # audit-hash: necessário para correlation evidence em IR (HMAC dos audit log entries
-# para cross-reference sem expor o input cleartext). Wide scope deliberado — wire-ir
+# para cross-reference sem expor o input cleartext). Wide scope deliberado — prumo-ir-saas-01
 # é o único AppRole que precisa de assinar evidência durante uma investigação.
 path "sys/audit-hash/*" {
   capabilities = ["create", "update"]
 }
 
 # ----------------------------------------------------------------------------
-# wire-tenant — wire-tenant-01 (auditoria de isolamento)
+# wire-tenant — prumo-tenant-01 (auditoria de isolamento)
 # ----------------------------------------------------------------------------
 path "secret/data/tenants/metadata/*" {
   capabilities = ["read"]
@@ -62,7 +62,7 @@ path "sys/policies/acl/*" {
 }
 
 # ----------------------------------------------------------------------------
-# wire-srv — wire-srv-saas-01 (operações servidor, SSH CA)
+# wire-srv — prumo-srv-saas-01 (operações servidor, SSH CA)
 # ----------------------------------------------------------------------------
 path "ssh/sign/wire-srv-role" {
   capabilities = ["create", "update"]
@@ -78,7 +78,7 @@ path "secret/data/srv/ansible/*" {
 }
 
 # ----------------------------------------------------------------------------
-# wire-deploy — wire-deploy-01 (release gate, CI/CD reads)
+# wire-deploy — prumo-deploy-01 (release gate, CI/CD reads)
 # ----------------------------------------------------------------------------
 path "secret/data/cicd/gitlab/*" {
   capabilities = ["read"]
@@ -94,7 +94,7 @@ path "secret/data/registry/credentials" {
 }
 
 # ----------------------------------------------------------------------------
-# wire-compliance — wire-compliance-01 (read-only sobre compliance)
+# wire-compliance — prumo-compliance-01 (read-only sobre compliance)
 # ----------------------------------------------------------------------------
 path "secret/data/compliance/*" {
   capabilities = ["read"]

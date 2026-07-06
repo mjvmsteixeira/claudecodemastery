@@ -289,7 +289,7 @@ done
 section "descriptions: anti-padrões de auto-fix"
 
 # Padrões que NÃO podem aparecer em frontmatter description: de SKILL.md ou
-# commands/*.md. Histórico: a v0.2.0 do prumo-devkit prometia "fora do modo CI,
+# commands/*.md. Histórico: a v0.2.0 do wire-devkit prometia "fora do modo CI,
 # corrige TODOS os issues automaticamente sem perguntar" no full-audit, o que
 # autorizou apagar initializers/middleware num dev shell. Esta verificação previne
 # regressão. Ver devkit/CLAUDE.md (Safety convention).
@@ -319,7 +319,7 @@ if [ -f "$ttl_hook" ]; then
   if [ "${#missing_allowlist[@]}" -eq 0 ]; then
     pass "$ttl_hook contém os 3 patterns de bootstrap/migrate"
   else
-    fail "$ttl_hook não contém patterns: ${missing_allowlist[*]} (ver plano 2026-05-19-prumo-vault-bootstraps)"
+    fail "$ttl_hook não contém patterns: ${missing_allowlist[*]} (ver plano 2026-05-19-wire-vault-bootstraps)"
   fi
 else
   info "$ttl_hook ausente — check skip"

@@ -53,7 +53,7 @@ ALLOWLIST_PATTERNS=(
   # Lêem root de vault-init.json internamente via lib/vault-env.sh.
   # Defesa em profundidade: cada comando valida policy='root' antes de
   # qualquer escrita — a allowlist não autoriza nada destrutivo sozinha.
-  # Origem: plano docs/superpowers/plans/2026-05-19-prumo-vault-bootstraps/
+  # Origem: plano docs/superpowers/plans/2026-05-19-wire-vault-bootstraps/
   'prumo-vault-bootstrap'
   'prumo-secops-bootstrap'
   'prumo-vault-kv-migrate'
@@ -135,7 +135,7 @@ Renovar (preserva o mesmo token):
   vault token renew
 
 Re-login completo (novo token, TTL fresco):
-  wire-secops-login
+  /prumo-vault-doctor
 
 Diagnóstico (se renew falhar):
   /prumo-vault-doctor
