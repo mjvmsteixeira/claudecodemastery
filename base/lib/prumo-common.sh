@@ -120,6 +120,68 @@ prumo_log() {
 }
 
 # ────────────────────────────────────────────────────────────────────────────
+# Telemetria de guardrails · contagem por hook, SEM conteúdo de comando.
+#
+#   prumo_telemetry_record <plugin> <hook> <decision>   decision: block|warn|bypass|allow
+#   prumo_telemetry_init   <plugin> <hook>              instala trap EXIT p/ o allow
+#   prumo_telemetry_summary [--since all|Nd|Nh]         agrega telemetry.tsv por hook
+#
+# Best-effort: qualquer falha é engolida; nunca altera decisão nem exit code.
+# ────────────────────────────────────────────────────────────────────────────
+prumo_telemetry_record() {
+  local plugin="${1:-unknown}" hook="${2:-unknown}" decision="${3:-unknown}"
+  mkdir -p "$PRUMO_LOG_DIR" 2>/dev/null || true
+  printf '%s\t%s\t%s\t%s\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$plugin" "$hook" "$decision" \
+    >> "${PRUMO_LOG_DIR}/telemetry.tsv" 2>/dev/null || true
+}
+
+# shellcheck disable=SC2329  # invocado pelo trap EXIT
+_prumo_tm_on_exit() {
+  local code=$?
+  [ "${PRUMO_TM_RECORDED:-0}" = "1" ] && return
+  case "$code" in
+    0) prumo_telemetry_record "${PRUMO_TM_PLUGIN:-unknown}" "${PRUMO_TM_HOOK:-unknown}" allow ;;
+    2) prumo_telemetry_record "${PRUMO_TM_PLUGIN:-unknown}" "${PRUMO_TM_HOOK:-unknown}" block ;;
+  esac
+}
+
+prumo_telemetry_init() {
+  PRUMO_TM_PLUGIN="${1:-unknown}"
+  PRUMO_TM_HOOK="${2:-unknown}"
+  PRUMO_TM_RECORDED=0
+  trap _prumo_tm_on_exit EXIT
+}
+
+prumo_telemetry_summary() {
+  local since="all" tsv="${PRUMO_LOG_DIR}/telemetry.tsv"
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --since) since="${2:-all}"; shift 2 ;;
+      *) shift ;;
+    esac
+  done
+  [ -f "$tsv" ] || { echo "(sem telemetria ainda — ${tsv} não existe)"; return 0; }
+  local cutoff=""
+  case "$since" in
+    all) cutoff="" ;;
+    *d)  cutoff=$(date -u -v-"${since%d}"d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "") ;;
+    *h)  cutoff=$(date -u -v-"${since%h}"H +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "") ;;
+    *)   cutoff="" ;;
+  esac
+  awk -F'\t' -v cutoff="$cutoff" '
+    cutoff != "" && $1 < cutoff { next }
+    { c[$3 SUBSEP $4]++; hooks[$3]=1; tot[$3]++ }
+    END {
+      for (h in hooks) {
+        b=c[h SUBSEP "block"]+0; w=c[h SUBSEP "warn"]+0
+        y=c[h SUBSEP "bypass"]+0; a=c[h SUBSEP "allow"]+0
+        printf "%-16s block=%d warn=%d bypass=%d allow=%d  fire=%d/%d\n", h, b, w, y, a, b+w+y, tot[h]
+      }
+    }' "$tsv" | sort
+}
+
+# ────────────────────────────────────────────────────────────────────────────
 # prumo_backup · cria backup tarball com timestamp
 #
 # Uso:  prumo_backup <label> <path1> [path2] [path3] ...
@@ -154,16 +216,19 @@ prumo_fail_or_warn() {
   case "$mode" in
     prod)
       prumo_log "$plugin" "block" "$hook: $message"
+      prumo_telemetry_record "$plugin" "$hook" "block"; PRUMO_TM_RECORDED=1
       echo "[$plugin/$hook] $message" >&2
       exit 2
       ;;
     dev)
       prumo_log "$plugin" "warn" "$hook: $message"
+      prumo_telemetry_record "$plugin" "$hook" "warn"; PRUMO_TM_RECORDED=1
       echo "[$plugin/$hook] (dev mode) $message" >&2
       ;;
     lab)
       # silencioso, mas loga
       prumo_log "$plugin" "bypass" "$hook: $message"
+      prumo_telemetry_record "$plugin" "$hook" "bypass"; PRUMO_TM_RECORDED=1
       ;;
   esac
 }

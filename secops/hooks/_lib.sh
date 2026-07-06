@@ -45,6 +45,8 @@ fi
 # Stubs de fallback — só são definidos se a lib real não tiver sido carregada.
 if ! declare -F prumo_fail_or_warn >/dev/null 2>&1; then
   prumo_log()       { :; }                       # noop sem o base
+  prumo_telemetry_init()   { :; }               # noop sem o base
+  prumo_telemetry_record() { :; }               # noop sem o base
   prumo_mode()      { echo prod; }
   prumo_is_prod()   { return 0; }
   prumo_is_dev()    { return 1; }
