@@ -84,7 +84,7 @@ explicitamente acesso público sem autenticação (opt-in explícito, nunca defa
 
 ```bash
 PORT=<porta-detectada-no-passo-4>   # ex: 5173, 3000, 80
-LOG_FILE=$(mktemp -t ngrok.XXXXXX.log)
+LOG_FILE=$(mktemp "${TMPDIR:-/tmp}/ngrok.XXXXXX")   # portável (mktemp -t é BSD-only)
 
 if [ "$SKIP_AUTH" != "1" ]; then
   # Default: gerar credenciais basic-auth aleatórias e mostrá-las ao utilizador

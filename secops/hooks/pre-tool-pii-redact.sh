@@ -26,9 +26,12 @@ fi
 
 VIOLATIONS=()
 
-# NIF (9 dígitos, primeiro 1-9). Separador opcional entre grupos — espaço,
-# ponto ou traço (ou nenhum, ex: "NIF 123456789" contíguo).
-if echo "$INPUT" | grep -qiE '\b[1-9][0-9]{2}[[:space:].-]?[0-9]{3}[[:space:].-]?[0-9]{3}\b'; then
+# NIF (9 dígitos, primeiro 1-9). Separador opcional entre grupos — espaço ou
+# traço (ou nenhum, ex: "NIF 123456789" contíguo). SEM ponto: um NIF PT é 9
+# dígitos contíguos opcionalmente agrupados por espaço, nunca por ponto — o
+# separador "." fazia esta regex false-match em números decimais/agrupados
+# como "1.234.567.890".
+if echo "$INPUT" | grep -qiE '\b[1-9][0-9]{2}[[:space:]-]?[0-9]{3}[[:space:]-]?[0-9]{3}\b'; then
   VIOLATIONS+=("NIF")
 fi
 

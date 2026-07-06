@@ -80,8 +80,10 @@ for p in "${SELECTED[@]}"; do
       -x ".env" \
       -x "*.pem" \
       -x "*.key" \
-      -x "*credential*" \
-      -x "*secret*" \
+      -x "*.secret" \
+      -x "secrets.json" \
+      -x "*credentials.json" \
+      -x ".credentials" \
       -x "vault-init.json" \
       -x "*.orig" )
   if [ $? -ne 0 ]; then

@@ -32,7 +32,13 @@ match() {
 
 # rm com flags variáveis (-rf, -fr, -rfv, --no-preserve-root etc) contra
 # /forensics. Aceita zero ou mais grupos de flags antes do target.
-if [ -z "$LEVEL" ] && match 'rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*/forensics(/|[[:space:]]|$)'; then
+#
+# Fronteira de palavra obrigatória em todos os matchers "rm" deste ficheiro
+# (mirror do fix em base/hooks/pre-tool-audit-guard.sh): o char antes do
+# token "rm" tem de ser início-de-string, espaço, "/" ou "\" — nunca uma
+# letra/dígito. Sem isto "rm" batia como substring de "confirm", "terraform",
+# "platform", etc.
+if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\)rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*/forensics(/|[[:space:]]|$)'; then
   LEVEL="N3"
 fi
 if [ -z "$LEVEL" ] && match 'systemctl[[:space:]]+(stop|disable)\b'; then
@@ -64,8 +70,11 @@ fi
 if [ -z "$LEVEL" ] && match 'vault[[:space:]]+token[[:space:]]+revoke[[:space:]]+-accessor\b'; then
   LEVEL="N2"
 fi
-# Mass-delete SQL — mesma lógica de comments inline que DROP acima.
-if [ -z "$LEVEL" ] && match 'DELETE.{0,40}FROM\b'; then
+# Mass-delete SQL — o `.{0,40}` livre do DROP acima batia em prosa como "echo
+# delete rows from table" (qualquer texto entre DELETE e FROM, até 40 chars).
+# Aqui exige-se contexto SQL genuíno: DELETE e FROM ligados só por espaço(s)
+# ou um comment inline curto (DELETE/**/FROM) — nunca outras palavras no meio.
+if [ -z "$LEVEL" ] && match 'DELETE([[:space:]]|/\*[^*]*\*/)+FROM\b'; then
   LEVEL="N2"
 fi
 
@@ -73,7 +82,7 @@ fi
 # N1 — destrutivo local
 # ────────────────────────────────────────────────────────────────────────────
 
-if [ -z "$LEVEL" ] && match 'truncate[[:space:]]+TABLE\b'; then
+if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\)truncate[[:space:]]+TABLE\b'; then
   LEVEL="N1"
 fi
 # git push aceita -f, --force, --force-with-lease (com ou sem =branch)
@@ -82,10 +91,10 @@ if [ -z "$LEVEL" ] && match 'git[[:space:]]+push[[:space:]]+([^[:space:]]+[[:spa
 fi
 # rm de $HOME ou /tmp com flags variáveis
 # shellcheck disable=SC2016  # regex literal: casa a string '$HOME', não expande
-if [ -z "$LEVEL" ] && match 'rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*\$HOME(/|[[:space:]]|$)'; then
+if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\)rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*\$HOME(/|[[:space:]]|$)'; then
   LEVEL="N1"
 fi
-if [ -z "$LEVEL" ] && match 'rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*/tmp(/|[[:space:]]|$)'; then
+if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\)rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*/tmp(/|[[:space:]]|$)'; then
   LEVEL="N1"
 fi
 # Catch-all: rm com flag recursiva/força (-r, -f, -rf, -fr, --recursive,
@@ -93,7 +102,11 @@ fi
 # (/forensics já é N3; $HOME/.prumo e /tmp já são N1 acima). Sem isto,
 # `rm -rf /qualquer/outro/caminho/prod` não batia nenhum pattern específico
 # e passava sem aprovação (exit 0 silencioso).
-if [ -z "$LEVEL" ] && match 'rm[[:space:]]+(-[a-zA-Z]*[rf][a-zA-Z]*|--recursive|--force)\b'; then
+#
+# Fronteira de palavra obrigatória: sem ela, "deploy --confirm -f" e
+# "terraform -force x" batiam falsamente porque "confirm"/"terraform" contêm
+# "rm" como substring, seguido de "-f"/"-force" que a classe de flags aceita.
+if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\)rm[[:space:]]+(-[a-zA-Z]*[rf][a-zA-Z]*|--recursive|--force)\b'; then
   LEVEL="N1"
 fi
 
@@ -134,13 +147,19 @@ umask 077
 LOG_DIR="${PRUMO_LOG_DIR:-$HOME/.prumo/log}"
 if mkdir -p "$LOG_DIR" 2>/dev/null; then
   # Redacta formas comuns de credencial antes de persistir: URLs com
-  # user:pass@, Bearer tokens, token=..., VAULT_TOKEN=..., e o valor de -w.
+  # user:pass@, Bearer tokens, token=..., VAULT_TOKEN=..., e o valor de -w
+  # SÓ no contexto Keychain (`security find-generic-password ... -w`) — um
+  # `-w` genérico mangla logs benignos como `grep -w foo` sem essa condição.
   CMD_LOG=$(printf '%s' "$CMD" | head -c 200 | sed -E \
     -e 's#(://[^:/@[:space:]]+:)[^@[:space:]]+(@)#\1***\2#g' \
     -e 's/([Bb]earer)[[:space:]]+[^[:space:]]+/\1 ***/g' \
     -e 's/([Tt]oken=)[^[:space:]&]+/\1***/g' \
     -e 's/(VAULT_TOKEN=)[^[:space:]]+/\1***/g' \
-    -e 's/(-w[[:space:]]+)[^[:space:]]+/\1***/g')
+    -e '/security/{
+/find-generic-password/{
+s/(-w)([[:space:]]+[^[:space:]]+)?/\1 ***/g
+}
+}')
   touch "$LOG_DIR/approvals.log" 2>/dev/null && chmod 600 "$LOG_DIR/approvals.log" 2>/dev/null || true
   echo "$(date -u +%FT%TZ) | level=$LEVEL | user=${USER:-unknown} | cmd=${CMD_LOG}" \
     >> "$LOG_DIR/approvals.log" 2>/dev/null || true

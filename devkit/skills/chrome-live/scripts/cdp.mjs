@@ -8,9 +8,12 @@
 //
 // LOCAL SECURITY PATCH (2026-07-06, security-hardening branch): added
 // `resolveConfinedPath()` to restrict `shot`'s output path to RUNTIME_DIR/cwd,
-// and a same-origin protocol allowlist inside `evalRawStr()` for raw
-// `Page.navigate` calls (mirrors `navStr`'s http/https-only check). When
-// re-vendoring, re-apply these two changes on top of the new upstream file.
+// and a same-origin protocol allowlist inside `evalRawStr()` (mirrors `navStr`'s
+// http/https-only check), enforced generically on ANY raw CDP method whose
+// params carry a string `url` — not just `Page.navigate`. Originally scoped to
+// `Page.navigate` alone, that check was bypassable via
+// `evalraw <t> "Target.createTarget" '{"url":"file://..."}'`. When re-vendoring,
+// re-apply these two changes on top of the new upstream file.
 // ─────────────────────────────────────────────────────────────────────────
 // cdp - lightweight Chrome DevTools Protocol CLI
 // Uses raw CDP over WebSocket, no Puppeteer dependency.
@@ -507,14 +510,18 @@ async function evalRawStr(cdp, sid, method, paramsJson) {
     catch { throw new Error(`Invalid JSON params: ${paramsJson}`); }
   }
   // Security: mirror navStr's protocol allowlist here so evalraw can't be used
-  // to bypass `nav`'s http/https-only restriction via a raw Page.navigate call
-  // (e.g. to file:// or chrome:// targets).
-  if (method === 'Page.navigate' && typeof params.url === 'string') {
+  // to bypass `nav`'s http/https-only restriction via a raw navigable-URL call
+  // (e.g. to file:// or chrome:// targets). Not scoped to Page.navigate alone —
+  // Target.createTarget takes the same kind of navigable `url` param and was a
+  // live bypass (`evalraw <t> "Target.createTarget" '{"url":"file://..."}'`).
+  // Enforced generically on ANY raw method whose params carry a string `url`,
+  // so future CDP methods with a navigable url can't reopen this hole either.
+  if (typeof params.url === 'string') {
     let parsed;
     try { parsed = new URL(params.url); }
-    catch { throw new Error(`Invalid URL in Page.navigate params: ${params.url}`); }
+    catch { throw new Error(`Invalid URL in ${method} params: ${params.url}`); }
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      throw new Error(`Only http/https URLs allowed for Page.navigate, got: ${params.url}`);
+      throw new Error(`Only http/https URLs allowed for ${method}, got: ${params.url}`);
     }
   }
   const result = await cdp.send(method, params, sid);

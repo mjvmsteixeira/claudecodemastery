@@ -90,12 +90,21 @@ PROTECTED_PATH_REGEX='(^|/)(\.gitignore|\.gitattributes|\.dockerignore|\.env([.-
 # padrões — por isso não precisam de âncoras de fronteira (^|;|&&|...) embutidas.
 #
 # RM_BINARY_REGEX aceita: rm nu, \rm (backslash-escape do alias), "command rm",
-# e binário com path absoluto (/bin/rm, /usr/bin/rm, /usr/local/bin/rm).
-RM_BINARY_REGEX='(\\)?(command[[:space:]]+)?((/usr)?(/local)?/(s)?bin/)?rm'
+# sudo rm, e binário com path absoluto (/bin/rm, /usr/bin/rm, /usr/local/bin/rm).
+#
+# Fronteira de palavra obrigatória: o char imediatamente antes do token "rm"
+# (ou dos seus prefixos opcionais) tem de ser início-de-clause, espaço, "/" ou
+# "\" — NUNCA uma letra/dígito. Sem isto "rm" batia como substring dentro de
+# qualquer palavra terminada em "rm" (terraform, inform, platform, confirm),
+# bloqueando comandos totalmente benignos durante contexto de audit.
+RM_BINARY_REGEX='(^|[[:space:]]|/|\\)(sudo[[:space:]]+)?(\\)?(command[[:space:]]+)?((/usr)?(/local)?/(s)?bin/)?rm'
 # RM_TARGET_REGEX aceita um target normal (qualquer coisa) OU um target raiz nu
 # ("/" seguido de espaço/fim-de-string) — o buraco original só cobria o primeiro.
 RM_TARGET_REGEX='(-[a-zA-Z]*[rRf][a-zA-Z]*[[:space:]]+)?((/[^[:space:]/]+)*[^/[:space:]]|/([[:space:]]|$))'
-BASH_DESTRUCTIVE_REGEX="(sudo[[:space:]]+)?${RM_BINARY_REGEX}[[:space:]]+${RM_TARGET_REGEX}|(sudo[[:space:]]+)?git[[:space:]]+rm|(sudo[[:space:]]+)?truncate[[:space:]]+|find[[:space:]].+-delete|find[[:space:]].+-exec[[:space:]]+rm"
+# truncate também exige a mesma fronteira (evita bater dentro de "ftruncate" ou
+# palavras que terminem em "truncate").
+TRUNCATE_REGEX='(^|[[:space:]]|/|\\)(sudo[[:space:]]+)?truncate[[:space:]]+'
+BASH_DESTRUCTIVE_REGEX="${RM_BINARY_REGEX}[[:space:]]+${RM_TARGET_REGEX}|(sudo[[:space:]]+)?git[[:space:]]+rm|${TRUNCATE_REGEX}|find[[:space:]].+-delete|find[[:space:]].+-exec[[:space:]]+rm"
 SQL_DESTRUCTIVE_REGEX='(DROP|ALTER|TRUNCATE|DELETE)[[:space:]]+(TABLE|FROM|DATABASE|SCHEMA)'
 
 # Indicadores de ofuscação: eval, base64 decode, ${IFS} como separador, e
@@ -109,8 +118,13 @@ BASH_OBFUSCATION_REGEX='(^|[;&|[:space:]])eval([[:space:]]|$)|base64[[:space:]]+
 # Marker de audit e ficheiros de modo não podem ser escritos/movidos/apagados
 # a partir de dentro do próprio contexto de audit sem apply — senão o tool call
 # gated conseguia auto-desactivar o guard (ex: "> ~/.prumo/audit-active").
+#
+# Os tokens de palavra (rm/mv/unlink/truncate/cp/sed -i/tee) exigem a mesma
+# fronteira do RM_BINARY_REGEX acima (evita bater "confirm"/"committee" como
+# substring). ">"/">>" não precisam de fronteira — não são letras, não há
+# ambiguidade de substring dentro de outra palavra.
 MARKER_PATH_REGEX='(~|\$\{?HOME\}?)/\.prumo/(audit-active|mode|lab-mode)\b'
-MARKER_WRITE_REGEX="(rm|mv|unlink|truncate|cp|sed[[:space:]]+-i|tee|>{1,2})[^;&|]*${MARKER_PATH_REGEX}"
+MARKER_WRITE_REGEX="(^|[[:space:]]|/|\\\\)(rm|mv|unlink|truncate|cp|sed[[:space:]]+-i|tee)[^;&|]*${MARKER_PATH_REGEX}|>{1,2}[^;&|]*${MARKER_PATH_REGEX}"
 
 case "$TOOL" in
   Bash)
@@ -131,8 +145,12 @@ case "$TOOL" in
       [ -z "$TRIMMED" ] && continue
 
       # rm/mv cujo(s) único(s) alvo(s) são /tmp/* é benigno — mas só isenta
-      # ESTA clause, nunca o comando inteiro.
-      if printf '%s' "$TRIMMED" | grep -qiE '^(sudo[[:space:]]+)?(rm|mv)[[:space:]]+(-[^[:space:]]+[[:space:]]+)*/tmp/[^[:space:]]*([[:space:]]+/tmp/[^[:space:]]*)*[[:space:]]*$'; then
+      # ESTA clause, nunca o comando inteiro. Exclui explicitamente clauses cujo
+      # path contenha ".." — sem isto "rm -rf /tmp/../etc" batia a exempção por
+      # começar textualmente por "/tmp/", escapando para fora de /tmp via
+      # traversal enquanto era tratado como benigno.
+      if printf '%s' "$TRIMMED" | grep -qiE '^(sudo[[:space:]]+)?(rm|mv)[[:space:]]+(-[^[:space:]]+[[:space:]]+)*/tmp/[^[:space:]]*([[:space:]]+/tmp/[^[:space:]]*)*[[:space:]]*$' \
+         && ! printf '%s' "$TRIMMED" | grep -qF '..'; then
         continue
       fi
 

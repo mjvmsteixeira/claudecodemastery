@@ -89,17 +89,67 @@ ALLOWLIST_PATTERNS=(
   '^[[:space:]]*(jq|yq|xmllint|md5|sha256sum|shasum|base64)[[:space:]]'
 )
 
-# Defesa anti-chaining: um comando com metacharacters de shell (;, &&, ||, |,
+# Defesa anti-chaining: um comando com metacharacters de shell (;, &&, ||,
 # backtick, $() pode "esconder" uma ops privilegiada atrás de um prefixo
 # inofensivo (ex: "vault status; rm -rf /prod"). A allowlist só é um fast-path
-# válido para um comando simples único — se houver chaining, cai sempre para
-# a exigência de VAULT_TOKEN abaixo, independentemente do que a allowlist diria.
+# válido para um comando simples único — se houver chaining deste tipo, cai
+# sempre para a exigência de VAULT_TOKEN abaixo, independentemente do que a
+# allowlist diria.
+#
+# Pipe (|) é tratado à parte (ver bloco abaixo): um pipeline read-only de
+# diagnóstico (ex: "vault status | grep sealed", "git log | head -5") não deve
+# perder o fast-path só por ter um pipe — mas só é permitido se CADA segmento,
+# avaliado isoladamente, for ele próprio allowlisted ou um filtro read-only
+# puro. Isto evita o buraco simétrico de validar a string inteira sem split
+# (um pattern allowlist como '^...vault status' bateria como prefixo de
+# "vault status | curl evil" mesmo sem o segmento "curl evil" ser seguro).
 HAS_CHAIN=0
 case "$CMD" in
-  *';'*|*'&&'*|*'||'*|*'|'*|*'`'*|*'$('*) HAS_CHAIN=1 ;;
+  *';'*|*'&&'*|*'||'*|*'`'*|*'$('*) HAS_CHAIN=1 ;;
 esac
 
-if [ "$HAS_CHAIN" -eq 0 ]; then
+HAS_PIPE=0
+case "$CMD" in
+  *'|'*) HAS_PIPE=1 ;;
+esac
+
+# Filtros read-only puros aceites como segmento de pipeline mesmo sem baterem
+# num pattern da allowlist geral (ex: "grep sealed", "head -5", "jq .field").
+PIPE_FILTER_REGEX='^(grep|head|tail|awk|sed|cut|sort|uniq|wc|jq|less|cat)([[:space:]]|$)'
+
+if [ "$HAS_CHAIN" -eq 0 ] && [ "$HAS_PIPE" -eq 1 ]; then
+  ALLOWED_PIPE=1
+  IFS='|' read -ra PIPE_SEGMENTS <<< "$CMD"
+  for seg in "${PIPE_SEGMENTS[@]}"; do
+    SEG_TRIMMED=$(printf '%s' "$seg" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
+    if [ -z "$SEG_TRIMMED" ]; then
+      ALLOWED_PIPE=0
+      break
+    fi
+    SEG_OK=0
+    if printf '%s' "$SEG_TRIMMED" | grep -qE "$PIPE_FILTER_REGEX"; then
+      SEG_OK=1
+    else
+      for pattern in "${ALLOWLIST_PATTERNS[@]}"; do
+        if printf '%s' "$SEG_TRIMMED" | grep -qE "$pattern"; then
+          SEG_OK=1
+          break
+        fi
+      done
+    fi
+    if [ "$SEG_OK" -eq 0 ]; then
+      ALLOWED_PIPE=0
+      break
+    fi
+  done
+
+  if [ "$ALLOWED_PIPE" -eq 1 ]; then
+    echo "[hook] vault-ttl · pipeline allowlisted (todos os segmentos são allowlisted ou filtros read-only)" >&2
+    exit 0
+  else
+    echo "[hook] vault-ttl · pipeline contém segmento não-allowlisted — allowlist ignorada, exige VAULT_TOKEN" >&2
+  fi
+elif [ "$HAS_CHAIN" -eq 0 ]; then
   for pattern in "${ALLOWLIST_PATTERNS[@]}"; do
     if echo "$CMD" | grep -qE "$pattern"; then
       echo "[hook] vault-ttl · allowlisted ($pattern)" >&2
