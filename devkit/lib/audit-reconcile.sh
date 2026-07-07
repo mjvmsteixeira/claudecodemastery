@@ -56,7 +56,8 @@ fi
 # shellcheck disable=SC2016  # $store/$cur são variáveis jq
 RESULT=$(jq -n --argjson store "$OLD" --argjson cur "$CUR" \
   --arg audit "$AUDIT" --arg today "$TODAY" --arg now "$NOW" '
-  ($store.findings // {}) as $sf
+  ($cur | unique_by(.fp)) as $cur
+  | ($store.findings // {}) as $sf
   | ($cur | map({key:.fp, value:.}) | from_entries) as $curmap
   | ($cur | map(select($sf[.fp]|not))) as $new
   | ($cur | map(select(($sf[.fp].status // "") as $s | $s=="open" or $s=="fixed"))) as $recurring
@@ -96,7 +97,12 @@ RESULT=$(jq -n --argjson store "$OLD" --argjson cur "$CUR" \
 
 # 4) escreve o store (best-effort)
 mkdir -p "$STATE_DIR" 2>/dev/null || true
-printf '%s' "$RESULT" | jq '.store' > "$STORE" || { echo "falha a escrever $STORE" >&2; exit 1; }
+_tmp_store=$(mktemp "$STATE_DIR/.state.XXXXXX") || { echo "falha a criar tmp em $STATE_DIR" >&2; exit 1; }
+if printf '%s' "$RESULT" | jq '.store' > "$_tmp_store"; then
+  mv "$_tmp_store" "$STORE"
+else
+  rm -f "$_tmp_store"; echo "falha a escrever $STORE" >&2; exit 1
+fi
 
 # 5) relatório
 printf '%s' "$RESULT" | jq -r '.report as $r
