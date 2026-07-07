@@ -20,8 +20,13 @@
 set -euo pipefail
 # shellcheck source=_lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
+prumo_telemetry_init "prumo-secops" "vault-ttl"
 
-CMD=$(hook_tool_payload "${1:-}")
+RAW_CMD=$(hook_tool_payload "${1:-}")
+# Normaliza whitespace (newlines/tabs → espaço) — mirror de pre-tool-approval-gate.sh.
+# Necessário para que a defesa anti-chaining abaixo veja payloads multi-line
+# como uma única string.
+CMD=$(printf '%s' "$RAW_CMD" | tr '\n\t' '  ')
 
 # ────────────────────────────────────────────────────────────────────────────
 # ALLOWLIST · padrões de comandos que não precisam de auth Vault.
@@ -45,25 +50,29 @@ ALLOWLIST_PATTERNS=(
   '/api/generate\b'
 
   # Doctors do plugin · existem precisamente para diagnosticar
-  'wire-vault-doctor'
-  'wire-ollama-doctor'
-  'wire-stack-doctor'
+  'prumo-vault-doctor'
+  'prumo-ollama-doctor'
+  'prumo-stack-doctor'
 
   # Bootstraps · precisam de correr quando ainda não há AppRole token.
   # Lêem root de vault-init.json internamente via lib/vault-env.sh.
   # Defesa em profundidade: cada comando valida policy='root' antes de
   # qualquer escrita — a allowlist não autoriza nada destrutivo sozinha.
   # Origem: plano docs/superpowers/plans/2026-05-19-wire-vault-bootstraps/
-  'wire-vault-bootstrap'
-  'wire-secops-bootstrap'
-  'wire-vault-kv-migrate'
+  'prumo-vault-bootstrap'
+  'prumo-secops-bootstrap'
+  'prumo-vault-kv-migrate'
 
   # Setup inicial · ler ficheiros de init/credentials (não usa Vault)
   'vault-init\.json'
   'approle-credentials\.json'
 
   # Operações puramente locais que não tocam Vault
-  '^[[:space:]]*(ls|cat|head|tail|grep|find|stat|file|wc|cut|sort|uniq|tr|sed|awk)[[:space:]]+'
+  # NOTA: 'sed' e 'awk' foram removidos deste grupo genérico — 'awk' tem
+  # 'print > file' e 'system()' demasiado flexíveis para classificar por
+  # regex simples (sem allowlist, exige VAULT_TOKEN sempre); 'sed' só é
+  # allowlisted em modo bare via o check dedicado abaixo (sem -i/w/>).
+  '^[[:space:]]*(ls|cat|head|tail|grep|find|stat|file|wc|cut|sort|uniq|tr)[[:space:]]+'
   '^[[:space:]]*(echo|printf|pwd|date|uname|whoami|env|true|false)[[:space:]]*'
   '^[[:space:]]*(which|type|command|hash)[[:space:]]+'
   '^[[:space:]]*(brew|docker|systemctl)[[:space:]]+(list|ls|ps|status|info|--help)'
@@ -71,13 +80,13 @@ ALLOWLIST_PATTERNS=(
   # Manipulação de arquivos locais · não envolve Vault nem tenants
   '^[[:space:]]*(unzip|zip|tar|gunzip|bunzip2|xz|gzip|bzip2)[[:space:]]'
   '^[[:space:]]*(mkdir|cp|mv|chmod|chown|ln|touch)[[:space:]]'
-  # rm é split — permitido em /tmp/, $HOME/.wire/, ou paths relativos puros.
+  # rm é split — permitido em /tmp/, $HOME/.prumo/, ou paths relativos puros.
   # Pattern 3 exige que o primeiro char do target NÃO seja '/' (system path),
   # NÃO seja '-' (flag solto a contar como target), NÃO seja '$' (qualquer
-  # $HOME/<x> excepto $HOME/.wire/ vai pelo approval-gate). Operações
+  # $HOME/<x> excepto $HOME/.prumo/ vai pelo approval-gate). Operações
   # destrutivas em system paths exigem VAULT_TOKEN; cross-tenant exige N2.
   '^[[:space:]]*rm[[:space:]]+(-[^[:space:]/]+[[:space:]]+)?/tmp(/|[[:space:]]|$)'
-  '^[[:space:]]*rm[[:space:]]+(-[^[:space:]/]+[[:space:]]+)?\$HOME/\.wire(/|[[:space:]]|$)'
+  '^[[:space:]]*rm[[:space:]]+(-[^[:space:]/]+[[:space:]]+)?\$HOME/\.prumo(/|[[:space:]]|$)'
   '^[[:space:]]*rm[[:space:]]+(-[^[:space:]/]+[[:space:]]+)?[^/$[:space:]-]'
 
   # Navegação git read-only e tooling local
@@ -85,27 +94,117 @@ ALLOWLIST_PATTERNS=(
   '^[[:space:]]*(jq|yq|xmllint|md5|sha256sum|shasum|base64)[[:space:]]'
 )
 
-for pattern in "${ALLOWLIST_PATTERNS[@]}"; do
-  if echo "$CMD" | grep -qE "$pattern"; then
-    echo "[hook] vault-ttl · allowlisted ($pattern)" >&2
+# Defesa anti-chaining: um comando com metacharacters de shell (;, &&, ||,
+# backtick, $() pode "esconder" uma ops privilegiada atrás de um prefixo
+# inofensivo (ex: "vault status; rm -rf /prod"). A allowlist só é um fast-path
+# válido para um comando simples único — se houver chaining deste tipo, cai
+# sempre para a exigência de VAULT_TOKEN abaixo, independentemente do que a
+# allowlist diria.
+#
+# Pipe (|) é tratado à parte (ver bloco abaixo): um pipeline read-only de
+# diagnóstico (ex: "vault status | grep sealed", "git log | head -5") não deve
+# perder o fast-path só por ter um pipe — mas só é permitido se CADA segmento,
+# avaliado isoladamente, for ele próprio allowlisted ou um filtro read-only
+# puro. Isto evita o buraco simétrico de validar a string inteira sem split
+# (um pattern allowlist como '^...vault status' bateria como prefixo de
+# "vault status | curl evil" mesmo sem o segmento "curl evil" ser seguro).
+HAS_CHAIN=0
+case "$CMD" in
+  *';'*|*'&&'*|*'||'*|*'&'*|*'`'*|*'$('*) HAS_CHAIN=1 ;;
+esac
+# Um '&' simples (background) e uma newline são separadores de statements tão
+# válidos como ';'. O '&' isolado é apanhado acima (*'&'* é superset de '&&').
+# A newline, porém, já foi achatada para espaço em $CMD pelo tr acima — testá-la
+# no $RAW_CMD original, senão "echo x\nvault write ..." batia o allowlist ^echo
+# e passava sem VAULT_TOKEN enquanto o bash real corria as duas linhas.
+case "$RAW_CMD" in
+  *$'\n'*) HAS_CHAIN=1 ;;
+esac
+
+HAS_PIPE=0
+case "$CMD" in
+  *'|'*) HAS_PIPE=1 ;;
+esac
+
+# Filtros read-only puros aceites como segmento de pipeline mesmo sem baterem
+# num pattern da allowlist geral (ex: "grep sealed", "head -5", "jq .field").
+# NOTA: 'awk' está deliberadamente FORA desta lista — 'print > file',
+# 'printf > file' e 'system()' são demasiado flexíveis para classificar como
+# read-only puro por regex; um segmento awk exige sempre VAULT_TOKEN.
+PIPE_FILTER_REGEX='^(grep|head|tail|cut|sort|uniq|wc|jq|less|cat)([[:space:]]|$)'
+
+# 'sed' só conta como filtro read-only quando o segmento NÃO contém formas de
+# escrita: '-i'/'-i.bak' (in-place), um comando 'w' (write, incl. precedido
+# de aspas/`;` dentro de um script -e), ou uma redirecção de output '>'.
+# Usado tanto no loop de pipeline abaixo como no allowlist de comando bare.
+SED_NAME_REGEX='^sed([[:space:]]|$)'
+UNSAFE_SED_REGEX="(-i|[[:space:];'\"]w[[:space:]]|>)"
+
+if [ "$HAS_CHAIN" -eq 0 ] && [ "$HAS_PIPE" -eq 1 ]; then
+  ALLOWED_PIPE=1
+  IFS='|' read -ra PIPE_SEGMENTS <<< "$CMD"
+  for seg in "${PIPE_SEGMENTS[@]}"; do
+    SEG_TRIMMED=$(printf '%s' "$seg" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
+    if [ -z "$SEG_TRIMMED" ]; then
+      ALLOWED_PIPE=0
+      break
+    fi
+    SEG_OK=0
+    if printf '%s' "$SEG_TRIMMED" | grep -qE "$PIPE_FILTER_REGEX"; then
+      SEG_OK=1
+    elif printf '%s' "$SEG_TRIMMED" | grep -qE "$SED_NAME_REGEX" \
+      && ! printf '%s' "$SEG_TRIMMED" | grep -qE "$UNSAFE_SED_REGEX"; then
+      SEG_OK=1
+    else
+      for pattern in "${ALLOWLIST_PATTERNS[@]}"; do
+        if printf '%s' "$SEG_TRIMMED" | grep -qE "$pattern"; then
+          SEG_OK=1
+          break
+        fi
+      done
+    fi
+    if [ "$SEG_OK" -eq 0 ]; then
+      ALLOWED_PIPE=0
+      break
+    fi
+  done
+
+  if [ "$ALLOWED_PIPE" -eq 1 ]; then
+    echo "[prumo-secops/vault-ttl] pipeline allowlisted (todos os segmentos são allowlisted ou filtros read-only)" >&2
+    exit 0
+  else
+    echo "[prumo-secops/vault-ttl] pipeline contém segmento não-allowlisted — allowlist ignorada, exige VAULT_TOKEN" >&2
+  fi
+elif [ "$HAS_CHAIN" -eq 0 ]; then
+  if printf '%s' "$CMD" | grep -qE '^[[:space:]]*sed[[:space:]]+' \
+    && ! printf '%s' "$CMD" | grep -qE "$UNSAFE_SED_REGEX"; then
+    echo "[prumo-secops/vault-ttl] allowlisted (sed read-only, sem -i/w/>)" >&2
     exit 0
   fi
-done
+  for pattern in "${ALLOWLIST_PATTERNS[@]}"; do
+    if echo "$CMD" | grep -qE "$pattern"; then
+      echo "[prumo-secops/vault-ttl] allowlisted ($pattern)" >&2
+      exit 0
+    fi
+  done
+else
+  echo "[prumo-secops/vault-ttl] comando contém chaining/substituição de shell — allowlist ignorada, exige VAULT_TOKEN" >&2
+fi
 
 # ────────────────────────────────────────────────────────────────────────────
 # Para tudo o resto · exige VAULT_TOKEN
 # ────────────────────────────────────────────────────────────────────────────
 if [ -z "${VAULT_TOKEN:-}" ]; then
   cat >&2 <<'EOF'
-[hook] vault-ttl · VAULT_TOKEN ausente — bloqueia (fail-closed).
+[prumo-secops/vault-ttl] VAULT_TOKEN ausente — bloqueia (fail-closed).
 
 Diagnóstico (não exige token, está em allowlist):
-  /wire-vault-doctor      # verifica server + descobre porque falta token
-  /wire-stack-doctor      # diagnóstico global
+  /prumo-vault-doctor      # verifica server + descobre porque falta token
+  /prumo-stack-doctor      # diagnóstico global
 
 Destrancar via AppRole (preferível, TTL curto):
   export VAULT_ADDR=https://127.0.0.1:8200
-  export VAULT_CACERT=~/.wire/vault-ca.pem
+  export VAULT_CACERT=~/.prumo/vault-ca.pem
   export VAULT_ROLE_ID=$(security find-generic-password \
     -a wire-secops -s vault-role-id -w)
   export VAULT_SECRET_ID=$(security find-generic-password \
@@ -118,7 +217,7 @@ Modo dev (formação, Vault em Docker):
   export VAULT_ADDR=http://127.0.0.1:8200
   export VAULT_TOKEN=dev-only-root
 EOF
-  wire_fail_or_warn "wire-secops" "vault-ttl" "VAULT_TOKEN ausente"
+  prumo_fail_or_warn "prumo-secops" "vault-ttl" "VAULT_TOKEN ausente"
 fi
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -129,21 +228,21 @@ if command -v vault >/dev/null 2>&1; then
 
   if [ "$TTL" -lt 60 ]; then
     cat >&2 <<EOF
-[hook] vault-ttl · TTL remanescente = ${TTL}s (mínimo 60s).
+[prumo-secops/vault-ttl] TTL remanescente = ${TTL}s (mínimo 60s).
 
 Renovar (preserva o mesmo token):
   vault token renew
 
 Re-login completo (novo token, TTL fresco):
-  wire-secops-login
+  /prumo-vault-doctor
 
 Diagnóstico (se renew falhar):
-  /wire-vault-doctor
+  /prumo-vault-doctor
 EOF
-    wire_fail_or_warn "wire-secops" "vault-ttl" "TTL=${TTL}s abaixo do mínimo 60s"
+    prumo_fail_or_warn "prumo-secops" "vault-ttl" "TTL=${TTL}s abaixo do mínimo 60s"
   fi
 
-  echo "[hook] vault-ttl · OK (TTL=${TTL}s)" >&2
+  echo "[prumo-secops/vault-ttl] OK (TTL=${TTL}s)" >&2
 fi
 
 exit 0

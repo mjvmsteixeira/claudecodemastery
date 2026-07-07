@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/validate.sh — bateria de checks estáticos sobre os 4 plugins jump2new.
+# scripts/validate.sh — bateria de checks estáticos sobre os 4 plugins prumo.
 #
 # Verifica:
 #   1. plugin.json e marketplace.json são JSON válidos
@@ -23,7 +23,7 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-cd "$REPO_ROOT"
+cd "$REPO_ROOT" || { echo "✗ cd para REPO_ROOT falhou: $REPO_ROOT" >&2; exit 2; }
 
 # ──────────────────────── args ────────────────────────
 SKIP_SHELLCHECK=0
@@ -122,9 +122,9 @@ for p in "${PLUGINS[@]}"; do
     done
     n=$(jq -r '.name' "$manifest")
     v=$(jq -r '.version' "$manifest")
-    expected_name="wire-$p"
+    expected_name="prumo-$p"
     if [ "$n" != "$expected_name" ]; then
-      fail "$manifest: name='$n' não bate com 'wire-$p'"
+      fail "$manifest: name='$n' não bate com 'prumo-$p'"
     fi
     pass "$manifest: $n v$v"
   else
@@ -152,7 +152,12 @@ for p in "${PLUGINS[@]}"; do
       | .[]
     ' "$hooks_json")
 
-    echo "$referenced" | while IFS= read -r cmd; do
+    # NOTA: o loop de deteção corre num pipe (subshell) e só EMITE os paths em
+    # falta para stdout — nunca chama fail() lá dentro. O fail() (que incrementa
+    # $ERRORS) corre no while alimentado por here-string, que executa no shell
+    # principal. Chamar fail() dentro do pipe perdia o incremento de $ERRORS e
+    # produzia um falso-verde (exit 0 com hook em falta).
+    missing=$(echo "$referenced" | while IFS= read -r cmd; do
       [ -z "$cmd" ] && continue
       # primeiro token (executável); ignora 'bash' / args
       first_tok=$(echo "$cmd" | awk '{print $1}')
@@ -160,11 +165,15 @@ for p in "${PLUGINS[@]}"; do
       [ -z "$path_tok" ] && path_tok="$first_tok"
       resolved="${path_tok/\$\{CLAUDE_PLUGIN_ROOT\}/$p}"
       if [ ! -f "$resolved" ]; then
-        echo "FAIL-HOOK-MISSING:$resolved"
+        echo "$resolved"
       fi
-    done | while IFS=: read -r tag path; do
-      [ "$tag" = "FAIL-HOOK-MISSING" ] && fail "$hooks_json referencia ficheiro inexistente: $path"
-    done
+    done)
+    if [ -n "$missing" ]; then
+      while IFS= read -r path; do
+        [ -z "$path" ] && continue
+        fail "$hooks_json referencia ficheiro inexistente: $path"
+      done <<< "$missing"
+    fi
   fi
 
   # bit de execução + shebang em cada .sh
@@ -195,7 +204,7 @@ for p in "${PLUGINS[@]}"; do
     fi
     pass "$smoke"
   else
-    warn "$p/smoke.sh ausente (sanity-check do plugin não disponível via /wire-smoke)"
+    warn "$p/smoke.sh ausente (sanity-check do plugin não disponível via /prumo-smoke)"
   fi
 done
 
@@ -313,7 +322,7 @@ section "secops/hooks/pre-tool-vault-ttl.sh: allowlist de bootstraps"
 ttl_hook="secops/hooks/pre-tool-vault-ttl.sh"
 if [ -f "$ttl_hook" ]; then
   missing_allowlist=()
-  for pat in wire-vault-bootstrap wire-secops-bootstrap wire-vault-kv-migrate; do
+  for pat in prumo-vault-bootstrap prumo-secops-bootstrap prumo-vault-kv-migrate; do
     grep -q "'${pat}'" "$ttl_hook" || missing_allowlist+=("$pat")
   done
   if [ "${#missing_allowlist[@]}" -eq 0 ]; then
@@ -327,9 +336,9 @@ fi
 
 # ──────────────────────── 8. shellcheck (opcional) ────────────────────────
 if [ $SKIP_SHELLCHECK -eq 0 ] && [ $have_shellcheck -eq 1 ]; then
-  section "shellcheck (hooks + lib)"
+  section "shellcheck (hooks + lib + skill scripts)"
   for p in "${PLUGINS[@]}"; do
-    for sh in "$p"/hooks/*.sh "$p"/lib/*.sh; do
+    for sh in "$p"/hooks/*.sh "$p"/lib/*.sh "$p"/skills/*/scripts/*.sh; do
       [ ! -f "$sh" ] && continue
       if shellcheck -x -e SC1091 "$sh" >/dev/null 2>&1; then
         pass "$sh"
@@ -338,6 +347,51 @@ if [ $SKIP_SHELLCHECK -eq 0 ] && [ $have_shellcheck -eq 1 ]; then
       fi
     done
   done
+fi
+
+# ──────────────────────── 9. eval-harness (regressão dos hooks) ────────────────────────
+if [ -z "$ONLY_PLUGIN" ] && [ -x "$REPO_ROOT/scripts/eval/run.sh" ]; then
+  section "eval-harness (corpus de regressão dos hooks)"
+  # uma só invocação: o exit code decide pass/fail e o JSON dá a contagem
+  if harness_json=$("$REPO_ROOT/scripts/eval/run.sh" --json 2>/dev/null); then
+    n=$(printf '%s' "$harness_json" | jq -r '.total')
+    pass "corpus verde (${n}/${n} casos)"
+  else
+    fail "corpus com mismatch — corre ./scripts/eval/run.sh para detalhe"
+  fi
+
+  # camada B: a lógica de decisão por veredicto (safe/unsafe/uncertain) do
+  # guardrail semântico só é exercida pelo live-test com stub — o corpus hermético
+  # aponta o Ollama a uma porta morta e curto-circuita no ramo fail-closed antes do
+  # parse do enum. Sem isto, uma regressão tipo trocar .verdict por .result passava
+  # o gate a verde. Opt-in por python3; salta limpo se ausente.
+  if [ -x "$REPO_ROOT/scripts/eval/second-opinion-livetest.sh" ]; then
+    if command -v python3 >/dev/null 2>&1; then
+      if "$REPO_ROOT/scripts/eval/second-opinion-livetest.sh" >/dev/null 2>&1; then
+        pass "second-opinion live-test verde (decisão + anti-injeção)"
+      else
+        fail "second-opinion live-test falhou — corre ./scripts/eval/second-opinion-livetest.sh"
+      fi
+    else
+      info "second-opinion live-test saltado (sem python3)"
+    fi
+  fi
+
+  if [ -x "$REPO_ROOT/scripts/eval/telemetry-test.sh" ]; then
+    if "$REPO_ROOT/scripts/eval/telemetry-test.sh" >/dev/null 2>&1; then
+      pass "telemetria dos guardrails verde (record + summary + hooks + anti-PII)"
+    else
+      fail "telemetry-test falhou — corre ./scripts/eval/telemetry-test.sh"
+    fi
+  fi
+
+  if [ -x "$REPO_ROOT/scripts/eval/audit-feedback-test.sh" ]; then
+    if "$REPO_ROOT/scripts/eval/audit-feedback-test.sh" >/dev/null 2>&1; then
+      pass "audit-feedback verde (fingerprint + ciclo + accept + auto-promoção)"
+    else
+      fail "audit-feedback-test falhou — corre ./scripts/eval/audit-feedback-test.sh"
+    fi
+  fi
 fi
 
 # ──────────────────────── resumo ────────────────────────

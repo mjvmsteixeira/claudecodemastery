@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# wire-craft · smoke.sh — sanity check read-only do plugin.
+# prumo-craft · smoke.sh — sanity check read-only do plugin.
 # Sai 0 se OK · 1 se críticas · 2 se warns (degradação aceitável).
 set -u
 
@@ -9,12 +9,11 @@ WARNED=0
 
 ok()   { echo "  ✓ $*"; PASSED=$((PASSED+1)); }
 fail() { echo "  ✗ $*"; FAILED=$((FAILED+1)); }
-warn() { echo "  ! $*"; WARNED=$((WARNED+1)); }
 
-echo "── wire-craft smoke ──"
+echo "── prumo-craft smoke ──"
 
 # 1. plugin.json válido — cache (post-install) com fallback source tree (dev/CI)
-manifest=$(find ~/.claude/plugins/cache -path "*/wire-craft/*/.claude-plugin/plugin.json" -print -quit 2>/dev/null)
+manifest=$(find ~/.claude/plugins/cache -path "*/prumo-craft/*/.claude-plugin/plugin.json" -print -quit 2>/dev/null)
 if [ -z "$manifest" ]; then
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
   [ -f "$script_dir/.claude-plugin/plugin.json" ] && manifest="$script_dir/.claude-plugin/plugin.json"

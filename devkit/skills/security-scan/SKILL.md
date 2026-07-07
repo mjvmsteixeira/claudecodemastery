@@ -61,7 +61,7 @@ complementar o scan estático com sinais de **runtime** que só existem na pági
 Aditivo — sem Chrome/tab, ignorar e seguir estático.
 
 ```bash
-GUARD="$(find ~/.claude/plugins/cache -path '*/wire-devkit/*/skills/chrome-live/scripts/cdp-guard.sh' -print -quit 2>/dev/null)"
+GUARD="$(find ~/.claude/plugins/cache -path '*/prumo-devkit/*/skills/chrome-live/scripts/cdp-guard.sh' -print -quit 2>/dev/null)"
 [ -n "$GUARD" ] && bash "$GUARD" list
 ```
 
@@ -69,7 +69,7 @@ Receitas em `chrome-live/references/verbs.md`: cookies de sessão visíveis a JS
 `HttpOnly`), handlers inline (CSP fraca), CSP via meta-tag, password fields sem
 `autocomplete` seguro. **Read-only** (`html`, `net`) corre directo; sinais que exigem
 `eval`/`evalraw` (ex.: `document.cookie`, captura de headers via `Network.*`) são verbos
-**active** — gateados por modo e bloqueados em contexto de audit sem `WIRE_AUDIT_APPLY=1`.
+**active** — gateados por modo e bloqueados em contexto de audit sem `PRUMO_AUDIT_APPLY=1`.
 Marcar cada finding ao vivo como tal (URL/tab) para distinguir dos estáticos. Nunca tratar
 a verificação ao vivo como substituto do scan estático.
 
@@ -84,6 +84,36 @@ As dimensões são os scopes avaliados.
 - Modo `ci`: comportamento de `${CLAUDE_PLUGIN_ROOT}/shared/ci-mode.md` — JSON sempre,
   SARIF adicional (audit de código), exit code conforme severidade, sem auto-fix.
 - Com `export-report`: gravar em `docs/security/SECURITY_REPORT_<YYYY-MM-DD>.md`.
+
+### 5b. Estado (loop de feedback — Fase 04)
+
+Depois de produzir os findings, dar-lhes estado entre corridas (novo/recorrente/
+corrigido) e suprimir falsos-positivos já aceites:
+
+1. Emitir os findings desta corrida como **JSONL** para um ficheiro temporário — uma
+   linha por finding, com os campos: `audit` (=`"security-scan"`), `file`, `rule`
+   (id estável do tipo de vuln, ex.: `A01-broken-access-control`), `severity`
+   (`critical|high|medium|low`), `title`, e opcionalmente `symbol` (função/classe) e
+   `detail`. Exemplo de uma linha:
+   `{"audit":"security-scan","file":"src/auth.py","rule":"A01-broken-access-control","symbol":"admin_delete","severity":"high","title":"endpoint /admin sem auth"}`
+
+2. Localizar e correr o reconciliador (store committed no repo auditado, `.prumo-audit/`):
+   ```bash
+   RECON="$(find ~/.claude/plugins/cache -path '*/prumo-devkit/*/lib/audit-reconcile.sh' -print -quit 2>/dev/null)"
+   [ -n "$RECON" ] && bash "$RECON" --audit security-scan --findings <ficheiro.jsonl>
+   ```
+
+3. O **output reconciliado** do script (novos/recorrentes/corrigidos + métricas) é o
+   que se apresenta ao utilizador e o que `export-report` grava — em vez de uma foto
+   crua. Os findings marcados `accepted` no store são suprimidos automaticamente.
+
+4. Para aceitar um falso-positivo (suprime-o dali em diante e documenta-o em
+   `rules/audit/security.md`):
+   ```bash
+   ACCEPT="$(find ~/.claude/plugins/cache -path '*/prumo-devkit/*/lib/audit-accept.sh' -print -quit 2>/dev/null)"
+   [ -n "$ACCEPT" ] && bash "$ACCEPT" <fp> "<razão>"
+   ```
+   O `<fp>` de cada finding aparece no relatório reconciliado.
 
 ### 6. Correcções
 

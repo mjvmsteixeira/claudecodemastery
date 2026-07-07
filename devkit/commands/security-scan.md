@@ -15,6 +15,7 @@ Wrapper do skill `security-scan`. Parseia as flags e invoca a skill.
 - `--auto-fix-safe` — aplicar fixes não-disruptivos automaticamente
 - `--ci` — modo CI (sem auto-fix, output JSON/SARIF, exit code por severidade)
 - `--export-report` — gravar relatório em `docs/security/SECURITY_REPORT_<YYYY-MM-DD>.md`
+- _(estado/feedback: a skill dá estado aos findings entre corridas via `.prumo-audit/state.json` no repo — novos/recorrentes/corrigidos, e suprime falsos-positivos aceites. Ver secção 5b da skill.)_
 - _(o `--update-rules` do command original não é suportado neste plugin — o devkit não empacota templates)_
 
 ## Acção

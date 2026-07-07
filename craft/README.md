@@ -1,12 +1,12 @@
-# wire-craft
+# prumo-craft
 
-Plugin Claude Code · tooling generativo do ecossistema Wire · v0.1.0
+Plugin Claude Code · tooling generativo do ecossistema prumo · v0.2.0
 
 ---
 
 ## Dependências
 
-**Nenhuma.** Standalone. Não recomenda `wire-base` nem outro plugin. Zero deps externas (markdown + bash; sem Python, sem API keys, sem Vault).
+**Nenhuma.** Standalone. Não recomenda `prumo-base` nem outro plugin. Zero deps externas (markdown + bash; sem Python, sem API keys, sem Vault).
 
 ---
 
@@ -14,7 +14,7 @@ Plugin Claude Code · tooling generativo do ecossistema Wire · v0.1.0
 
 Casa tooling generativo com **disciplina** — produz output design-quality em vez de output AI-slop. Cada skill segue regras concretas (grid, contraste, naming, real data) e tem self-critique antes de entregar.
 
-Ship inicial cobre **uma** skill (`html-plan`). v0.2.0+ adiciona mais à medida que valem o esforço.
+Ship inicial cobre **uma** skill (`html-plan`). v0.3.0+ adiciona mais à medida que valem o esforço.
 
 | Componente | Tipo | Domínio |
 |------------|------|---------|
@@ -91,7 +91,7 @@ Exemplo:
 
 ## Roadmap
 
-- **v0.2.0** — `logo-generator` (SVG logos + showcase via Gemini API). Requer Python venv + `GEMINI_API_KEY` em Vault `secret/ai/gemini`. Iteração dedicada para resolver bootstrap de deps externas sem fricção (provavelmente `/wire-craft-bootstrap` à la `/wire-vault-bootstrap`).
+- **v0.3.0** — `logo-generator` (SVG logos + showcase via Gemini API). Requer Python venv + `GEMINI_API_KEY` em Vault `secret/ai/gemini`. Iteração dedicada para resolver bootstrap de deps externas sem fricção (provavelmente `/prumo-craft-bootstrap` à la `/prumo-vault-bootstrap`).
 - **v0.3.0+** — possíveis adições conforme valem o esforço: deck-builder (slides com discipline equivalente ao html-plan), copy-generator (texto editorial sem AI-tropes), data-poster (visualizações com tipografia editorial).
 
 ---
@@ -99,17 +99,17 @@ Exemplo:
 ## Instalação
 
 ```bash
-# 1 · Instalar via marketplace jump2new
+# 1 · Instalar via marketplace prumo
 /plugin marketplace add mjvmsteixeira/claudecodemastery
-/plugin install wire-craft@jump2new
+/plugin install prumo-craft@prumo
 
 #    (alternativa · empacotar localmente)
 cd craft
-zip -r /tmp/wire-craft.plugin . -x "*.DS_Store" "smoke.sh"
-/plugin install /tmp/wire-craft.plugin
+zip -r /tmp/prumo-craft.plugin . -x "*.DS_Store" "smoke.sh"
+/plugin install /tmp/prumo-craft.plugin
 
 # 2 · Sanity check
-/plugin list                                  # verificar wire-craft v0.1.0
+/plugin list                                  # verificar prumo-craft v0.2.0
 /html-plan web a really small test page       # confirmar Phase 1 produz roadmap
 ```
 
@@ -117,8 +117,8 @@ zip -r /tmp/wire-craft.plugin . -x "*.DS_Store" "smoke.sh"
 
 ## Nota de naming
 
-O prefixo `wire-` é da **família do marketplace `jump2new`** (alinha com `wire-base`, `wire-secops`, `wire-devkit`) — **não tem ligação operacional** ao SaaS Wire propriamente dito. `wire-craft` serve qualquer projecto que precise de output designed com discipline, não só os 170+ municípios em produção.
+`prumo-craft` é da **família do marketplace `prumo`** (alinha com `prumo-base`, `prumo-secops`, `prumo-devkit`) — **não tem ligação operacional** ao SaaS Wire propriamente dito. `prumo-craft` serve qualquer projecto que precise de output designed com discipline, não só os 170+ municípios em produção.
 
 ---
 
-© 2026 jump2new · Uso interno · Versão 0.1.0
+© 2026 prumo · Uso interno · Versão 0.2.0

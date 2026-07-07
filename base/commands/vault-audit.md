@@ -1,6 +1,6 @@
 ---
 name: vault-audit
-description: Health check da integração Vault LOCAL de desenvolvimento (127.0.0.1:8200) — PLACEHOLDERs em .env, AppRole TTL, policy coverage do projecto. NÃO confundir com /wire-vault-doctor (que diagnostica o Vault de produção do SaaS).
+description: Health check da integração Vault LOCAL de desenvolvimento (127.0.0.1:8200) — PLACEHOLDERs em .env, AppRole TTL, policy coverage do projecto. NÃO confundir com /prumo-vault-doctor (que diagnostica o Vault de produção do SaaS).
 allowed-tools: Bash, Read, Grep
 ---
 

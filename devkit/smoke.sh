@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# wire-devkit · smoke.sh — sanity check read-only do plugin.
+# prumo-devkit · smoke.sh — sanity check read-only do plugin.
 # Sai 0 se OK · 1 se críticas · 2 se warns (degradação aceitável).
 set -u
 
@@ -11,10 +11,10 @@ ok()   { echo "  ✓ $*"; PASSED=$((PASSED+1)); }
 fail() { echo "  ✗ $*"; FAILED=$((FAILED+1)); }
 warn() { echo "  ! $*"; WARNED=$((WARNED+1)); }
 
-echo "── wire-devkit smoke ──"
+echo "── prumo-devkit smoke ──"
 
 # 1. plugin.json válido — cache (post-install) com fallback source tree (dev/CI)
-manifest=$(find ~/.claude/plugins/cache -path "*/wire-devkit/*/.claude-plugin/plugin.json" -print -quit 2>/dev/null)
+manifest=$(find ~/.claude/plugins/cache -path "*/prumo-devkit/*/.claude-plugin/plugin.json" -print -quit 2>/dev/null)
 if [ -z "$manifest" ]; then
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
   [ -f "$script_dir/.claude-plugin/plugin.json" ] && manifest="$script_dir/.claude-plugin/plugin.json"
@@ -61,11 +61,11 @@ else
   fail "agent local-reviewer ausente"
 fi
 
-# 6. wire-base detectado (recommend para /ngrok-expose)?
-if find ~/.claude/plugins/cache -path "*/wire-base/*/.claude-plugin/plugin.json" -print -quit 2>/dev/null | grep -q .; then
-  ok "wire-base detectado (/ngrok-expose funcional)"
+# 6. prumo-base detectado (recommend para /ngrok-expose)?
+if find ~/.claude/plugins/cache -path "*/prumo-base/*/.claude-plugin/plugin.json" -print -quit 2>/dev/null | grep -q .; then
+  ok "prumo-base detectado (/ngrok-expose funcional)"
 else
-  warn "wire-base ausente — /ngrok-expose não vai conseguir ler Vault"
+  warn "prumo-base ausente — /ngrok-expose não vai conseguir ler Vault"
 fi
 
 # 7. Ollama (opcional · local-reviewer degrada se ausente)

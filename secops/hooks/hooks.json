@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.anthropic.com/en/claude/code/hooks.schema.json",
-  "description": "Hooks Wire SecOps — verificação de plugins recomendados ao iniciar, gate de aprovação humana, redacção PII, second-opinion via Ollama local, emissão CEF para Wazuh, revogação Vault.",
+  "description": "Hooks prumo SecOps — verificação de plugins recomendados ao iniciar, gate de aprovação humana, redacção PII, second-opinion via Ollama local, emissão CEF para Wazuh, revogação Vault.",
   "hooks": {
     "SessionStart": [
       {

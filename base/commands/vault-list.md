@@ -26,7 +26,7 @@ audit_path() {
   V kv list -format=json "$base" 2>/dev/null | jq -r '.[]?' | while read -r entry; do
     V kv get -format=json "$base/$entry" 2>/dev/null \
       | jq -r --arg path "$base/$entry" \
-        '.data.data | to_entries[] | [$path, .key, .value] | @tsv'
+        '.data.data | to_entries[] | [$path, .key, (.value | tostring | .[0:8]) + "…"] | @tsv'
   done
 }
 

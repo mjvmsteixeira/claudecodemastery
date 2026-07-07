@@ -1,4 +1,4 @@
-# wire-devkit
+# prumo-devkit
 
 Toolkit de auditoria de developer. Cada audit existe em três camadas:
 
@@ -41,17 +41,17 @@ Esta é a regra mais importante deste plugin e a única que não pode regredir:
    nos restantes.
 
 3. **Antes de aplicar, executar os 3 gates de `shared/safe-apply.md`:**
-   - Gate 1: lê `WIRE_OPERATING_MODE` (ou `~/.wire/mode`); em `dev` degrada para
+   - Gate 1: lê `PRUMO_OPERATING_MODE` (ou `~/.prumo/mode`); em `dev` degrada para
      report-only.
    - Gate 2: detecta sample/empty-shell via marcadores (`.dev-shell`, `SAMPLE.md`,
-     comentário em CLAUDE.md, `WIRE_AUDIT_PROFILE=dev-shell`); se positivo, degrada.
+     comentário em CLAUDE.md, `PRUMO_AUDIT_PROFILE=dev-shell`); se positivo, degrada.
    - Gate 3: acções destrutivas (apagar/mover, `.gitignore`, `.env*`, initializers,
      spec/test, drop SQL, etc.) pedem confirmação humana individual com diff.
 
-4. **Defense-in-depth via `wire-base`:** se o `wire-base` estiver instalado, o hook
+4. **Defense-in-depth via `prumo-base`:** se o `prumo-base` estiver instalado, o hook
    `pre-tool-audit-guard.sh` (PreToolUse) bloqueia tools destrutivos durante contexto
-   de audit (marker file `~/.wire/audit-active` ou env `WIRE_AUDIT_ACTIVE=1`) a menos
-   que `WIRE_AUDIT_APPLY=1` esteja exportada. Skills devem fazer set/unset destes
+   de audit (marker file `~/.prumo/audit-active` ou env `PRUMO_AUDIT_ACTIVE=1`) a menos
+   que `PRUMO_AUDIT_APPLY=1` esteja exportada. Skills devem fazer set/unset destes
    sinais ao entrar/sair da Fase 4 com `apply` aprovado.
 
 Quando adicionar nova skill que possa mutar ficheiros, replicar a estrutura das skills
@@ -67,7 +67,7 @@ O devkit **não** empacota templates nem oferece `--update-rules`.
 
 ## Dependências
 
-- Dependência **soft** do `wire-base`: só o `ngrok-expose` usa
+- Dependência **soft** do `prumo-base`: só o `ngrok-expose` usa
   `lib/vault-env.sh` do base. Os 5 audits individuais e o `local-reviewer` funcionam standalone.
 - `local-reviewer` precisa de Ollama local; degrada para análise própria se offline.
 - A integração MemPalace do `full-audit` é opcional, gated em `.mempalace/` existir.
@@ -76,6 +76,6 @@ O devkit **não** empacota templates nem oferece `--update-rules`.
   vendorado do chrome-cdp-skill (MIT © pasky) — **não editar** o `.mjs`; ao actualizar,
   re-vendorar e preservar o header de atribuição + `scripts/NOTICE`. Toda a execução passa
   por `cdp-guard.sh` (nunca `node cdp.mjs` directo): verbos activos são fail-closed em
-  `prod` (`WIRE_CHROME_LIVE_ACTIVE=1`) e bloqueados em contexto de audit sem
-  `WIRE_AUDIT_APPLY=1`. `ux-audit`/`security-scan` consomem-no de forma aditiva (degradam
+  `prod` (`PRUMO_CHROME_LIVE_ACTIVE=1`) e bloqueados em contexto de audit sem
+  `PRUMO_AUDIT_APPLY=1`. `ux-audit`/`security-scan` consomem-no de forma aditiva (degradam
   sem Chrome).

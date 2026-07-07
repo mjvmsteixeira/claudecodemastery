@@ -1,15 +1,14 @@
 {
-  "name": "wire-base",
-  "version": "0.4.0",
-  "description": "Plugin-base do ecossistema Wire para Claude Code. Três skills foundacionais — mempalace-doctor (saúde do tool MemPalace), claude-deep-audit (auditoria profunda Claude Code via 10 sub-agentes paralelos), vault-toolkit (gestão de segredos por-projeto contra Vault local). Inclui hook SessionStart para auto-unseal do Vault, hook PreToolUse audit-guard que dá defense-in-depth ao wire-devkit (bloqueia operações destrutivas durante contexto de audit a menos que apply esteja explicitamente aprovado), helpers bash partilhados (lib/wire-common.sh, lib/vault-env.sh) e convenções que outros plugins Wire assumem. Detecta automaticamente ~/vault/ existente e preserva configuração actual. Instalar antes de qualquer outro plugin Wire.",
+  "name": "prumo-base",
+  "version": "0.5.0",
+  "description": "Plugin-base do ecossistema prumo para Claude Code. Três skills foundacionais — mempalace-doctor (saúde do tool MemPalace), claude-deep-audit (auditoria profunda Claude Code via 10 sub-agentes paralelos), vault-toolkit (gestão de segredos por-projeto contra Vault local). Inclui hook SessionStart para auto-unseal do Vault, hook PreToolUse audit-guard que dá defense-in-depth ao prumo-devkit (bloqueia operações destrutivas durante contexto de audit a menos que apply esteja explicitamente aprovado), helpers bash partilhados (lib/prumo-common.sh, lib/vault-env.sh) e convenções que outros plugins prumo assumem. Detecta automaticamente ~/vault/ existente e preserva configuração actual. Instalar antes de qualquer outro plugin prumo.",
   "author": {
-    "name": "jump2new",
-    "email": "geral@jump2new.pt"
+    "name": "mjvmst",
+    "email": "mjvmst@gmail.com"
   },
-  "homepage": "https://jump2new.pt/",
-  "license": "Proprietary - Uso interno jump2new",
+  "license": "Proprietary - uso interno",
   "keywords": [
-    "wire",
+    "prumo",
     "base",
     "foundation",
     "mempalace",

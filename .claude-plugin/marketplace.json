@@ -1,30 +1,30 @@
 {
-  "name": "jump2new",
+  "name": "prumo",
   "owner": {
-    "name": "jump2new",
-    "email": "geral@jump2new.pt"
+    "name": "mjvmst",
+    "email": "mjvmst@gmail.com"
   },
-  "description": "Marketplace privado jump2new — ecossistema de plugins Wire para Claude Code: wire-base (foundacional), wire-secops (SecOps SaaS eGovernment) e wire-devkit (toolkit de auditoria de developer).",
+  "description": "Marketplace privado prumo — ecossistema de plugins para Claude Code: prumo-base (foundacional), prumo-secops (SecOps SaaS eGovernment), prumo-devkit (toolkit de auditoria de developer) e prumo-craft (tooling generativo).",
   "plugins": [
     {
-      "name": "wire-base",
+      "name": "prumo-base",
       "source": "./base",
-      "description": "Plugin foundacional — vault-toolkit, skills mempalace-doctor e claude-deep-audit, helpers bash partilhados e hook SessionStart de auto-unseal. Instalar primeiro."
+      "description": "Plugin foundacional — vault-toolkit, doctors (prumo-doctor, mempalace-doctor, claude-deep-audit), gestão de modo operacional e telemetria dos guardrails, helpers bash partilhados e hooks SessionStart (auto-unseal) + PreToolUse (audit-guard). Instalar primeiro."
     },
     {
-      "name": "wire-secops",
+      "name": "prumo-secops",
       "source": "./secops",
-      "description": "Plugin SecOps Wire — Vault, Wazuh, Fortigate, Zabbix, RoR multi-tenant. Assume wire-base instalado."
+      "description": "Plugin SecOps — Vault, Wazuh, Fortigate, Zabbix, RoR multi-tenant para a Wire enquanto fornecedora SaaS de eGovernment. Assume prumo-base instalado."
     },
     {
-      "name": "wire-devkit",
+      "name": "prumo-devkit",
       "source": "./devkit",
-      "description": "Toolkit de auditoria de developer — full-audit, security-scan, infra-audit, ux-audit, code-quality, performance-audit, agente local-reviewer e ngrok-expose. **Read-only por defeito**: relatórios não tocam em ficheiros; correcção é opt-in via `--apply` com gates de modo, sample-detection e confirmação humana para acções destrutivas. Dependência soft do wire-base (também recomendado para ganhar o PreToolUse audit-guard de defense-in-depth)."
+      "description": "Toolkit de auditoria de developer — full-audit, security-scan, infra-audit, ux-audit, code-quality, performance-audit, chrome-live (browser ao vivo via CDP, gated), agente local-reviewer e ngrok-expose. Read-only por defeito; correcção opt-in via --apply com gates. Dependência soft do prumo-base."
     },
     {
-      "name": "wire-craft",
+      "name": "prumo-craft",
       "source": "./craft",
-      "description": "Plugin de tooling generativo do ecossistema Wire — html-plan (HTML designed em 2 fases com disciplina anti-AI-slop: 8px baseline grid, contraste WCAG AA, sem pure black/white, real data, focus-visible real; 5 surfaces — web/deck/poster/frame/mockup). Standalone, zero deps externas, sem hooks. Roadmap v0.2.0 adiciona logo-generator (SVG via Gemini)."
+      "description": "Tooling generativo — html-plan (HTML designed em 2 fases com disciplina anti-AI-slop: 8px grid, contraste WCAG AA, real data, 5 surfaces). Standalone, zero deps externas."
     }
   ]
 }

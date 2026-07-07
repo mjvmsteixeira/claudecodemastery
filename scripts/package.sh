@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# scripts/package.sh — empacotador unificado dos 4 plugins jump2new.
+# scripts/package.sh — empacotador unificado dos 4 plugins prumo.
 #
 # Substitui o antigo secops/package.sh (asymmetric — só existia um).
 # Corre validate.sh antes para apanhar problemas estruturais; salta com --no-validate.
 #
 # Uso:
 #   ./scripts/package.sh                   # empacota os 4
-#   ./scripts/package.sh base              # só wire-base
+#   ./scripts/package.sh base              # só prumo-base
 #   ./scripts/package.sh base secops       # subset
 #   ./scripts/package.sh --no-validate     # salta a validação prévia
 #   ./scripts/package.sh --out /caminho    # outdir alternativo (default /tmp)
@@ -22,7 +22,7 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-cd "$REPO_ROOT"
+cd "$REPO_ROOT" || { echo "✗ cd para REPO_ROOT falhou: $REPO_ROOT" >&2; exit 2; }
 
 # ──────────────────────── args ────────────────────────
 OUT_DIR="/tmp"
@@ -58,7 +58,7 @@ fi
 
 # ──────────────────────── 2. empacotar ────────────────────────
 for p in "${SELECTED[@]}"; do
-  plugin_name="wire-$p"
+  plugin_name="prumo-$p"
   zip_path="${OUT_DIR}/${plugin_name}.plugin"
 
   echo "── ${plugin_name} ──"
@@ -69,12 +69,26 @@ for p in "${SELECTED[@]}"; do
     chmod +x "$p"/hooks/*.sh 2>/dev/null || true
   fi
 
-  ( cd "$p" && zip -r -q "$zip_path" . \
+  if ! ( cd "$p" && zip -r -q "$zip_path" . \
       -x "*.DS_Store" \
       -x "__MACOSX*" \
       -x "package.sh" \
       -x "smoke.sh" \
-      -x ".orphaned_at" )
+      -x ".orphaned_at" \
+      -x "*.env" \
+      -x "*.env.*" \
+      -x ".env" \
+      -x "*.pem" \
+      -x "*.key" \
+      -x "*.secret" \
+      -x "secrets.json" \
+      -x "*credentials.json" \
+      -x ".credentials" \
+      -x "vault-init.json" \
+      -x "*.orig" ); then
+    echo "✗ zip falhou para ${plugin_name}" >&2
+    exit 2
+  fi
 
   size=$(du -h "$zip_path" | awk '{print $1}')
   echo "  → ${zip_path} (${size})"
@@ -84,5 +98,5 @@ done
 echo
 echo "── pronto ──"
 for p in "${SELECTED[@]}"; do
-  echo "  /plugin install ${OUT_DIR}/wire-${p}.plugin"
+  echo "  /plugin install ${OUT_DIR}/prumo-${p}.plugin"
 done

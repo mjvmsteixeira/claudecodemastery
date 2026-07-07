@@ -1,6 +1,6 @@
 # Formato de relatório — estrutura canónica
 
-Todos os audits do `wire-devkit` usam esta estrutura no modo interactivo
+Todos os audits do `prumo-devkit` usam esta estrutura no modo interactivo
 (não-`--ci`). As `SKILL.md` referenciam este ficheiro.
 
 ## Estrutura

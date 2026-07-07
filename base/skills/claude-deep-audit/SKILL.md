@@ -172,7 +172,7 @@ Quando disponíveis no ambiente, esta skill pode encaminhar para:
 
 Nenhuma é obrigatória — a auditoria funciona standalone.
 
-## Integração com wire-base
+## Integração com prumo-base
 
 Skills irmãs nesta plugin-base (não obrigatórias, mas complementares):
 
@@ -180,10 +180,10 @@ Skills irmãs nesta plugin-base (não obrigatórias, mas complementares):
 - **`/vault-audit`, `/vault-list`, `/vault-integrate`** (commands da mesma plugin-base) — se o subagente 7 (MCP servers audit) detectar API keys hardcoded ou `.mcp.json` git-tracked com creds, propor migração para Vault usando `/vault-integrate` como acção concreta em vez de só sinalizar como `CRITICAL`.
 - **Hook `vault-session-check.sh`** (SessionStart) — se o subagente 6 (Hooks audit) o detectar, classificar como conhecido e não como "comando inexistente"; descreve-se em `lib/vault-env.sh`.
 
-Se `lib/wire-common.sh` estiver disponível, o relatório final pode ser logado em `~/.wire/log/claude-deep-audit.log` via `wire_log` para histórico cross-session.
+Se `lib/prumo-common.sh` estiver disponível, o relatório final pode ser logado em `~/.prumo/log/claude-deep-audit.log` via `prumo_log` para histórico cross-session.
 
 ## Ver também
 
 - `mempalace-doctor` (skill irmã) — diagnóstico do **tool MemPalace**, não da configuração Claude Code.
-- `/wire-vault-doctor` (em wire-secops) — diagnóstico do **servidor Vault** (HA, seal, audit, AppRoles).
+- `/prumo-vault-doctor` (em prumo-secops) — diagnóstico do **servidor Vault** (HA, seal, audit, AppRoles).
 - `/vault-audit` (mesma plugin-base) — auditoria de **integração Vault por-projecto** (PLACEHOLDERs, policy coverage, .env).

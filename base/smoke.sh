@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# wire-base · smoke.sh — sanity check read-only do plugin.
+# prumo-base · smoke.sh — sanity check read-only do plugin.
 # Sai 0 se OK · 1 se críticas · 2 se warns (degradação aceitável).
 set -u
 
@@ -11,10 +11,10 @@ ok()   { echo "  ✓ $*"; PASSED=$((PASSED+1)); }
 fail() { echo "  ✗ $*"; FAILED=$((FAILED+1)); }
 warn() { echo "  ! $*"; WARNED=$((WARNED+1)); }
 
-echo "── wire-base smoke ──"
+echo "── prumo-base smoke ──"
 
 # 1. plugin.json válido — primeiro tenta cache (post-install), depois fallback à source tree (dev)
-manifest=$(find ~/.claude/plugins/cache -path "*/wire-base/*/.claude-plugin/plugin.json" -print -quit 2>/dev/null)
+manifest=$(find ~/.claude/plugins/cache -path "*/prumo-base/*/.claude-plugin/plugin.json" -print -quit 2>/dev/null)
 if [ -z "$manifest" ]; then
   # Fallback: smoke.sh corrido a partir da source tree (e.g. dev local, CI)
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
@@ -26,18 +26,18 @@ else
   fail "plugin.json não encontrado / inválido"
 fi
 
-# 2. lib/wire-common.sh source sem erros e expõe wire_mode
+# 2. lib/prumo-common.sh source sem erros e expõe prumo_mode
 if [ -n "$manifest" ]; then
   plugin_root="$(dirname "$(dirname "$manifest")")"
-  if [ -f "$plugin_root/lib/wire-common.sh" ]; then
-    if (set +u; source "$plugin_root/lib/wire-common.sh" 2>/dev/null && declare -F wire_mode >/dev/null); then
-      mode=$(set +u; source "$plugin_root/lib/wire-common.sh" 2>/dev/null && wire_mode)
-      ok "wire-common.sh expõe wire_mode (modo actual: $mode)"
+  if [ -f "$plugin_root/lib/prumo-common.sh" ]; then
+    if (set +u; source "$plugin_root/lib/prumo-common.sh" 2>/dev/null && declare -F prumo_mode >/dev/null); then
+      mode=$(set +u; source "$plugin_root/lib/prumo-common.sh" 2>/dev/null && prumo_mode)
+      ok "prumo-common.sh expõe prumo_mode (modo actual: $mode)"
     else
-      fail "wire-common.sh não expõe wire_mode após source"
+      fail "prumo-common.sh não expõe prumo_mode após source"
     fi
   else
-    fail "lib/wire-common.sh ausente"
+    fail "lib/prumo-common.sh ausente"
   fi
 
   # 3. lib/vault-env.sh source sem erros e expõe V()
@@ -52,11 +52,11 @@ if [ -n "$manifest" ]; then
   fi
 fi
 
-# 4. ~/.wire/mode existe? (opcional — só warn se ausente)
-if [ -f ~/.wire/mode ]; then
-  ok "~/.wire/mode existe (modo persistente configurado)"
+# 4. ~/.prumo/mode existe? (opcional — só warn se ausente)
+if [ -f ~/.prumo/mode ]; then
+  ok "~/.prumo/mode existe (modo persistente configurado)"
 else
-  warn "~/.wire/mode ausente — modo default 'prod' (corre /wire-mode para configurar)"
+  warn "~/.prumo/mode ausente — modo default 'prod' (corre /prumo-mode para configurar)"
 fi
 
 # 5. ~/vault/ existe? (opcional — só warn)
@@ -73,7 +73,7 @@ fi
 
 # 6. Comandos novos do plano 2026-05-19 (bootstrap + kv-migrate)
 if [ -n "$manifest" ]; then
-  for cmd in wire-vault-bootstrap wire-vault-kv-migrate wire-style; do
+  for cmd in prumo-vault-bootstrap prumo-vault-kv-migrate prumo-style; do
     cmd_file="$plugin_root/commands/${cmd}.md"
     if [ -f "$cmd_file" ]; then
       # frontmatter parseia e tem allowed-tools: Bash
@@ -84,6 +84,31 @@ if [ -n "$manifest" ]; then
       fi
     else
       fail "commands/${cmd}.md ausente"
+    fi
+  done
+fi
+
+# 7. Cobertura: TODOS os commands presentes por nome (apanha rename/remoção)
+if [ -n "$manifest" ]; then
+  for cmd in prumo-context-pack prumo-doctor prumo-mode prumo-onboard prumo-smoke \
+             prumo-style prumo-telemetry prumo-upgrade prumo-vault-bootstrap \
+             prumo-vault-kv-migrate prumo-vault-policy vault-audit vault-backup \
+             vault-integrate vault-list vault-set; do
+    if [ -f "$plugin_root/commands/${cmd}.md" ]; then
+      ok "command /${cmd}"
+    else
+      fail "command /${cmd} ausente"
+    fi
+  done
+
+  # 8. Cobertura: TODAS as skills presentes por nome
+  for skill in claude-deep-audit mempalace-doctor prumo-context-pack prumo-doctor \
+               prumo-mode prumo-onboard prumo-smoke prumo-style prumo-upgrade \
+               prumo-vault-policy vault-toolkit; do
+    if [ -f "$plugin_root/skills/${skill}/SKILL.md" ]; then
+      ok "skill ${skill}"
+    else
+      fail "skill ${skill} ausente"
     fi
   done
 fi

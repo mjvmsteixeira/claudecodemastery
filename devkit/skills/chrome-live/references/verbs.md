@@ -17,7 +17,7 @@ argumento da maioria é o `<target>` — um **prefixo do targetId** (mín. 8 cha
 
 ## Active (gateados — executam JS / mudam estado)
 
-Exigem, conforme o modo: `WIRE_CHROME_LIVE_ACTIVE=1` (prod) e/ou `WIRE_AUDIT_APPLY=1`
+Exigem, conforme o modo: `PRUMO_CHROME_LIVE_ACTIVE=1` (prod) e/ou `PRUMO_AUDIT_APPLY=1`
 (contexto de audit). Antes de cada um, descrever ao utilizador o que vai correr e obter "sim".
 
 | Verbo | Assinatura | Notas |

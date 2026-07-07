@@ -23,17 +23,29 @@ Se o utilizador não souber o path, sugerir com base no contexto:
 
 Usar `kv patch` para actualizar só a key indicada sem apagar as restantes. Se o path não existir ainda, usar `kv put`.
 
+**Nunca** interpolar o valor colado directamente na string do comando (`KEY="<VALOR>"`) — se o valor contiver backticks, `$()`, `;` ou aspas, quebra para fora do comando e executa shell arbitrário. Ler o valor para uma variável através de um heredoc com delimitador *quoted* (`<<'EOF_VALOR'`), que não expande nada dentro do corpo, e só depois passá-lo como um único argumento `"$KEY=$VALOR"`:
+
 ```bash
 source "${CLAUDE_PLUGIN_ROOT}/lib/vault-env.sh"
 vault_ready || { echo "Vault inacessível ou sealed — abortar."; exit 1; }
 
+PATH_VAULT="<PATH>"
+KEY="<KEY>"
+
+# Delimitador entre aspas simples ('EOF_VALOR') => sem expansão de $, `, etc.
+# dentro do heredoc. O valor colado fica em VALOR tal como foi introduzido.
+VALOR=$(cat <<'EOF_VALOR'
+<VALOR>
+EOF_VALOR
+)
+
 # Verificar se o path já existe
-if V kv get -format=json "<PATH>" > /dev/null 2>&1; then
-  # Actualizar só a key (preserva as restantes)
-  V kv patch "<PATH>" <KEY>="<VALOR>"
+if V kv get -format=json "$PATH_VAULT" > /dev/null 2>&1; then
+  # Actualizar só a key (preserva as restantes) — valor passado como argv único
+  V kv patch "$PATH_VAULT" "$KEY=$VALOR"
 else
   # Criar novo
-  V kv put "<PATH>" <KEY>="<VALOR>"
+  V kv put "$PATH_VAULT" "$KEY=$VALOR"
 fi
 ```
 

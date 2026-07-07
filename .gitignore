@@ -1,5 +1,5 @@
 # ============================================================
-# WHITELIST MODE — só o marketplace e os três plugins Wire (base, secops, devkit).
+# WHITELIST MODE — só o marketplace e os quatro plugins prumo (base, secops, devkit, craft).
 # Tudo o resto fica IGNORADO por defeito.
 # ============================================================
 
@@ -9,6 +9,8 @@
 # 2. Whitelist apenas estes paths
 !.gitignore
 !README.md
+!CHANGELOG.md
+!CLAUDE.md
 !LICENSE
 !.claude-plugin/
 !base/
@@ -26,3 +28,13 @@
 **/*~
 **/*.plugin
 secops/.orphaned_at
+scripts/eval/candidates.jsonl
+
+# 3b. Segredos — nunca trackar mesmo dentro dos dirs whitelisted acima
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*credentials*
+**/vault-init.json
+**/id_rsa*

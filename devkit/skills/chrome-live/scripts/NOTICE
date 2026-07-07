@@ -19,3 +19,17 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+─────────────────────────────────────────────────────────────────────────────
+Provenance (added by prumo-devkit — not part of the upstream MIT text above)
+
+  Upstream:   https://github.com/pasky/chrome-cdp-skill
+  File:       skills/chrome-cdp/scripts/cdp.mjs
+  Vendored:   2026-05-26
+  Commit:     59199f146428e12ed786b7ac73ad25db6aa5686d  (last commit touching the file)
+  Main HEAD:  1fd55c777125eff23e6ad3a972e694999a3a5bfb  (at vendoring date)
+
+The file `cdp.mjs` is kept verbatim except for a vendoring header after the
+shebang. To update, re-vendor from upstream and bump the commit SHA here and in
+the header. Logic must not be hand-edited; the prumo-devkit wrapper lives in
+`cdp-guard.sh`.

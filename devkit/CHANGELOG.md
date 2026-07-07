@@ -1,6 +1,25 @@
-# Changelog — wire-devkit
+# Changelog — prumo-devkit
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
+
+## v0.5.0 — 2026-07-07
+
+**Loop de feedback nos audits + hardening.**
+
+- **Loop de feedback (Fase 04):** novo `lib/audit-reconcile.sh` — reconciliador determinístico que dá estado aos audits. Cada finding ganha um fingerprint semântico estável (`sha1(audit⊕file⊕rule⊕symbol|título-normalizado)`, sem número de linha → sobrevive a refactors); entre corridas classifica novo/recorrente/aceite/corrigido, mede taxa-de-correção e tendência. Store committed em `.prumo-audit/state.json` (escrita atómica).
+- **`lib/audit-accept.sh`:** aceitar um falso-positivo suprime-o e auto-promove a excepção documentada a `rules/audit/security.md` (idempotente por fp). Ligado ao `security-scan` (emite JSONL + mostra o relatório reconciliado).
+- **SECURITY — `audit-accept.sh`:** sanitização de `file`/`rule`/`razão` antes de escrever no rules-file (fecha content-injection indireto, já que o ficheiro é reinjectado como regra de confiança); `mktemp` no `STATE_DIR` para atomicidade.
+- **SECURITY — `chrome-live/scripts/cdp-guard.sh`:** verificação de integridade `plugin.json name==prumo-base` antes de sourcar a lib (paridade com `secops/_lib.sh`) — impede um ficheiro plantado no cache de redefinir `prumo_mode` e desligar o gate de verbos activos.
+- `chrome-live` passa a constar na descrição do plugin e do marketplace.
+
+## v0.4.0 — 2026-07-06
+
+**BREAKING — rebranding wire → prumo.** O plugin passa a chamar-se `prumo-devkit` no marketplace `prumo`.
+
+- Env vars `WIRE_*` → `PRUMO_*` (incl. `PRUMO_AUDIT_APPLY`, `PRUMO_CHROME_LIVE_ACTIVE`, `PRUMO_AUDIT_PROFILE`)
+- Markers de audit em projectos passam a `<!-- prumo-audit: ... -->` (os antigos `<!-- wire-audit: ... -->` deixam de ser reconhecidos)
+- `recommends` aponta para `prumo-base@prumo`
+- Upgrade: `/plugin uninstall wire-devkit@jump2new` seguido de `/plugin install prumo-devkit@prumo`
 
 ## [0.3.0] — 2026-05-26
 
@@ -17,7 +36,7 @@ Iteração **live-browser**: traz inspecção/interacção da sessão Chrome rea
 ### Notes
 
 - Única dependência **não-bash** do devkit: Node 22+ (built-in WebSocket). Assumido explicitamente.
-- Requer o utilizador activar `chrome://inspect/#remote-debugging` (toggle + modal "Allow debugging" 1×/tab).
+- Requer lançar o Chrome com `--remote-debugging-port` **e** `--user-data-dir` próprio (modal "Allow debugging" 1×/tab). **Chrome 136+ ignora a flag no perfil default** (mitigação de roubo de sessão) → o perfil separado é obrigatório, logo é um perfil limpo, **não a sessão logada**. Para a sessão autenticada real em Chrome moderno, o MCP `claude-in-chrome` (API de extensão) é o caminho. O toggle em `chrome://inspect` não activa o porto local.
 - `eval`/`evalraw` executam JS arbitrário numa página autenticada — daí o gating fail-closed em prod e o bloqueio em contexto de audit. Para uso desktop interactivo, o MCP `claude-in-chrome` continua preferível; o valor do `chrome-live` é headless/CI/remoto + auditabilidade.
 
 ## [0.2.2] — 2026-05-15

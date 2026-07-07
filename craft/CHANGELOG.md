@@ -1,6 +1,18 @@
-# Changelog — wire-craft
+# Changelog — prumo-craft
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
+
+## v0.5.0 — 2026-07-07
+
+**Alinhamento de versão** ao release coordenado do marketplace `prumo` (todos os plugins passam a 0.5.0). Sem alterações funcionais no `html-plan`.
+
+- Limpeza: removida a função `warn()` morta do `smoke.sh`.
+
+## v0.2.0 — 2026-07-06
+
+**BREAKING — rebranding wire → prumo.** O plugin passa a chamar-se `prumo-craft` no marketplace `prumo`. Sem alterações funcionais.
+
+- Upgrade: `/plugin uninstall wire-craft@jump2new` seguido de `/plugin install prumo-craft@prumo`
 
 ## v0.1.0 — 2026-05-19
 
