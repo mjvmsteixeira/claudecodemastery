@@ -375,6 +375,14 @@ if [ -z "$ONLY_PLUGIN" ] && [ -x "$REPO_ROOT/scripts/eval/run.sh" ]; then
       fail "telemetry-test falhou — corre ./scripts/eval/telemetry-test.sh"
     fi
   fi
+
+  if [ -x "$REPO_ROOT/scripts/eval/audit-feedback-test.sh" ]; then
+    if "$REPO_ROOT/scripts/eval/audit-feedback-test.sh" >/dev/null 2>&1; then
+      pass "audit-feedback verde (fingerprint + ciclo + accept + auto-promoção)"
+    else
+      fail "audit-feedback-test falhou — corre ./scripts/eval/audit-feedback-test.sh"
+    fi
+  fi
 fi
 
 # ──────────────────────── resumo ────────────────────────
