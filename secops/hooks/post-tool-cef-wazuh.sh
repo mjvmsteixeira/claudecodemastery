@@ -45,7 +45,7 @@ if command -v nc > /dev/null 2>&1; then
 fi
 
 # Também persiste localmente como fallback (best-effort)
-LOG_DIR="${PRUMO_LOG_DIR:-$HOME/.prumo/log}"
+LOG_DIR="$PRUMO_LOG_DIR"
 if mkdir -p "$LOG_DIR" 2>/dev/null; then
   echo "$(date -u +%FT%TZ) $CEF" >> "$LOG_DIR/cef.log" 2>/dev/null || true
 fi

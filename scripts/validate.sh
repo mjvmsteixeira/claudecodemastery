@@ -23,7 +23,7 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-cd "$REPO_ROOT"
+cd "$REPO_ROOT" || { echo "✗ cd para REPO_ROOT falhou: $REPO_ROOT" >&2; exit 2; }
 
 # ──────────────────────── args ────────────────────────
 SKIP_SHELLCHECK=0
@@ -152,7 +152,12 @@ for p in "${PLUGINS[@]}"; do
       | .[]
     ' "$hooks_json")
 
-    echo "$referenced" | while IFS= read -r cmd; do
+    # NOTA: o loop de deteção corre num pipe (subshell) e só EMITE os paths em
+    # falta para stdout — nunca chama fail() lá dentro. O fail() (que incrementa
+    # $ERRORS) corre no while alimentado por here-string, que executa no shell
+    # principal. Chamar fail() dentro do pipe perdia o incremento de $ERRORS e
+    # produzia um falso-verde (exit 0 com hook em falta).
+    missing=$(echo "$referenced" | while IFS= read -r cmd; do
       [ -z "$cmd" ] && continue
       # primeiro token (executável); ignora 'bash' / args
       first_tok=$(echo "$cmd" | awk '{print $1}')
@@ -160,11 +165,15 @@ for p in "${PLUGINS[@]}"; do
       [ -z "$path_tok" ] && path_tok="$first_tok"
       resolved="${path_tok/\$\{CLAUDE_PLUGIN_ROOT\}/$p}"
       if [ ! -f "$resolved" ]; then
-        echo "FAIL-HOOK-MISSING:$resolved"
+        echo "$resolved"
       fi
-    done | while IFS=: read -r tag path; do
-      [ "$tag" = "FAIL-HOOK-MISSING" ] && fail "$hooks_json referencia ficheiro inexistente: $path"
-    done
+    done)
+    if [ -n "$missing" ]; then
+      while IFS= read -r path; do
+        [ -z "$path" ] && continue
+        fail "$hooks_json referencia ficheiro inexistente: $path"
+      done <<< "$missing"
+    fi
   fi
 
   # bit de execução + shebang em cada .sh

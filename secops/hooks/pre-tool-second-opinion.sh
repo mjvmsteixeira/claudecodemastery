@@ -22,7 +22,7 @@ BYPASS="${PRUMO_SECOND_OPINION_BYPASS:-}"
 # deploy:rollback, SQL, rm -rf /forensics) fica de fora — sem re-avaliação redundante.
 # shellcheck disable=SC2016  # regex literal com ${IFS}, não expandir
 # 1) ofuscação/evasão que a regex dos outros hooks não apanha
-GRAYZONE_OBFUSCATION='base64[[:space:]]*(-d|--decode)|(^|[;&|[:space:]])eval([[:space:]]|$)|\$\{?IFS\}?|(^|[;&|[:space:]])(/bin/|/usr/bin/)?(bash|sh)[[:space:]]+-c\b|(python[0-9]?|perl|ruby|node)[[:space:]]+-(c|e)\b|(printf|echo)[[:space:]].*\\x[0-9a-fA-F]{2}|xxd[[:space:]]+-r|(curl|wget)[[:space:]].+\|[[:space:]]*(/bin/|/usr/bin/)?(bash|sh)([[:space:]]|$)'
+GRAYZONE_OBFUSCATION='base64[[:space:]]*(-d|--decode)|(^|[;&|(`[:space:]])eval([[:space:]]|$)|\$\{?IFS\}?|(^|[;&|(`[:space:]])(/bin/|/usr/bin/)?(bash|sh)[[:space:]]+-c\b|(python[0-9]?|perl|ruby|node)[[:space:]]+-(c|e)\b|(printf|echo)[[:space:]].*\\x[0-9a-fA-F]{2}|xxd[[:space:]]+-r|(curl|wget)[[:space:]].+\|[[:space:]]*(/bin/|/usr/bin/)?(bash|sh)([[:space:]]|$)'
 # 2) ops destrutivas/cross-tenant que NENHUM outro hook cobre (retidas do baseline)
 GRAYZONE_UNGUARDED='cross-tenant|all-tenants|vault[[:space:]]+operator[[:space:]]+seal|vault[[:space:]]+write[[:space:]]+transit.*rotate'
 GRAYZONE_REGEX="${GRAYZONE_OBFUSCATION}|${GRAYZONE_UNGUARDED}"
@@ -37,7 +37,7 @@ fi
 # caindo depois no exit 0 (warn-only = permitir).
 so_block_or_bypass() {
   if [ "$BYPASS" = "1" ]; then
-    echo "[hook] second-opinion · BYPASS audit-tracked: $1" >&2
+    echo "[prumo-secops/second-opinion] BYPASS audit-tracked: $1" >&2
     prumo_telemetry_record "prumo-secops" "second-opinion" "bypass"
     # shellcheck disable=SC2034  # lido pelo trap _prumo_tm_on_exit em prumo-common.sh (source dinâmico, invisível ao shellcheck -x)
     PRUMO_TM_RECORDED=1
@@ -46,6 +46,14 @@ so_block_or_bypass() {
   prumo_fail_or_warn "prumo-secops" "second-opinion" "$1"
   exit 0
 }
+
+# ── jq necessário a partir daqui (construir/parsear o pedido ao modelo) ───────
+# Sob set -euo pipefail, sem este guard o jq -n abaixo abortaria com 127 (não
+# fail-closed) quando jq está ausente — contradizendo a política do hook. Só se
+# avalia após o match da zona-cinzenta: comandos benignos nunca são afectados.
+if ! command -v jq >/dev/null 2>&1; then
+  so_block_or_bypass "jq indisponível — guardrail semântico não pode avaliar o comando ofuscado (fail-closed)"
+fi
 
 # ── modelo disponível? ────────────────────────────────────────────────────────
 if ! curl -sf -m 3 "${OLLAMA_HOST}/api/tags" >/dev/null 2>&1; then
@@ -74,6 +82,6 @@ VERDICT=$(printf '%s' "$RESPONSE" | jq -r '.verdict // empty' 2>/dev/null \
   | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]' || echo "")
 
 case "$VERDICT" in
-  safe) echo "[hook] second-opinion · veredicto: safe"; exit 0 ;;
+  safe) echo "[prumo-secops/second-opinion] veredicto: safe"; exit 0 ;;
   *)    so_block_or_bypass "veredicto do guardrail semântico: ${VERDICT:-indeterminado} · raw: $(printf '%s' "$RESPONSE" | head -c 120)" ;;
 esac

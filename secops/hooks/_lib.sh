@@ -39,7 +39,7 @@ if ! declare -F prumo_fail_or_warn >/dev/null 2>&1; then
       # shellcheck disable=SC1090
       source "$PRUMO_BASE_LIB"
     else
-      echo "[secops/_lib] prumo-common.sh candidato falhou verificação de integridade (plugin.json name='${PRUMO_BASE_PLUGIN_NAME:-<ausente>}', esperado 'prumo-base') — a ignorar, usar stubs fail-closed" >&2
+      echo "[prumo-secops/_lib] prumo-common.sh candidato falhou verificação de integridade (plugin.json name='${PRUMO_BASE_PLUGIN_NAME:-<ausente>}', esperado 'prumo-base') — a ignorar, usar stubs fail-closed" >&2
     fi
   fi
 fi
@@ -60,6 +60,12 @@ if ! declare -F prumo_fail_or_warn >/dev/null 2>&1; then
   }
 fi
 
+# Fonte única do default de PRUMO_LOG_DIR para os hooks do secops. A lib real já
+# o define (prumo-common.sh: ${PRUMO_HOME}/log); com os stubs de fallback activos
+# ficaria por definir. Este `:=` respeita um valor já exportado e só preenche o
+# default quando ausente — evita o fallback hardcoded repetido em cada hook.
+: "${PRUMO_LOG_DIR:=$HOME/.prumo/log}"
+
 # ─────────────────────────────────────────────────────────────────────────────
 # hook_tool_payload — extrai o "comando/texto" relevante do input do hook.
 #
@@ -75,6 +81,11 @@ fi
 #   3. texto cru via stdin (compat legacy)
 #
 # Devolve a string sobre a qual os patterns dos hooks devem correr.
+#
+# Fonte canónica em base/lib/prumo-common.sh — esta é só o fallback fail-closed
+# para quando o prumo-base não está instalado (stubs activos). Só se define se a
+# lib real não a trouxe já.
+if ! declare -F hook_tool_payload >/dev/null 2>&1; then
 hook_tool_payload() {
   if [ -n "${1:-}" ]; then
     printf '%s' "$1"
@@ -96,3 +107,4 @@ hook_tool_payload() {
   fi
   printf '%s' "$raw"
 }
+fi

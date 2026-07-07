@@ -2,7 +2,15 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `craft/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.5.0 · prumo-secops 0.5.0 · prumo-devkit 0.4.0 · prumo-craft 0.2.0**
+Estado actual: **prumo-base 0.5.0 · prumo-secops 0.5.0 · prumo-devkit 0.5.0 · prumo-craft 0.5.0** (tag única de marketplace `v0.5.0`)
+
+## 2026-07-07 · release coordenado `v0.5.0`
+
+Versão unificada dos 4 plugins em **0.5.0** com uma tag única de marketplace `v0.5.0`. Fecha o ciclo de features AI (Fases 01-04) e uma ronda de remediação de segurança sobre os hooks.
+
+- **Features AI (branch `eval-harness`):** eval-harness de regressão dos hooks (corpus rotulado + runner + matriz de confusão + selftest), guardrail semântico via Ollama local no `second-opinion` (zona-cinzenta, anti-injeção, veredicto JSON), telemetria dos guardrails (`/prumo-telemetry` + doctor), e loop de feedback nos audits do devkit (reconciliador determinístico com fingerprint semântico + accept/auto-promoção).
+- **Remediação de segurança (full-audit):** corrigida uma família de bypass nos classificadores dos hooks — a classe de fronteira de palavra não cobria `(`, backtick, newline e `&`. Fixes: **CRÍTICO** `vault-ttl` (newline/`&` contornavam a exigência de `VAULT_TOKEN`), **alto** `audit-guard` (`$()`/subshell/backtick + `curl|bash`) e `approval-gate` (N1/N2/N3), `second-opinion`, sanitização no `audit-accept`, integridade de source no `cdp-guard`, e um falso-verde no próprio `validate.sh`. +10 casos de regressão no corpus (70/70 verde).
+- **Documentação/consistência:** 4 templates de skill em falta criados; prefixos de log uniformizados; cobertura dos `smoke.sh` alinhada; descrições do marketplace com `chrome-live`.
 
 ## 2026-07-06
 

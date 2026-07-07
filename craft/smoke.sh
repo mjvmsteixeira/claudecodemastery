@@ -9,7 +9,6 @@ WARNED=0
 
 ok()   { echo "  ✓ $*"; PASSED=$((PASSED+1)); }
 fail() { echo "  ✗ $*"; FAILED=$((FAILED+1)); }
-warn() { echo "  ! $*"; WARNED=$((WARNED+1)); }
 
 echo "── prumo-craft smoke ──"
 

@@ -2,6 +2,16 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.5.0 — 2026-07-07
+
+**Loop de feedback nos audits + hardening.**
+
+- **Loop de feedback (Fase 04):** novo `lib/audit-reconcile.sh` — reconciliador determinístico que dá estado aos audits. Cada finding ganha um fingerprint semântico estável (`sha1(audit⊕file⊕rule⊕symbol|título-normalizado)`, sem número de linha → sobrevive a refactors); entre corridas classifica novo/recorrente/aceite/corrigido, mede taxa-de-correção e tendência. Store committed em `.prumo-audit/state.json` (escrita atómica).
+- **`lib/audit-accept.sh`:** aceitar um falso-positivo suprime-o e auto-promove a excepção documentada a `rules/audit/security.md` (idempotente por fp). Ligado ao `security-scan` (emite JSONL + mostra o relatório reconciliado).
+- **SECURITY — `audit-accept.sh`:** sanitização de `file`/`rule`/`razão` antes de escrever no rules-file (fecha content-injection indireto, já que o ficheiro é reinjectado como regra de confiança); `mktemp` no `STATE_DIR` para atomicidade.
+- **SECURITY — `chrome-live/scripts/cdp-guard.sh`:** verificação de integridade `plugin.json name==prumo-base` antes de sourcar a lib (paridade com `secops/_lib.sh`) — impede um ficheiro plantado no cache de redefinir `prumo_mode` e desligar o gate de verbos activos.
+- `chrome-live` passa a constar na descrição do plugin e do marketplace.
+
 ## v0.4.0 — 2026-07-06
 
 **BREAKING — rebranding wire → prumo.** O plugin passa a chamar-se `prumo-devkit` no marketplace `prumo`.

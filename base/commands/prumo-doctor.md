@@ -24,6 +24,29 @@ HAS_MEMPALACE=0
 [ -d ~/.mempalace ] && HAS_MEMPALACE=1
 ```
 
+## Passo 1b — Binários essenciais (dependência implícita dos hooks)
+
+Os hooks e libs do ecossistema dependem de binários externos que nunca aparecem
+num manifest. `jq` é o mais crítico (parsing de tool_input, construção de JSON no
+second-opinion, telemetria) — a sua ausência degrada ou fecha guardrails. Verificar:
+
+```bash
+echo "── Binários essenciais ──"
+for bin in jq shasum curl git; do
+  if command -v "$bin" >/dev/null 2>&1; then
+    echo "  ✓ $bin"
+  else
+    crit=""; [ "$bin" = "jq" ] && crit=" (CRÍTICO — hooks de segurança dependem dele)"
+    echo "  ✗ $bin em falta${crit}"
+  fi
+done
+# Opcionais (degradam graciosamente): ollama (via HTTP), docker (Vault em container), nc (CEF→Wazuh)
+```
+
+Um `✗ jq` deve ser tratado como finding **alto** no relatório consolidado — sem `jq`
+o `pre-tool-second-opinion` fecha-se (fail-closed) e o `audit-guard` bloqueia por
+não conseguir parsear o input.
+
 ## Passo 2 — Orquestrar (em paralelo via Agent tool)
 
 Lançar em paralelo os doctors aplicáveis:

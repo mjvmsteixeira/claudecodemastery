@@ -26,10 +26,25 @@ PLUGIN="prumo-devkit"
 HOOK="chrome-live"
 
 # ── helpers da prumo-base (modo/log); fallback fail-closed se o base não estiver instalado ──
-LIB="$(find "${HOME}/.claude/plugins/cache" -path "*/prumo-base/*/lib/prumo-common.sh" -print -quit 2>/dev/null || true)"
+# Integridade: um ficheiro plantado em qualquer path que bata o glob do find seria
+# sourced e passaria a redefinir prumo_mode/prumo_log — os controlos de gating deste
+# guard (ex: forçar prumo_mode=lab desligava o fail-closed de verbos activos em prod).
+# Confirma que o plugin root (dois níveis acima de lib/prumo-common.sh) é mesmo o
+# prumo-base via .claude-plugin/plugin.json antes de o sourcar — mesma defesa que
+# secops/hooks/_lib.sh e post-tool-vault-revoke.sh.
+LIB="$(find "${HOME}/.claude/plugins/cache" -path "*/prumo-base/*/lib/prumo-common.sh" -type f 2>/dev/null | sort -V | tail -1)"
 if [ -n "$LIB" ] && [ -r "$LIB" ]; then
-  # shellcheck disable=SC1090
-  . "$LIB"
+  LIB_PLUGIN_JSON="$(dirname "$(dirname "$LIB")")/.claude-plugin/plugin.json"
+  LIB_PLUGIN_NAME=""
+  if [ -r "$LIB_PLUGIN_JSON" ] && command -v jq >/dev/null 2>&1; then
+    LIB_PLUGIN_NAME="$(jq -r '.name // empty' "$LIB_PLUGIN_JSON" 2>/dev/null)"
+  fi
+  if [ "$LIB_PLUGIN_NAME" = "prumo-base" ]; then
+    # shellcheck disable=SC1090
+    . "$LIB"
+  else
+    echo "[prumo-devkit/chrome-live] prumo-common.sh candidato falhou verificação de integridade (name='${LIB_PLUGIN_NAME:-<ausente>}', esperado 'prumo-base') — a ignorar, usar fallback fail-closed" >&2
+  fi
 fi
 if ! declare -F prumo_mode >/dev/null 2>&1; then
   prumo_mode() {
@@ -51,17 +66,17 @@ case "$VERB" in
   list|shot|snap|html|net)                          CLASS="readonly" ;;
   eval|evalraw|click|clickxy|type|nav|open|loadall) CLASS="active" ;;
   stop)                                             CLASS="control" ;;
-  *) echo "[chrome-live] verbo desconhecido: '$VERB'" >&2; exit 64 ;;
+  *) echo "[prumo-devkit/chrome-live] verbo desconhecido: '$VERB'" >&2; exit 64 ;;
 esac
 
 # ── preflight: Node 22+ (WebSocket built-in) ──
 if ! command -v node >/dev/null 2>&1; then
-  echo "[chrome-live] Node não encontrado no PATH — requer Node 22+." >&2
+  echo "[prumo-devkit/chrome-live] Node não encontrado no PATH — requer Node 22+." >&2
   exit 69
 fi
 NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
 if [ "${NODE_MAJOR:-0}" -lt 22 ]; then
-  echo "[chrome-live] Node ${NODE_MAJOR}.x < 22 — WebSocket built-in indisponível. Actualiza o Node." >&2
+  echo "[prumo-devkit/chrome-live] Node ${NODE_MAJOR}.x < 22 — WebSocket built-in indisponível. Actualiza o Node." >&2
   exit 69
 fi
 
@@ -75,7 +90,7 @@ if [ "$CLASS" = "active" ]; then
      && [ "${PRUMO_AUDIT_APPLY:-}" != "1" ]; then
     prumo_log "$PLUGIN" "$HOOK" "block active '$VERB' · audit context sem PRUMO_AUDIT_APPLY"
     {
-      echo "[chrome-live] '$VERB' executa JS/muda estado de uma página autenticada — bloqueado em contexto de audit."
+      echo "[prumo-devkit/chrome-live] '$VERB' executa JS/muda estado de uma página autenticada — bloqueado em contexto de audit."
       echo "Audits são read-only. Para autorizar (após confirmação humana): export PRUMO_AUDIT_APPLY=1"
     } >&2
     exit 2
@@ -87,14 +102,14 @@ if [ "$CLASS" = "active" ]; then
       if [ "${PRUMO_CHROME_LIVE_ACTIVE:-}" != "1" ]; then
         prumo_log "$PLUGIN" "$HOOK" "block active '$VERB' · prod sem PRUMO_CHROME_LIVE_ACTIVE"
         {
-          echo "[chrome-live] modo prod: verbos activos ('$VERB') executam JS/cliques/escrita na tua sessão Chrome real."
+          echo "[prumo-devkit/chrome-live] modo prod: verbos activos ('$VERB') executam JS/cliques/escrita na tua sessão Chrome real."
           echo "Para autorizar nesta sessão: export PRUMO_CHROME_LIVE_ACTIVE=1   (ou passa a dev: /prumo-mode dev)"
         } >&2
         exit 2
       fi
       ;;
     dev)
-      echo "[chrome-live] (dev) verbo activo '$VERB' permitido — audit-tracked." >&2
+      echo "[prumo-devkit/chrome-live] (dev) verbo activo '$VERB' permitido — audit-tracked." >&2
       ;;
     lab)
       : # bypass total

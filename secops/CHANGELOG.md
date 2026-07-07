@@ -2,9 +2,18 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
-## v0.5.0 — 2026-07-06
+## v0.5.0 — 2026-07-07
 
-**BREAKING — rebranding wire → prumo.** O plugin passa a chamar-se `prumo-secops` no marketplace `prumo`.
+**Guardrail semântico + fix de segurança CRÍTICO** (adicionado à linha 0.5.0 em 2026-07-07):
+
+- **SECURITY (CRÍTICO) — `pre-tool-vault-ttl.sh`:** corrigido bypass total da exigência de `VAULT_TOKEN`. `HAS_CHAIN` não detectava `&` simples nem newline como separadores de statement — `echo hi & vault write …` e `echo hi\nvault write …` passavam pelo allowlist `^echo` sem token enquanto o bash real executava a segunda instrução. Agora ambos são bloqueados (fail-closed).
+- **SECURITY (alto) — `pre-tool-approval-gate.sh`:** mesma classe de fronteira alargada com `(`/backtick; `rm`/`truncate` embrulhados em `$()`/backtick voltam a disparar N1/N2/N3 e o `approvals.log`.
+- **Guardrail semântico (Fase 02) — `pre-tool-second-opinion.sh`:** classificação via Ollama local na zona-cinzenta (ofuscação que a regex não apanha), comando como dado não-confiável (anti-injeção), veredicto JSON, conservador (em dúvida bloqueia), bypass audit-tracked. Fronteira `eval`/`bash -c` alargada; guard `jq` fail-closed.
+- **Telemetria (Fase 03):** hooks instrumentados via `prumo_telemetry_init`; `_lib.sh` com stubs no-op quando o base falta.
+- **Templates:** criados `cncs-template.md` + `template-cliente.md` (IR), `template-relatorio.md` (isolamento) e `painel-template.md` (monitoring), antes referenciados mas inexistentes.
+- Consistência: prefixos de log uniformizados para `[prumo-secops/<hook>]`; default de `PRUMO_LOG_DIR` centralizado no `_lib.sh`.
+
+**BREAKING — rebranding wire → prumo** (2026-07-06). O plugin passa a chamar-se `prumo-secops` no marketplace `prumo`.
 
 - Renomeados: comandos `/wire-*` → `/prumo-*`, skills e agents `wire-*` → `prumo-*`, env vars `WIRE_*` → `PRUMO_*`
 - Intocado (domínio de produção): produtos wirepaper/wireforms/wiredesk, hostnames `wire-*`, AppRoles e policies Vault (`wire-monitor`, …), entradas Keychain (`-a wire-secops`), regras Wazuh e templates Zabbix

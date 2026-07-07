@@ -9,7 +9,7 @@ prumo_telemetry_init "prumo-secops" "pii-redact"
 INPUT=$(hook_tool_payload "${1:-}")
 
 if [ "${PRUMO_PII_DISABLE:-}" = "1" ]; then
-  echo "[hook] pii-redact · PRUMO_PII_DISABLE=1 — bypass (NÃO recomendado em prod)" >&2
+  echo "[prumo-secops/pii-redact] PRUMO_PII_DISABLE=1 — bypass (NÃO recomendado em prod)" >&2
   exit 0
 fi
 
@@ -61,7 +61,7 @@ if [ "${#VIOLATIONS[@]}" -eq 0 ]; then
   exit 0
 fi
 
-LOG_DIR="${PRUMO_LOG_DIR:-$HOME/.prumo/log}"
+LOG_DIR="$PRUMO_LOG_DIR"
 mkdir -p "$LOG_DIR" 2>/dev/null || LOG_DIR=$(mktemp -d)
 HASH=$(printf '%s' "$INPUT" | shasum -a 256 | awk '{print $1}')
 TYPES=$(IFS=,; echo "${VIOLATIONS[*]}")
@@ -69,7 +69,7 @@ echo "$(date -u +%FT%TZ) | input_hash=${HASH} | types=${TYPES} | user=${USER:-un
   >> "$LOG_DIR/pii-blocks.log" 2>/dev/null || true
 
 cat >&2 <<EOF
-[hook] pii-redact · PII detectado no input: ${TYPES}
+[prumo-secops/pii-redact] PII detectado no input: ${TYPES}
 
 Redact antes de re-enviar. Substitui com placeholder ([NIF], [IBAN], [EMAIL])
 ou usa Vault para fetch dinâmico em vez de embedar.

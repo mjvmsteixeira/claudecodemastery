@@ -2,9 +2,17 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
-## v0.5.0 — 2026-07-06
+## v0.5.0 — 2026-07-07
 
-**BREAKING — rebranding wire → prumo.** O plugin passa a chamar-se `prumo-base` no marketplace `prumo`.
+**Telemetria dos guardrails + hardening de segurança** (adicionado à linha 0.5.0 em 2026-07-07):
+
+- **Telemetria (Fase 03):** `prumo-common.sh` ganha `prumo_telemetry_init/record/summary` (trap EXIT por choke-point, log TSV sem PII, guardas `BASH_SUBSHELL`/`PRUMO_TM_RECORDED`); novo comando `/prumo-telemetry` e secção no `/prumo-doctor`.
+- **`hook_tool_payload` partilhado:** movido para `lib/prumo-common.sh` como fonte única (antes só existia no `secops/hooks/_lib.sh`); o `_lib.sh` mantém um fallback fail-closed.
+- **Segurança — `pre-tool-audit-guard.sh`:** a classe de fronteira de palavra passa a incluir `(` e backtick, fechando o bypass de `rm`/`truncate`/marker embrulhados em `$()`/subshell/backtick (incl. auto-desactivação do marker de audit); deteção de ofuscação passa a correr sobre o comando inteiro (apanha `curl … | bash` que o split por `|` deixava passar).
+- **`/prumo-doctor`:** novo check de binários essenciais (jq marcado como CRÍTICO — hooks dependem dele).
+- Robustez: `validate.sh` deixa de ter falso-verde no check de hooks-json (o `fail()` corria em subshell); `package.sh`/`validate.sh` com `cd || exit`.
+
+**BREAKING — rebranding wire → prumo** (2026-07-06). O plugin passa a chamar-se `prumo-base` no marketplace `prumo`.
 
 - Renomeados: comandos `/wire-*` → `/prumo-*`, skills, `lib/wire-common.sh` → `lib/prumo-common.sh`, funções `wire_*` → `prumo_*`, env vars `WIRE_*` → `PRUMO_*`, estado `~/.wire/` → `~/.prumo/`
 - Bridge de migração: na primeira execução, `~/.wire/mode` (e `lab-mode`) é copiado para `~/.prumo/` automaticamente

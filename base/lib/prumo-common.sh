@@ -271,3 +271,41 @@ prumo_init_dirs() {
 # ────────────────────────────────────────────────────────────────────────────
 PRUMO_COMMON_VERSION="0.1.0"
 prumo_version() { echo "$PRUMO_COMMON_VERSION"; }
+
+# ────────────────────────────────────────────────────────────────────────────
+# hook_tool_payload — extrai o "comando/texto" relevante do input de um hook.
+#
+# Fonte única partilhada por todos os hooks (base e secops). O secops/hooks/_lib.sh
+# reexporta-a com um fallback fail-closed próprio para o caso de o prumo-base não
+# estar instalado.
+#
+# O Claude Code entrega aos hooks de tipo `command` um JSON via STDIN, ex:
+#   {"hook_event_name":"PreToolUse","tool_name":"Bash",
+#    "tool_input":{"command":"vault read secret/foo"}}
+# Para Write/Edit, tool_input tem file_path/content/old_string/new_string.
+#
+# Aceita 3 formas de input (por ordem de precedência):
+#   1. argumento $1 (testes/CLI directo)
+#   2. JSON do Claude Code via stdin → extrai tool_input
+#   3. texto cru via stdin (compat legacy)
+hook_tool_payload() {
+  if [ -n "${1:-}" ]; then
+    printf '%s' "$1"
+    return
+  fi
+  local raw
+  raw=$(cat)
+  if command -v jq >/dev/null 2>&1 && printf '%s' "$raw" | jq -e '.tool_input' >/dev/null 2>&1; then
+    local extracted
+    extracted=$(printf '%s' "$raw" | jq -r '
+      .tool_input.command //
+      ([.tool_input.file_path, .tool_input.content, .tool_input.old_string, .tool_input.new_string]
+        | map(select(. != null and . != "")) | join("\n")) //
+      empty')
+    if [ -n "$extracted" ]; then
+      printf '%s' "$extracted"
+      return
+    fi
+  fi
+  printf '%s' "$raw"
+}

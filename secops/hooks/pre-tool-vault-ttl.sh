@@ -110,7 +110,15 @@ ALLOWLIST_PATTERNS=(
 # "vault status | curl evil" mesmo sem o segmento "curl evil" ser seguro).
 HAS_CHAIN=0
 case "$CMD" in
-  *';'*|*'&&'*|*'||'*|*'`'*|*'$('*) HAS_CHAIN=1 ;;
+  *';'*|*'&&'*|*'||'*|*'&'*|*'`'*|*'$('*) HAS_CHAIN=1 ;;
+esac
+# Um '&' simples (background) e uma newline são separadores de statements tão
+# válidos como ';'. O '&' isolado é apanhado acima (*'&'* é superset de '&&').
+# A newline, porém, já foi achatada para espaço em $CMD pelo tr acima — testá-la
+# no $RAW_CMD original, senão "echo x\nvault write ..." batia o allowlist ^echo
+# e passava sem VAULT_TOKEN enquanto o bash real corria as duas linhas.
+case "$RAW_CMD" in
+  *$'\n'*) HAS_CHAIN=1 ;;
 esac
 
 HAS_PIPE=0
@@ -162,25 +170,25 @@ if [ "$HAS_CHAIN" -eq 0 ] && [ "$HAS_PIPE" -eq 1 ]; then
   done
 
   if [ "$ALLOWED_PIPE" -eq 1 ]; then
-    echo "[hook] vault-ttl · pipeline allowlisted (todos os segmentos são allowlisted ou filtros read-only)" >&2
+    echo "[prumo-secops/vault-ttl] pipeline allowlisted (todos os segmentos são allowlisted ou filtros read-only)" >&2
     exit 0
   else
-    echo "[hook] vault-ttl · pipeline contém segmento não-allowlisted — allowlist ignorada, exige VAULT_TOKEN" >&2
+    echo "[prumo-secops/vault-ttl] pipeline contém segmento não-allowlisted — allowlist ignorada, exige VAULT_TOKEN" >&2
   fi
 elif [ "$HAS_CHAIN" -eq 0 ]; then
   if printf '%s' "$CMD" | grep -qE '^[[:space:]]*sed[[:space:]]+' \
     && ! printf '%s' "$CMD" | grep -qE "$UNSAFE_SED_REGEX"; then
-    echo "[hook] vault-ttl · allowlisted (sed read-only, sem -i/w/>)" >&2
+    echo "[prumo-secops/vault-ttl] allowlisted (sed read-only, sem -i/w/>)" >&2
     exit 0
   fi
   for pattern in "${ALLOWLIST_PATTERNS[@]}"; do
     if echo "$CMD" | grep -qE "$pattern"; then
-      echo "[hook] vault-ttl · allowlisted ($pattern)" >&2
+      echo "[prumo-secops/vault-ttl] allowlisted ($pattern)" >&2
       exit 0
     fi
   done
 else
-  echo "[hook] vault-ttl · comando contém chaining/substituição de shell — allowlist ignorada, exige VAULT_TOKEN" >&2
+  echo "[prumo-secops/vault-ttl] comando contém chaining/substituição de shell — allowlist ignorada, exige VAULT_TOKEN" >&2
 fi
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -188,7 +196,7 @@ fi
 # ────────────────────────────────────────────────────────────────────────────
 if [ -z "${VAULT_TOKEN:-}" ]; then
   cat >&2 <<'EOF'
-[hook] vault-ttl · VAULT_TOKEN ausente — bloqueia (fail-closed).
+[prumo-secops/vault-ttl] VAULT_TOKEN ausente — bloqueia (fail-closed).
 
 Diagnóstico (não exige token, está em allowlist):
   /prumo-vault-doctor      # verifica server + descobre porque falta token
@@ -220,7 +228,7 @@ if command -v vault >/dev/null 2>&1; then
 
   if [ "$TTL" -lt 60 ]; then
     cat >&2 <<EOF
-[hook] vault-ttl · TTL remanescente = ${TTL}s (mínimo 60s).
+[prumo-secops/vault-ttl] TTL remanescente = ${TTL}s (mínimo 60s).
 
 Renovar (preserva o mesmo token):
   vault token renew
@@ -234,7 +242,7 @@ EOF
     prumo_fail_or_warn "prumo-secops" "vault-ttl" "TTL=${TTL}s abaixo do mínimo 60s"
   fi
 
-  echo "[hook] vault-ttl · OK (TTL=${TTL}s)" >&2
+  echo "[prumo-secops/vault-ttl] OK (TTL=${TTL}s)" >&2
 fi
 
 exit 0

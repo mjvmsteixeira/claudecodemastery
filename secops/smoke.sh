@@ -184,6 +184,18 @@ for skill in prumo-ir-multitenant prumo-compliance-provider prumo-saas-monitorin
   fi
 done
 
+# 14. Cobertura: TODOS os commands presentes por nome (apanha rename/remoção)
+for cmd in prumo-cliente-dossier prumo-compliance-snapshot prumo-incident-spread \
+           prumo-ollama-doctor prumo-release-gate prumo-saas-health \
+           prumo-secops-bootstrap prumo-stack-doctor prumo-tenant-audit \
+           prumo-vault-doctor; do
+  if [ -f "$plugin_root/commands/${cmd}.md" ]; then
+    ok "command /${cmd}"
+  else
+    fail "command /${cmd} ausente"
+  fi
+done
+
 echo
 echo "  passed=$PASSED  failed=$FAILED  warned=$WARNED"
 

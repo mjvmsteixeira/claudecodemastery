@@ -31,7 +31,7 @@ if [ -n "${VAULT_TOKEN:-}" ]; then
         REVOKE_OK=1
       fi
     else
-      echo "[hook] vault-revoke · vault-env.sh candidato falhou verificação de integridade (plugin.json name='${VAULT_ENV_PLUGIN_NAME:-<ausente>}', esperado 'prumo-base') — a ignorar, fallback para 'vault' CLI" >&2
+      echo "[prumo-secops/vault-revoke] vault-env.sh candidato falhou verificação de integridade (plugin.json name='${VAULT_ENV_PLUGIN_NAME:-<ausente>}', esperado 'prumo-base') — a ignorar, fallback para 'vault' CLI" >&2
       if command -v vault >/dev/null 2>&1 && vault token revoke -self 2>/dev/null; then
         REVOKE_OK=1
       fi
@@ -48,9 +48,9 @@ if [ -n "${VAULT_TOKEN:-}" ]; then
   fi
 
   if [ "$REVOKE_OK" -eq 1 ]; then
-    echo "[hook] Token Vault revogado."
+    echo "[prumo-secops/vault-revoke] Token Vault revogado."
   else
-    echo "[hook] vault-revoke · AVISO: revogação do token Vault falhou ou não pôde ser confirmada — o token pode continuar válido até expirar por TTL natural." >&2
+    echo "[prumo-secops/vault-revoke] AVISO: revogação do token Vault falhou ou não pôde ser confirmada — o token pode continuar válido até expirar por TTL natural." >&2
   fi
 fi
 

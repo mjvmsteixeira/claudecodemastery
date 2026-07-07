@@ -39,7 +39,7 @@ match() {
 # token "rm" tem de ser início-de-string, espaço, "/" ou "\" — nunca uma
 # letra/dígito. Sem isto "rm" batia como substring de "confirm", "terraform",
 # "platform", etc.
-if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\)rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*/forensics(/|[[:space:]]|$)'; then
+if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\|\(|`)rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*/forensics(/|[[:space:]]|$)'; then
   LEVEL="N3"
 fi
 if [ -z "$LEVEL" ] && match 'systemctl[[:space:]]+(stop|disable)\b'; then
@@ -83,7 +83,7 @@ fi
 # N1 — destrutivo local
 # ────────────────────────────────────────────────────────────────────────────
 
-if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\|"|'"'"')truncate[[:space:]]+TABLE\b'; then
+if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\|\(|`|"|'"'"')truncate[[:space:]]+TABLE\b'; then
   LEVEL="N1"
 fi
 # git push aceita -f, --force, --force-with-lease (com ou sem =branch)
@@ -92,10 +92,10 @@ if [ -z "$LEVEL" ] && match 'git[[:space:]]+push[[:space:]]+([^[:space:]]+[[:spa
 fi
 # rm de $HOME ou /tmp com flags variáveis
 # shellcheck disable=SC2016  # regex literal: casa a string '$HOME', não expande
-if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\)rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*\$HOME(/|[[:space:]]|$)'; then
+if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\|\(|`)rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*\$HOME(/|[[:space:]]|$)'; then
   LEVEL="N1"
 fi
-if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\)rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*/tmp(/|[[:space:]]|$)'; then
+if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\|\(|`)rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*/tmp(/|[[:space:]]|$)'; then
   LEVEL="N1"
 fi
 # Catch-all: rm com flag recursiva/força (-r, -f, -rf, -fr, --recursive,
@@ -107,7 +107,7 @@ fi
 # Fronteira de palavra obrigatória: sem ela, "deploy --confirm -f" e
 # "terraform -force x" batiam falsamente porque "confirm"/"terraform" contêm
 # "rm" como substring, seguido de "-f"/"-force" que a classe de flags aceita.
-if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\)rm[[:space:]]+(-[a-zA-Z]*[rf][a-zA-Z]*|--recursive|--force)\b'; then
+if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\|\(|`)rm[[:space:]]+(-[a-zA-Z]*[rf][a-zA-Z]*|--recursive|--force)\b'; then
   LEVEL="N1"
 fi
 
@@ -121,7 +121,7 @@ fi
 if [ "${PRUMO_APPROVE:-}" != "$LEVEL" ]; then
   CMD_PREVIEW=$(printf '%s' "$CMD" | head -c 100)
   cat >&2 <<EOF
-[hook] approval-gate · Operação ${LEVEL} detectada:
+[prumo-secops/approval-gate] Operação ${LEVEL} detectada:
   ${CMD_PREVIEW}
 
 Para autorizar, re-executa com:
@@ -145,7 +145,7 @@ fi
 # embutidas (URLs com user:pass, tokens) — nunca criar com permissões ambiente
 # (umask por defeito pode deixar o ficheiro world/group-readable).
 umask 077
-LOG_DIR="${PRUMO_LOG_DIR:-$HOME/.prumo/log}"
+LOG_DIR="$PRUMO_LOG_DIR"
 if mkdir -p "$LOG_DIR" 2>/dev/null; then
   # Redacta formas comuns de credencial antes de persistir: URLs com
   # user:pass@, Bearer tokens, token=..., VAULT_TOKEN=..., e o valor de -w
@@ -165,6 +165,6 @@ s/(-w)([[:space:]]+[^[:space:]]+)?/\1 ***/g
   echo "$(date -u +%FT%TZ) | level=$LEVEL | user=${USER:-unknown} | cmd=${CMD_LOG}" \
     >> "$LOG_DIR/approvals.log" 2>/dev/null || true
 fi
-echo "[hook] approval-gate · ${LEVEL} authorised by PRUMO_APPROVE env var · logged." >&2
+echo "[prumo-secops/approval-gate] ${LEVEL} authorised by PRUMO_APPROVE env var · logged." >&2
 
 exit 0

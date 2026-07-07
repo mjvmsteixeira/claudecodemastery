@@ -22,7 +22,7 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-cd "$REPO_ROOT"
+cd "$REPO_ROOT" || { echo "✗ cd para REPO_ROOT falhou: $REPO_ROOT" >&2; exit 2; }
 
 # ──────────────────────── args ────────────────────────
 OUT_DIR="/tmp"
@@ -69,7 +69,7 @@ for p in "${SELECTED[@]}"; do
     chmod +x "$p"/hooks/*.sh 2>/dev/null || true
   fi
 
-  ( cd "$p" && zip -r -q "$zip_path" . \
+  if ! ( cd "$p" && zip -r -q "$zip_path" . \
       -x "*.DS_Store" \
       -x "__MACOSX*" \
       -x "package.sh" \
@@ -85,8 +85,7 @@ for p in "${SELECTED[@]}"; do
       -x "*credentials.json" \
       -x ".credentials" \
       -x "vault-init.json" \
-      -x "*.orig" )
-  if [ $? -ne 0 ]; then
+      -x "*.orig" ); then
     echo "✗ zip falhou para ${plugin_name}" >&2
     exit 2
   fi

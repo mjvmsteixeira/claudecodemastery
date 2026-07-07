@@ -9,7 +9,7 @@
     {
       "name": "prumo-base",
       "source": "./base",
-      "description": "Plugin foundacional — vault-toolkit, skills mempalace-doctor e claude-deep-audit, helpers bash partilhados e hook SessionStart de auto-unseal. Instalar primeiro."
+      "description": "Plugin foundacional — vault-toolkit, doctors (prumo-doctor, mempalace-doctor, claude-deep-audit), gestão de modo operacional e telemetria dos guardrails, helpers bash partilhados e hooks SessionStart (auto-unseal) + PreToolUse (audit-guard). Instalar primeiro."
     },
     {
       "name": "prumo-secops",
@@ -19,7 +19,7 @@
     {
       "name": "prumo-devkit",
       "source": "./devkit",
-      "description": "Toolkit de auditoria de developer — full-audit, security-scan, infra-audit, ux-audit, code-quality, performance-audit, agente local-reviewer e ngrok-expose. Read-only por defeito; correcção opt-in via --apply com gates. Dependência soft do prumo-base."
+      "description": "Toolkit de auditoria de developer — full-audit, security-scan, infra-audit, ux-audit, code-quality, performance-audit, chrome-live (browser ao vivo via CDP, gated), agente local-reviewer e ngrok-expose. Read-only por defeito; correcção opt-in via --apply com gates. Dependência soft do prumo-base."
     },
     {
       "name": "prumo-craft",

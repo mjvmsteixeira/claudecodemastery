@@ -27,16 +27,23 @@ NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 entry=$(jq -c --arg fp "$FP" '.findings[$fp] // empty' "$STORE")
 [ -n "$entry" ] || { echo "fp desconhecido no store: $FP" >&2; exit 1; }
 
-# marca accepted
-tmp=$(mktemp)
+# marca accepted · mktemp no próprio STATE_DIR (mesmo filesystem do STORE) para
+# que o mv seja atómico — alinha com audit-reconcile.sh.
+tmp=$(mktemp "$STATE_DIR/.accept.XXXXXX")
 jq --arg fp "$FP" --arg r "$REASON" --arg now "$NOW" \
   '.findings[$fp].status="accepted" | .findings[$fp].accepted_reason=$r | .findings[$fp].accepted_at=$now' \
   "$STORE" > "$tmp" && mv "$tmp" "$STORE"
 
 # auto-promove ao rules-file (idempotente por fp)
-file=$(printf '%s' "$entry" | jq -r '.file')
-rule=$(printf '%s' "$entry" | jq -r '.rule')
-LINE="- \`${FP}\` · \`${file}\` · ${rule} — ${REASON} (aceite ${NOW%%T*})"
+# Sanitiza os campos antes de os escrever no rules-file: este ficheiro é lido
+# como regra de CONFIANÇA em audits futuros. Remove newlines/tabs (impede
+# injectar novas linhas ou headings markdown) e backticks (impede quebrar o
+# code-span e injectar formatação). FP é hex de 12 chars e NOW é data — seguros.
+_san() { printf '%s' "$1" | tr '\n\r\t' '   ' | tr -d '`'; }
+file=$(_san "$(printf '%s' "$entry" | jq -r '.file')")
+rule=$(_san "$(printf '%s' "$entry" | jq -r '.rule')")
+reason_s=$(_san "$REASON")
+LINE="- \`${FP}\` · \`${file}\` · ${rule} — ${reason_s} (aceite ${NOW%%T*})"
 if [ -f "$RULES_FILE" ] && grep -qF "$FP" "$RULES_FILE"; then
   echo "já promovido (fp $FP em $RULES_FILE) — idempotente." >&2
   exit 0

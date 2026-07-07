@@ -137,7 +137,7 @@ Linha proactiva: o que o município deveria fazer / melhorar do seu lado (forma�
 
 ## Referências
 
-- `references/dossier-template.docx` — template institucional.
+- `references/dossier-template.md` — template institucional.
 - `references/sla-calculation.md` — fórmula oficial Wire para cálculo de SLA.
 - `references/distribuicao-classificacao.md` — política de classificação e distribuição.
 - WIRE.PRC.AUD.004 — auditoria e retenção.

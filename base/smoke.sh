@@ -88,6 +88,31 @@ if [ -n "$manifest" ]; then
   done
 fi
 
+# 7. Cobertura: TODOS os commands presentes por nome (apanha rename/remoção)
+if [ -n "$manifest" ]; then
+  for cmd in prumo-context-pack prumo-doctor prumo-mode prumo-onboard prumo-smoke \
+             prumo-style prumo-telemetry prumo-upgrade prumo-vault-bootstrap \
+             prumo-vault-kv-migrate prumo-vault-policy vault-audit vault-backup \
+             vault-integrate vault-list vault-set; do
+    if [ -f "$plugin_root/commands/${cmd}.md" ]; then
+      ok "command /${cmd}"
+    else
+      fail "command /${cmd} ausente"
+    fi
+  done
+
+  # 8. Cobertura: TODAS as skills presentes por nome
+  for skill in claude-deep-audit mempalace-doctor prumo-context-pack prumo-doctor \
+               prumo-mode prumo-onboard prumo-smoke prumo-style prumo-upgrade \
+               prumo-vault-policy vault-toolkit; do
+    if [ -f "$plugin_root/skills/${skill}/SKILL.md" ]; then
+      ok "skill ${skill}"
+    else
+      fail "skill ${skill} ausente"
+    fi
+  done
+fi
+
 # Resumo
 echo
 echo "  passed=$PASSED  failed=$FAILED  warned=$WARNED"
