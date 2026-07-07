@@ -1,0 +1,30 @@
+{
+  "name": "prumo",
+  "owner": {
+    "name": "mjvmst",
+    "email": "mjvmst@gmail.com"
+  },
+  "description": "Marketplace privado prumo — ecossistema de plugins para Claude Code: prumo-base (foundacional), prumo-secops (SecOps SaaS eGovernment), prumo-devkit (toolkit de auditoria de developer) e prumo-craft (tooling generativo).",
+  "plugins": [
+    {
+      "name": "prumo-base",
+      "source": "./base",
+      "description": "Plugin foundacional — vault-toolkit, doctors (prumo-doctor, mempalace-doctor, claude-deep-audit), gestão de modo operacional e telemetria dos guardrails, helpers bash partilhados e hooks SessionStart (auto-unseal) + PreToolUse (audit-guard). Instalar primeiro."
+    },
+    {
+      "name": "prumo-secops",
+      "source": "./secops",
+      "description": "Plugin SecOps — Vault, Wazuh, Fortigate, Zabbix, RoR multi-tenant para a Wire enquanto fornecedora SaaS de eGovernment. Assume prumo-base instalado."
+    },
+    {
+      "name": "prumo-devkit",
+      "source": "./devkit",
+      "description": "Toolkit de auditoria de developer — full-audit, security-scan, infra-audit, ux-audit, code-quality, performance-audit, chrome-live (browser ao vivo via CDP, gated), agente local-reviewer e ngrok-expose. Read-only por defeito; correcção opt-in via --apply com gates. Dependência soft do prumo-base."
+    },
+    {
+      "name": "prumo-craft",
+      "source": "./craft",
+      "description": "Tooling generativo — html-plan (HTML designed em 2 fases com disciplina anti-AI-slop: 8px grid, contraste WCAG AA, real data, 5 surfaces). Standalone, zero deps externas."
+    }
+  ]
+}

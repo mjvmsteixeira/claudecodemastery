@@ -1,0 +1,40 @@
+# ============================================================
+# WHITELIST MODE — só o marketplace e os quatro plugins prumo (base, secops, devkit, craft).
+# Tudo o resto fica IGNORADO por defeito.
+# ============================================================
+
+# 1. Ignora absolutamente tudo
+/*
+
+# 2. Whitelist apenas estes paths
+!.gitignore
+!README.md
+!CHANGELOG.md
+!CLAUDE.md
+!LICENSE
+!.claude-plugin/
+!base/
+!secops/
+!devkit/
+!craft/
+!scripts/
+!.github/
+
+# 3. Detritos ignorados em qualquer subpasta
+**/.DS_Store
+**/__MACOSX
+**/*.log
+**/*.bak
+**/*~
+**/*.plugin
+secops/.orphaned_at
+scripts/eval/candidates.jsonl
+
+# 3b. Segredos — nunca trackar mesmo dentro dos dirs whitelisted acima
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*credentials*
+**/vault-init.json
+**/id_rsa*

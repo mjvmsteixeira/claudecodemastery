@@ -1,0 +1,17 @@
+{
+  "description": "prumo-devkit · verifica plugins recomendados (prumo-base) ao iniciar a sessão.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/check-recommends.sh",
+            "timeout": 3,
+            "statusMessage": "devkit · check-recommends"
+          }
+        ]
+      }
+    ]
+  }
+}
