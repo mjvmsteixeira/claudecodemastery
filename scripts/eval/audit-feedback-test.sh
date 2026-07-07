@@ -77,5 +77,31 @@ if [ "$(status_of "$FA")" = "accepted" ]; then ok "aceite: A mantém-se accepted
 if printf '%s' "$OUT4" | grep -q "aceites(suprimidos): 1"; then ok "aceite: contado como suprimido"; else bad "aceite: não suprimido"; fi
 if printf '%s' "$OUT4" | grep -vqE "^  \[high\] $FA "; then ok "aceite: A não listado nos novos/recorrentes"; else bad "aceite: A ainda listado"; fi
 
+
+# ── camada 2: accept + auto-promoção ──────────────────────────────────────────
+ACCEPT="$REPO_ROOT/devkit/lib/audit-accept.sh"
+# estado limpo com um finding conhecido
+rm -rf "$SANDBOX/state"; RULES="$SANDBOX/rules/audit/security.md"; rm -f "$RULES"
+G='{"file":"src/g.py","rule":"A05-misconfig","symbol":"gg","severity":"medium","title":"CORS aberto"}'
+runrec "$(mkfind "$G")" >/dev/null 2>&1
+FG=$(jq -r '.findings|keys[0]' "$STORE")
+
+bash "$ACCEPT" --state-dir "$SANDBOX/state" --rules-file "$RULES" "$FG" "interno, sem exposição" >/dev/null 2>&1
+if [ "$(status_of "$FG")" = "accepted" ]; then ok "accept: status=accepted no store"; else bad "accept: status não mudou"; fi
+if [ "$(jq -r --arg fp "$FG" '.findings[$fp].accepted_reason' "$STORE")" = "interno, sem exposição" ]; then ok "accept: razão gravada"; else bad "accept: razão não gravada"; fi
+if [ -f "$RULES" ] && grep -qF "$FG" "$RULES"; then ok "accept: auto-promovido ao rules-file"; else bad "accept: rules-file sem o fp"; fi
+if grep -qE '^## Excepções autorizadas \(auto\)' "$RULES"; then ok "accept: secção criada no rules-file"; else bad "accept: secção ausente"; fi
+
+# idempotente: aceitar de novo não duplica
+bash "$ACCEPT" --state-dir "$SANDBOX/state" --rules-file "$RULES" "$FG" "outra vez" >/dev/null 2>&1
+if [ "$(grep -cF "$FG" "$RULES")" = "1" ]; then ok "accept: idempotente (1 linha)"; else bad "accept: duplicou no rules-file"; fi
+
+# aceite é suprimido na corrida seguinte
+OUT5=$(runrec "$(mkfind "$G")" 2>&1)
+if printf '%s' "$OUT5" | grep -q "aceites(suprimidos): 1"; then ok "accept: suprimido na corrida seguinte"; else bad "accept: não suprimido pós-accept"; fi
+
+# fp inexistente → erro
+if bash "$ACCEPT" --state-dir "$SANDBOX/state" --rules-file "$RULES" "deadbeef0000" "x" >/dev/null 2>&1; then bad "accept: fp inexistente devia falhar"; else ok "accept: fp inexistente rejeitado"; fi
+
 echo
 if [ "$FAILS" -eq 0 ]; then echo "✓ audit-feedback-test (reconciliador) passou."; else echo "✗ $FAILS falha(s)."; exit 1; fi
