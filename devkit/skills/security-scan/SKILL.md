@@ -69,6 +69,23 @@ Para cada scope activo, carregar a reference e aplicar as verificações:
 | `iac` | `references/iac-checks.md` | Terraform/Ansible/K8s/Compose |
 | `config` | `references/runtime-config.md` | Headers, TLS, rate limiting, .gitignore |
 
+**Motor de `code` (preferir AST a grep):**
+
+Se `command -v semgrep`, é o motor primário — cobre A01–A10 com regras AST (menos
+falsos-positivos que grep):
+
+```bash
+semgrep --config p/owasp-top-ten --config p/secrets --sarif --quiet . > /tmp/semgrep.sarif 2>/dev/null
+```
+
+Converter cada resultado SARIF num finding: `file`/linha do `physicalLocation`, `rule`
+do `ruleId`, `severity` mapeada (`ERROR→high|critical`, `WARNING→medium`, `INFO→low`),
+`cwe` das `tags`/`properties` da regra (Semgrep expõe CWE nos metadados), `engine:"semgrep"`.
+
+**Sem semgrep → fallback:** aplicar os patterns de grep de `references/owasp-top10.md`,
+marcando `engine:"grep"`. O fallback grep é mais ruidoso — a verificação do Passo 3c é
+ainda mais importante nesse caso.
+
 Para o scope `code`, lançar agentes em paralelo (um por grupo de subsecções OWASP) se o
 codebase for grande.
 
