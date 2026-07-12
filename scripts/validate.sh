@@ -392,6 +392,21 @@ if [ -z "$ONLY_PLUGIN" ] && [ -x "$REPO_ROOT/scripts/eval/run.sh" ]; then
       fail "audit-feedback-test falhou — corre ./scripts/eval/audit-feedback-test.sh"
     fi
   fi
+
+  # security-scan eval — camada determinística (semgrep/gitleaks vs fixtures).
+  # Soft-deps: sem scanners o próprio teste faz skip reportado (exit 0) e aqui vira info,
+  # nunca pass falso nem fail. Só falha se um scanner presente não disparar numa fixture.
+  if [ -x "$REPO_ROOT/scripts/eval/security-scan-test.sh" ]; then
+    if command -v semgrep >/dev/null 2>&1 || command -v gitleaks >/dev/null 2>&1; then
+      if "$REPO_ROOT/scripts/eval/security-scan-test.sh" >/dev/null 2>&1; then
+        pass "security-scan eval verde (fixtures → findings determinísticos)"
+      else
+        fail "security-scan eval falhou — corre ./scripts/eval/security-scan-test.sh"
+      fi
+    else
+      info "security-scan eval saltado (semgrep/gitleaks ausentes)"
+    fi
+  fi
 fi
 
 # ──────────────────────── resumo ────────────────────────

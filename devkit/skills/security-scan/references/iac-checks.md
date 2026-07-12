@@ -4,7 +4,8 @@ Referência carregada pela skill `security-scan` quando o scope inclui `iac`.
 Para auditoria de infra operacional (não-segurança), ver a skill `infra-audit`.
 
 **Terraform:**
-- `tflint`, `tfsec`, `checkov -d .`
+- `tflint`, `checkov -d .`
+- `trivy config .`  (Terraform/IaC misconfig; substitui o `tfsec` deprecado — absorvido pelo Trivy)
 - Recursos públicos sem necessidade (S3 ACL public, RDS publicly_accessible)
 - Encryption at rest desactivada
 - IAM policies com `Action: "*"` ou `Resource: "*"`

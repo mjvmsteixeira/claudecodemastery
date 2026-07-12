@@ -9,7 +9,8 @@ Correr o scanner adequado para cada stack detectado:
 ```bash
 # Python
 pip-audit -r requirements.txt --format columns
-safety check -r requirements.txt
+safety scan
+# (safety check está deprecado desde a v3 — usar safety scan)
 # (se não instalados: pip install pip-audit safety)
 
 # Node.js

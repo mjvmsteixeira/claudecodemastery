@@ -1,0 +1,12 @@
+# gitleaks config do repo prumo.
+# Estende o ruleset default e allowlista as fixtures do eval do security-scan —
+# secrets FAKE (alta entropia, aleatorios), nunca credenciais reais. Allowlist por
+# directorio (resiliente a mudancas de conteudo, ao contrario de fingerprints por linha).
+title = "prumo gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "eval fixtures do security-scan — secrets FAKE, nunca reais"
+paths = ['''scripts/eval/security-scan-fixtures/.*''']
