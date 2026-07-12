@@ -50,6 +50,18 @@ Procurar manifests para identificar linguagens e ferramentas. Indicadores:
 (Kubernetes), `playbooks/`/`roles/`/`inventories/` (Ansible), `.github/workflows/`
 (GitHub Actions), `.gitlab-ci.yml` (GitLab CI).
 
+**Auto-load de references por sinal** (carregar em adição às de scope, sem novos scopes CLI):
+
+| Sinal detectado | Reference a carregar |
+|-----------------|----------------------|
+| `.github/workflows/*.yml`, `.gitlab-ci.yml` | `references/cicd-supply-chain.md` |
+| `Dockerfile*`, `docker-compose*.yml` | `references/container-image.md` |
+| Rotas REST / controllers / schema GraphQL / OpenAPI | `references/owasp-api-top10.md` |
+| SDK `anthropic`/`openai`/`langchain`, prompts, agentes | `references/owasp-llm-top10.md` |
+
+Estas references são conteúdo de análise, não scopes — carregam-se automaticamente
+quando o sinal existe, e degradam para análise do modelo se a ferramenta associada faltar.
+
 ### 2. Carregar regras do projecto
 
 Se existir `rules/audit/security.md` na raiz do projecto auditado, ler e incorporar nas
