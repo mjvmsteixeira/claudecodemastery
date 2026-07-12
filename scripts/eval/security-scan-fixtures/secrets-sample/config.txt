@@ -1,4 +1,7 @@
 # FIXTURE — secrets FAKE para testar deteccao. Nenhum e real/valido.
-aws_key = AKIAIOSFODNN7EXAMPLE
-github_pat = ghp_0000000000000000000000000000000000AA
-generic = sk-proj-000000000000000000000000000000000000000000000000
+# Valores de alta entropia (aleatorios) que casam a forma do provider mas nao sao
+# credenciais reais — existem so para exercitar o gitleaks no eval.
+aws_key = AKIAZ7Q9X2MNP4WK8RTV
+aws_secret_access_key = wJ8rT2xK9pL4mN7qV3zB6cY1dF5gH0aQ2eR8uS4t
+github_pat = ghp_R8kL2mN9pQ4vX7wZ3aB6cD1eF5gH0jK4tY2uW
+generic_token = sk-proj-Xq7Lm2Np9Rv4Wz8Ba6Cd1Ef5Gh0Jk4Ty2Uw7Ss3Aa8Bb
