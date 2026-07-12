@@ -143,17 +143,23 @@ As dimensões são os scopes avaliados.
   SARIF adicional (audit de código), exit code conforme severidade, sem auto-fix.
 - Com `export-report`: gravar em `docs/security/SECURITY_REPORT_<YYYY-MM-DD>.md`.
 
+Cada finding no relatório mostra o `cwe` (quando conhecido) e o estado de verificação
+(`verified`/`confidence`) — findings `verified:false` aparecem sempre despromovidos, nunca
+como CRITICAL/HIGH.
+
 ### 5b. Estado (loop de feedback — Fase 04)
 
 Depois de produzir os findings, dar-lhes estado entre corridas (novo/recorrente/
 corrigido) e suprimir falsos-positivos já aceites:
 
 1. Emitir os findings desta corrida como **JSONL** para um ficheiro temporário — uma
-   linha por finding, com os campos: `audit` (=`"security-scan"`), `file`, `rule`
-   (id estável do tipo de vuln, ex.: `A01-broken-access-control`), `severity`
-   (`critical|high|medium|low`), `title`, e opcionalmente `symbol` (função/classe) e
-   `detail`. Exemplo de uma linha:
-   `{"audit":"security-scan","file":"src/auth.py","rule":"A01-broken-access-control","symbol":"admin_delete","severity":"high","title":"endpoint /admin sem auth"}`
+   linha por finding, com os campos obrigatórios: `audit` (=`"security-scan"`), `file`,
+   `rule` (id estável do tipo de vuln, ex.: `A03-injection`), `severity`
+   (`critical|high|medium|low`), `title`. Opcionais: `cwe` (ex.: `"CWE-89"` — usar
+   sempre que conhecido, melhora dedup e SARIF), `symbol` (função/classe), `detail`,
+   `verified` (`true|false` do Passo 3c), `confidence` (`high|medium|low`),
+   `engine` (`semgrep|grep|gitleaks|trufflehog|llm`). Exemplo:
+   `{"audit":"security-scan","file":"src/auth.py","rule":"A03-injection","cwe":"CWE-89","symbol":"get_user","severity":"high","title":"SQLi via f-string","verified":true,"confidence":"high","engine":"semgrep"}`
 
 2. Localizar e correr o reconciliador (store committed no repo auditado, `.prumo-audit/`):
    ```bash
