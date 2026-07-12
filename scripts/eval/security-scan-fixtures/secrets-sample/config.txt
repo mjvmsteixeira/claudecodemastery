@@ -1,0 +1,4 @@
+# FIXTURE — secrets FAKE para testar deteccao. Nenhum e real/valido.
+aws_key = AKIAIOSFODNN7EXAMPLE
+github_pat = ghp_0000000000000000000000000000000000AA
+generic = sk-proj-000000000000000000000000000000000000000000000000

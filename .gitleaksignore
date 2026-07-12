@@ -1,0 +1,2 @@
+# Fixtures do eval do security-scan — secrets FAKE, nunca reais.
+scripts/eval/security-scan-fixtures/secrets-sample/config.txt

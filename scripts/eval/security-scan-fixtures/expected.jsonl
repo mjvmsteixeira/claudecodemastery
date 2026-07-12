@@ -1,0 +1,6 @@
+{"fixture":"vuln-python/app.py","rule":"sql-injection","cwe":"CWE-89","should_fire":true,"engine":"semgrep"}
+{"fixture":"vuln-python/app.py","rule":"command-injection","cwe":"CWE-78","should_fire":true,"engine":"semgrep"}
+{"fixture":"vuln-python/app.py","rule":"code-injection-eval","cwe":"CWE-94","should_fire":true,"engine":"semgrep"}
+{"fixture":"secrets-sample/config.txt","rule":"aws-access-key","cwe":"CWE-798","should_fire":true,"engine":"gitleaks"}
+{"fixture":"secrets-sample/config.txt","rule":"github-pat","cwe":"CWE-798","should_fire":true,"engine":"gitleaks"}
+{"fixture":"clean-sample/app.py","rule":"any","should_fire":false,"engine":"semgrep"}
