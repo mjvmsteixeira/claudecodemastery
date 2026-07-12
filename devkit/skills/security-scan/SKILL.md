@@ -195,7 +195,7 @@ corrigido) e suprimir falsos-positivos já aceites:
    (`critical|high|medium|low`), `title`. Opcionais: `cwe` (ex.: `"CWE-89"` — usar
    sempre que conhecido, melhora dedup e SARIF), `symbol` (função/classe), `detail`,
    `verified` (`true|false` do Passo 3c), `confidence` (`high|medium|low`),
-   `engine` (`semgrep|grep|gitleaks|trufflehog|llm`). Exemplo:
+   `engine` (`semgrep|grep|gitleaks|trufflehog|hadolint|trivy|actionlint|llm`). Exemplo:
    `{"audit":"security-scan","file":"src/auth.py","rule":"A03-injection","cwe":"CWE-89","symbol":"get_user","severity":"high","title":"SQLi via f-string","verified":true,"confidence":"high","engine":"semgrep"}`
 
 2. Localizar e correr o reconciliador (store committed no repo auditado, `.prumo-audit/`):
