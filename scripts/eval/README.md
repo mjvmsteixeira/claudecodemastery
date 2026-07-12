@@ -75,6 +75,13 @@ rede). A lógica de *decisão* (safe/unsafe/uncertain) e a resistência a injeç
 vivem no `second-opinion-livetest.sh` (opcional, precisa de `python3`), que sobe
 um stub HTTP — nunca há um seam de teste dentro do hook de produção.
 
+## security-scan eval
+
+- `security-scan-test.sh` — camada determinística do eval da skill `security-scan`:
+  corre semgrep/gitleaks contra `security-scan-fixtures/` e compara com `expected.jsonl`.
+  Soft-deps: sem scanners faz skip reportado (exit 0). A camada de verificação LLM da
+  skill fica **fora** deste gate por não ser deterministicamente testável.
+
 ## Como ler o resultado
 
 Matriz de confusão (positivo = bloquear = ameaça):
