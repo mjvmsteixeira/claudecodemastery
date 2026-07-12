@@ -22,6 +22,24 @@ Auditoria de segurança linguagem-agnóstica. Read-only por defeito.
 
 ## Metodologia
 
+### 0. Deteção de tooling
+
+Os scanners externos são opcionais. No início, detectar quais existem e reportá-lo
+ao utilizador (uma linha), degradando graciosamente para análise do modelo quando
+faltarem — nunca assumir que um scanner está instalado, nunca crashar por ausência.
+
+```bash
+echo "── Tooling de segurança detectado ──"
+for t in semgrep gitleaks trufflehog trivy grype hadolint pip-audit npm; do
+  command -v "$t" >/dev/null 2>&1 && echo "  ✓ $t" || echo "  ✗ $t (ausente — fallback)"
+done
+```
+
+Regra: cada scanner ausente degrada a sua dimensão para **análise do modelo** (grep/leitura
+com os patterns das references), marcando os findings dessa dimensão com `engine:"grep"`/
+`engine:"llm"`. Um scan sem nenhum scanner externo é válido (fallback total) mas o relatório
+deve dizê-lo explicitamente ("scanners ausentes — análise estática do modelo").
+
 ### 1. Detectar stack
 
 Procurar manifests para identificar linguagens e ferramentas. Indicadores:
