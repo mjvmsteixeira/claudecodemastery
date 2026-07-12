@@ -89,6 +89,31 @@ ainda mais importante nesse caso.
 Para o scope `code`, lançar agentes em paralelo (um por grupo de subsecções OWASP) se o
 codebase for grande.
 
+**Motor de `secrets` (preferir scanners verificados a regex):**
+
+Se `command -v gitleaks` ou `command -v trufflehog`, são o motor primário — reduzem
+falsos-positivos porque validam a credencial:
+
+```bash
+# gitleaks — filesystem + git history, redacted
+command -v gitleaks >/dev/null 2>&1 && \
+  gitleaks detect --no-banner --redact --report-format json --report-path /tmp/gitleaks.json 2>/dev/null
+
+# trufflehog — só o que confirma como vivo (--only-verified)
+command -v trufflehog >/dev/null 2>&1 && \
+  trufflehog filesystem . --only-verified --json 2>/dev/null > /tmp/trufflehog.json
+```
+
+Converter cada resultado num finding com `engine:"gitleaks"` ou `engine:"trufflehog"`,
+`severity:"critical"` (credencial confirmada é sempre critical), `cwe:"CWE-798"`
+(Use of Hard-coded Credentials). Um secret `--only-verified` já vem `verified:true`.
+
+**Sem nenhum scanner → fallback:** aplicar a tabela de regexes de
+`references/secrets-patterns.md` (`engine:"grep"`), que é mais ruidosa — cada match precisa
+de confirmação manual (é um placeholder? um exemplo? uma chave revogada?) antes de reportar
+como critical. **Secrets nunca são auto-corrigidos** — rotação + remoção do git history é
+sempre acção humana.
+
 ### 3b. Verificação ao vivo (opcional, via `chrome-live`)
 
 Se a skill `chrome-live` estiver disponível **e** houver uma tab relevante aberta,
