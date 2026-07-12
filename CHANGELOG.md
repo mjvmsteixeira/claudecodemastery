@@ -2,7 +2,11 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `craft/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.5.0 · prumo-secops 0.5.0 · prumo-devkit 0.5.0 · prumo-craft 0.5.0** (tag única de marketplace `v0.5.0`)
+Estado actual: **prumo-base 0.5.0 · prumo-secops 0.5.0 · prumo-devkit 0.5.1 · prumo-craft 0.5.0** (tag `v0.5.1`)
+
+## 2026-07-12 · `v0.5.1` · prumo-devkit 0.5.1
+
+**security-scan v2.** Eleva a skill `security-scan` do devkit de checklist-grep para motor com análise AST (Semgrep primário + fallback grep), verificação adversarial de findings (Passo 3c), secrets via `gitleaks`/`trufflehog --only-verified` + entropia, deteção de tooling (Passo 0, soft-deps), 4 references novas auto-load por stack (CI/CD supply-chain, container, OWASP API/LLM Top 10), mapeamento CWE e um eval-harness determinístico próprio (fixtures→`expected.jsonl`) ligado ao `validate.sh` com skip honesto. Disciplina read-only/safe-apply intacta. Detalhe em `devkit/CHANGELOG.md`.
 
 ## 2026-07-07 · release coordenado `v0.5.0`
 

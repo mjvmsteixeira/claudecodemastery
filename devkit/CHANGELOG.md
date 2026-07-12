@@ -2,6 +2,20 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.5.1 — 2026-07-12
+
+**security-scan v2 — motor AST, verificação adversarial e rede de regressão própria.**
+
+- **Motor Semgrep primário** para `scope=code` (`p/owasp-top-ten`, SARIF→findings) com fallback grep quando ausente; findings ganham `engine` (`semgrep|grep|gitleaks|trufflehog|hadolint|trivy|actionlint|llm`).
+- **Passo 3c — verificação adversarial:** cada finding é refutado (reachability, exclusão de test/vendor/fixtures, já-mitigado) antes de reportar; ganha `verified`+`confidence`; `verified:false` nunca aparece como CRITICAL/HIGH.
+- **Secrets via scanners verificados:** `gitleaks`/`trufflehog --only-verified` como motor primário + entropia; tabela de regexes passa a fallback, com formatos atualizados (`sk-proj-`, `sk-svcacct-`, `github_pat_`, Stripe restricted).
+- **Passo 0 — deteção de tooling:** `command -v` sobre os scanners com degradação graciosa (soft-deps, nunca assumidos).
+- **4 references novas** auto-carregadas por sinal de stack: `cicd-supply-chain.md`, `container-image.md`, `owasp-api-top10.md`, `owasp-llm-top10.md`.
+- **Campo CWE** nos findings, no schema JSONL do loop de feedback e no relatório.
+- **Eval-harness determinístico:** `scripts/eval/security-scan-test.sh` + fixtures→`expected.jsonl`, ligado ao `validate.sh` com skip reportado (sem scanners dá `info`, nunca falso-verde). Fixtures de secrets fake excluídas do gitleaks do repo via `.gitleaks.toml`.
+- **Rot:** `tfsec`→`trivy config`, `safety check`→`safety scan`.
+- Disciplina read-only/safe-apply (Passo 6 + 3 gates) preservada intacta.
+
 ## v0.5.0 — 2026-07-07
 
 **Loop de feedback nos audits + hardening.**
