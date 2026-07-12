@@ -108,6 +108,29 @@ Receitas em `chrome-live/references/verbs.md`: cookies de sessão visíveis a JS
 Marcar cada finding ao vivo como tal (URL/tab) para distinguir dos estáticos. Nunca tratar
 a verificação ao vivo como substituto do scan estático.
 
+### 3c. Verificação adversarial de findings
+
+Antes de reportar, cada candidato passa por verificação — um pattern-match não é uma
+vulnerabilidade. Para cada finding, tentar **refutá-lo**:
+
+1. **Reachability:** o input do atacante chega ao sink? Traçar a origem do dado
+   (parâmetro de request, ficheiro, env) até ao sink (query, `eval`, comando). Se o
+   valor é constante/interno controlado pelo código, não é injeção real.
+2. **Exclusão de contexto não-produtivo:** o finding está em `test/`, `spec/`,
+   `__tests__/`, `fixtures/`, `examples/`, `vendor/`, `node_modules/`, ou num ficheiro
+   `*.example`? Então é ruído — dropar ou marcar `severity:low` com nota.
+3. **Já mitigado:** existe sanitização/validação/prepared-statement/escaping no caminho
+   antes do sink? Existe um decorator de auth acima do endpoint? Se sim, dropar.
+
+Resultado por finding: `verified:true` (sobrevive à refutação) ou `verified:false`
+(não sobrevive). **Regra dura:** nenhum finding `verified:false` é apresentado como
+CRITICAL ou HIGH — ou é despromovido a `low` com a razão, ou é dropado. `confidence`
+∈ `high|medium|low` reflecte a força da verificação.
+
+**Codebases grandes:** verificar em paralelo — um agente por lote de findings, cada um
+instruído a refutar (não a confirmar). Só sobrevive o que resistir. Isto espelha a
+verificação adversarial dos hooks de segurança.
+
 ### 4. Scoring
 
 Calcular o score por dimensão e total conforme `${CLAUDE_PLUGIN_ROOT}/shared/scoring.md`.
