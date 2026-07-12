@@ -9,4 +9,5 @@ sintáticos fake que disparam por forma, nunca por validação viva.
 - `clean-sample/` — controlo negativo: nada deve disparar.
 - `expected.jsonl` — verdade-base: `{fixture,rule,cwe,should_fire,engine}` por expectativa.
 
-Estas fixtures estão excluídas do gitleaks do próprio repo via `.gitleaksignore`.
+Estas fixtures estão excluídas do gitleaks do próprio repo via `.gitleaks.toml`
+(allowlist por directório, resiliente a mudanças de conteúdo).

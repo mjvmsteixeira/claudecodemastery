@@ -8,7 +8,7 @@
 
 # 2. Whitelist apenas estes paths
 !.gitignore
-!/.gitleaksignore
+!/.gitleaks.toml
 !README.md
 !CHANGELOG.md
 !CLAUDE.md
