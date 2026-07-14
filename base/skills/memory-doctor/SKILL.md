@@ -184,7 +184,32 @@ Emoji **só** no relatório (✅ / ⚠️ / 🚨 / ℹ️), nunca fora dele.
 
 ## 4. Governança (`--apply`)
 
-Ver `references/routing-rule.md` (Fase 3). **Antes de aplicar qualquer alteração, executar os 3 gates** (secção acima).
+**Read-only por defeito.** Sem `--apply`, a skill reporta e pára. É aqui — e só aqui — que o doctor vira **router**.
+
+**Antes de aplicar qualquer alteração, executar os 3 gates da secção "Gates" desta skill:**
+Gate 1 (modo operacional — em `dev` degrada para report-only), Gate 2 (sample/empty-shell detection), Gate 3 (confirmação humana individual, com diff, para acções destrutivas).
+
+Os gates são **inline** — o `prumo-base` é foundacional e não depende do devkit (onde vive o `shared/safe-apply.md`).
+
+O router só age sobre colisões que o **árbitro detectou**. Cada acção é confirmada individualmente.
+
+| Colisão | Acção do `--apply` | Destrutivo? |
+|---|---|---|
+| C1 mandatos concorrentes | `graphify claude uninstall`, depois escrever o bloco único de `references/routing-rule.md` no CLAUDE.md (idempotente, marcadores versionados) | Sim — altera o CLAUDE.md do utilizador. **Gate 3: mostrar diff e confirmar.** |
+| C2 PreToolUse sobre `Read`/`Glob` | `graphify claude uninstall` (remove hook + secção) | Sim — Gate 3 |
+| C3 mining em `--mode projects` | Documentar `--mode convos` como obrigatório; **não** apaga o que já foi indexado | Não (só documenta) |
+| C4 ambições episódicas | Nomear os ficheiros a remover (`graphify-out/memory/`, `reflections/LESSONS.md`, overlays). **A remoção é do utilizador** — a skill não apaga corpus. | Não executa |
+| C6 `.claudeignore` | Acrescentar `graph.json` e `graphify-out/` | Sim (edita `.claudeignore` — é path protegido) — Gate 3 |
+| C7 âmbito global | Nomear `graphify global remove <tag>` | Não executa |
+
+**Instalação/upgrade (da Fase 0)** também passa por aqui: `uv tool install graphifyy==<ver>` (pinado, nunca `graphify`) e `graphify hook install` — cada um confirmado.
+
+### O que o router NUNCA faz
+
+- Correr `graphify claude install` — faz o **oposto** (uninstall + regra nossa).
+- Apagar corpus, índices ou drawers do utilizador.
+- Actualizar uma ferramenta automaticamente.
+- Fazer append cego no CLAUDE.md — a escrita é sempre por marcadores, idempotente.
 
 ## Thresholds
 
