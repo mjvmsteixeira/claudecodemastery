@@ -12,6 +12,15 @@
 # assenta em env vars que o próprio agente gated consegue definir. A barreira humana real
 # é o prompt de permissão da tool Bash do Claude Code.
 #
+# Âmbito da deteção (fronteira deliberada, não omissão): casa correspondência TEXTUAL
+# sobre as formas naturais e ofuscações leves — aspas, backslash, continuação de linha,
+# `$(...)`/backtick/`<(...)`/`>(...)`, `${IFS}`, e execução via wrapper/alias. NÃO é um
+# parser de shell: constructos que só produzem o separador em runtime a partir de estado
+# arbitrário (ex.: `X=' '; graphify${X}reflect`, ou split de variável definida antes) não
+# são cobertos — exigiriam reimplementar o shell, e caem no lado do modelo de confiança
+# onde o prompt de permissão humano é a barreira. O alvo real é o agente a emitir a forma
+# natural do comando errado, não um humano a forjar evasão (esse tem o bypass abaixo).
+#
 # Bypass (audit-tracked): PRUMO_MEMORY_SCOPE_BYPASS=1
 
 set -euo pipefail
