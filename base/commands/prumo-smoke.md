@@ -10,7 +10,7 @@ Executa o `smoke.sh` de cada plugin instalado. Read-only. Sai com código 0 se t
 
 ## Diferença vs `/prumo-doctor`
 
-- **`/prumo-doctor`** — meta-doctor que **orquestra** outras skills (mempalace-doctor, claude-deep-audit, /vault-audit, /prumo-vault-doctor). Mais pesado, abrangente, **read-only**. Foca em "o setup está saudável e operacional?".
+- **`/prumo-doctor`** — meta-doctor que **orquestra** outras skills (memory-doctor, claude-deep-audit, /vault-audit, /prumo-vault-doctor). Mais pesado, abrangente, **read-only**. Foca em "o setup está saudável e operacional?".
 - **`/prumo-smoke`** — corre o `smoke.sh` de cada plugin. Mais rápido, foca em "o plugin foi instalado correctamente? as libs carregam, os hooks têm permissões, ferramentas opcionais estão presentes?".
 
 Usar `/prumo-smoke` logo após `/plugin install`. Usar `/prumo-doctor` para uma sessão de manutenção.

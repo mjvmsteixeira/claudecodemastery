@@ -114,7 +114,7 @@ One-liners úteis:
 
 Skills (auto-trigger) — setup local:
   · claude-deep-audit    (base)  — auditoria da config Claude Code (10 sub-agentes)
-  · mempalace-doctor     (base)  — saúde do MemPalace
+  · memory-doctor        (base)  — saúde da memória (episódica/estrutural/humana)
   · vault-toolkit        (base)  — segredos do projecto
 
 Skills (auto-trigger) — projecto:

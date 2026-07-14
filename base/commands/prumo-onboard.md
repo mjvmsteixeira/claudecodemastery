@@ -49,7 +49,7 @@ Para cada plugin **não instalado** detectado no Passo 1, imprimir o bloco corre
 /plugin install prumo-base@prumo
 ```
 
-O `prumo-base` traz: `vault-toolkit` (5 commands `/vault-*`), skills `mempalace-doctor` e `claude-deep-audit`, hook `SessionStart` de auto-unseal do Vault local, libs partilhadas (`lib/vault-env.sh`, `lib/prumo-common.sh`).
+O `prumo-base` traz: `vault-toolkit` (5 commands `/vault-*`), skills `memory-doctor` e `claude-deep-audit`, hook `SessionStart` de auto-unseal do Vault local, libs partilhadas (`lib/vault-env.sh`, `lib/prumo-common.sh`).
 
 **Se `prumo-secops` em falta** (precisa do base):
 
@@ -132,7 +132,7 @@ Se **todos os plugins recomendados** detectados no Passo 1 estiverem instalados 
 Próximo · sanity check completo do setup:
   /prumo-doctor
 
-Read-only · orquestra mempalace-doctor + claude-deep-audit + /vault-audit
+Read-only · orquestra memory-doctor + claude-deep-audit + /vault-audit
 + /prumo-vault-doctor (se secops instalado) em paralelo, consolida num
 relatório único.
 ```

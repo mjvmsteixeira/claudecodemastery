@@ -1,6 +1,6 @@
 ---
 name: prumo-doctor
-description: Meta-doctor — orquestra mempalace-doctor, claude-deep-audit, /vault-audit e (se prumo-secops instalado) /prumo-vault-doctor numa única corrida; consolida num relatório de saúde do setup local. Read-only.
+description: Meta-doctor — orquestra memory-doctor, claude-deep-audit, /vault-audit e (se prumo-secops instalado) /prumo-vault-doctor numa única corrida; consolida num relatório de saúde do setup local. Read-only.
 allowed-tools: Bash, Read, Grep
 ---
 
@@ -53,7 +53,7 @@ Lançar em paralelo os doctors aplicáveis:
 
 | Doctor | Domínio | Condição |
 |--------|---------|----------|
-| `mempalace-doctor` (skill, base) | Saúde do MemPalace local | `HAS_BASE && HAS_MEMPALACE` |
+| `memory-doctor` (skill, base) | Saúde do MemPalace local | `HAS_BASE && HAS_MEMPALACE` |
 | `claude-deep-audit` (skill, base) | Auditoria profunda da configuração Claude Code | `HAS_BASE` |
 | `/vault-audit` (command, base) | Health da integração Vault local do projecto actual | `HAS_BASE` |
 | `/prumo-vault-doctor` (command, secops) | Diagnóstico do Vault de **produção** do SaaS | `HAS_SECOPS` (e fora da VPN: pode reportar inacessível) |
@@ -77,7 +77,7 @@ TOOLS DETECTADAS:
 
 ────────────────────────────────────────
 MemPalace · status: <verde|amarelo|vermelho>
-  <resumo do mempalace-doctor>
+  <resumo do memory-doctor>
   Top acções: ...
 
 Claude Code config · status: ...

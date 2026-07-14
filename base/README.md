@@ -16,13 +16,13 @@ Plugin foundacional. 15 commands e 11 skills que assentam em convenções partil
 
 | Componente | Tipo | Domínio |
 |------------|------|---------|
-| **mempalace-doctor** | skill | Saúde do tool MemPalace (vector DB com drawers/HNSW/KG em `~/.mempalace/`) |
+| **memory-doctor** | skill | Auditoria e governança do setup de memória em 3 camadas disjuntas (episódica/MemPalace, estrutural/Graphify, humana/docs). Inventaria e provisiona, arbitra colisões, propõe a regra de encaminhamento. Absorve o antigo `mempalace-doctor`. |
 | **claude-deep-audit** | skill | Auditoria profunda Claude Code via 10 sub-agentes paralelos (CLAUDE.md, settings, skills, hooks, MCPs, memory, plugins, x-refs) |
 | **vault-toolkit** | 5 commands + skill + hook | `/vault-list`, `/vault-set`, `/vault-audit`, `/vault-backup`, `/vault-integrate` · skill thin que roteia intenções "segredos"→command · auto-unseal no SessionStart |
 | **prumo-vault-bootstrap** | command | `/prumo-vault-bootstrap [--plan\|--apply]` · provisiona infra Vault genérica idempotente (audit em `/vault/audit/audit.log`, kv-v2 em `secret/`, approle auth, transit, ssh engines). Refuse-and-redirect para `prumo-vault-kv-migrate` se detectar kv-v1 com dados. Valida `policies includes "root"` antes de qualquer escrita. **Novidade v0.3.0.** |
 | **prumo-vault-kv-migrate** | command | `/prumo-vault-kv-migrate [--plan\|--backup\|--apply]` · migra `secret/` de kv-v1 para kv-v2 destrutivo em 3 etapas (walk recursivo → backup JSONL chmod 600 → re-import via HTTP API). `--apply` exige backup <24h e env `PRUMO_VAULT_MIGRATE_CONFIRM=migrate-now` (gate explícito anti-acidente). **Novidade v0.3.0.** |
 | **prumo-onboard** | command + skill | `/prumo-onboard` · setup wizard end-to-end do ecossistema prumo (base/secops/devkit) · detecta gaps, emite linhas de install, sugere smoke tests · idempotente |
-| **prumo-doctor** | command + skill | `/prumo-doctor` · meta-doctor read-only · orquestra mempalace-doctor + claude-deep-audit + /vault-audit + /prumo-vault-doctor em paralelo, consolida num relatório de saúde do setup local |
+| **prumo-doctor** | command + skill | `/prumo-doctor` · meta-doctor read-only · orquestra memory-doctor + claude-deep-audit + /vault-audit + /prumo-vault-doctor em paralelo, consolida num relatório de saúde do setup local |
 | **prumo-mode** | command + skill | `/prumo-mode [prod\|dev\|lab\|status]` · lê/escreve `~/.prumo/mode` e gere marker `~/.prumo/lab-mode` · controla fail-closed vs warn-only vs bypass nos hooks downstream |
 | **prumo-style** | command + skill | `/prumo-style [on\|off\|status] [--user]` · injecta/remove um bloco de output conciso ("talk-normal", MIT) num `CLAUDE.md`, delimitado por marcadores, idempotente e versionado · scope projecto por default, `--user` para o global · backup automático antes de escrever. **Novidade v0.4.0.** |
 | **prumo-context-pack** | command + skill | `/prumo-context-pack <ir\|release\|audit\|all>` · cheat-sheet curado cross-plugin para primar sessões IR / release / audit · lista skills, commands, Vault paths, AppRoles, logs, one-liners |
@@ -52,7 +52,7 @@ Os três domínios são **independentes** mas **conscientes uns dos outros** —
 | "provisiona vault do zero", "audit + kv-v2 + transit + ssh" | `/prumo-vault-bootstrap` |
 | "secret/ está em kv-v1, migra para v2" | `/prumo-vault-kv-migrate` |
 | "audita o meu CLAUDE.md", "deep audit", "review my config" | `claude-deep-audit` |
-| "diagnóstico mempalace", "saúde do palace", "repair drawers" | `mempalace-doctor` |
+| "memory doctor", "saúde da memória", "as ferramentas de memória colidem" | `memory-doctor` |
 | "que segredos tem este projecto?" | `/vault-list` |
 | "integra este projecto com o Vault" | `/vault-integrate` |
 | "verifica PLACEHOLDERs e policy" | `/vault-audit` |
@@ -60,7 +60,7 @@ Os três domínios são **independentes** mas **conscientes uns dos outros** —
 | "actualiza este segredo" | `/vault-set` |
 | "o servidor Vault está saudável?" | `/prumo-vault-doctor` (vive em `prumo-secops`) |
 
-A regra: **mempalace-doctor** ≠ **claude-deep-audit** ≠ **vault-doctor**. Domínios distintos, descrições explícitas para evitar mis-triggering.
+A regra: **memory-doctor** ≠ **claude-deep-audit** ≠ **vault-doctor**. Domínios distintos, descrições explícitas para evitar mis-triggering.
 
 ---
 
@@ -163,10 +163,12 @@ base/
 │   ├── prumo-vault-bootstrap.md        # /prumo-vault-bootstrap [--plan|--apply]      (v0.3.0)
 │   └── prumo-vault-kv-migrate.md       # /prumo-vault-kv-migrate [--plan|--backup|--apply] (v0.3.0)
 └── skills/                            # 11 skills
-    ├── mempalace-doctor/
+    ├── memory-doctor/
     │   ├── SKILL.md
     │   └── references/
-    │       └── etapas.md              # detalhe operacional dos 7 passos
+    │       ├── camada-episodica.md    # MemPalace — inventário, thresholds, 7 etapas
+    │       ├── camada-estrutural.md   # Graphify
+    │       └── camada-humana.md       # Obsidian/docs
     ├── claude-deep-audit/
     │   ├── SKILL.md
     │   └── references/
@@ -195,7 +197,7 @@ base/
 | Health da plataforma SaaS Wire | — | ✓ (`/prumo-saas-health`) |
 | IR multi-tenant | — | ✓ (`/prumo-incident-spread`) |
 | Audit Claude Code | ✓ (`claude-deep-audit`) | — |
-| Audit MemPalace | ✓ (`mempalace-doctor`) | — |
+| Audit MemPalace | ✓ (`memory-doctor`) | — |
 
 **Ordem de instalação recomendada:**
 
@@ -279,7 +281,7 @@ ls ~/.claude/plugins/prumo-base/           # estrutura completa
 
 ## Roadmap
 
-- ~~`prumo-doctor` · meta-doctor que orquestra mempalace-doctor + claude-deep-audit + /vault-audit + /prumo-vault-doctor numa única corrida~~ — **feito em v0.1.0**
+- ~~`prumo-doctor` · meta-doctor que orquestra memory-doctor + claude-deep-audit + /vault-audit + /prumo-vault-doctor numa única corrida~~ — **feito em v0.1.0**
 - ~~`prumo-mode` · slash command interactivo para mudar `PRUMO_OPERATING_MODE` com marker file~~ — **feito em v0.1.0**
 - ~~`prumo-onboard` · setup wizard end-to-end~~ — **feito em v0.1.0**: `/prumo-onboard` + skill thin detectam plugins na cache, guiam instalação dos gaps e sugerem smoke tests
 - ~~`prumo-context-pack` · prepara contexto cross-plugin para sessões IR / release / audit~~ — **feito em v0.1.0**: cheat-sheet por scope (`ir | release | audit | all`), marca itens de plugins em falta

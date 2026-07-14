@@ -102,7 +102,7 @@ if [ -n "$manifest" ]; then
   done
 
   # 8. Cobertura: TODAS as skills presentes por nome
-  for skill in claude-deep-audit mempalace-doctor prumo-context-pack prumo-doctor \
+  for skill in claude-deep-audit memory-doctor prumo-context-pack prumo-doctor \
                prumo-mode prumo-onboard prumo-smoke prumo-style prumo-upgrade \
                prumo-vault-policy vault-toolkit; do
     if [ -f "$plugin_root/skills/${skill}/SKILL.md" ]; then
