@@ -1,6 +1,6 @@
 ---
 name: claude-deep-audit
-description: Auditoria profunda da configuração Claude Code — user em ~/.claude/ e projecto em ./.claude/ — via 10 sub-agentes paralelos. Cobre CLAUDE.md em todos os níveis (incluindo subpastas que beneficiariam de CLAUDE.md próprio), settings.json em 3-escopos (user/project/local), skills, commands, agents, hooks, MCP servers, memory health, plugins instalados, e cross-references. Propõe drafts de CLAUDE.md para subpastas detectadas. Dispara em "audit claude", "deep audit", "auditoria claude code", "review my CLAUDE.md", "analisa configuração claude", "CLAUDE.md health", "claude config audit", "audit skills hooks settings". NÃO confundir com diagnóstico do tool MemPalace (vector DB) — para isso usar a skill irmã `mempalace-doctor`.
+description: Auditoria profunda da configuração Claude Code — user em ~/.claude/ e projecto em ./.claude/ — via 10 sub-agentes paralelos. Cobre CLAUDE.md em todos os níveis (incluindo subpastas que beneficiariam de CLAUDE.md próprio), settings.json em 3-escopos (user/project/local), skills, commands, agents, hooks, MCP servers, memory health, plugins instalados, e cross-references. Propõe drafts de CLAUDE.md para subpastas detectadas. Dispara em "audit claude", "deep audit", "auditoria claude code", "review my CLAUDE.md", "analisa configuração claude", "CLAUDE.md health", "claude config audit", "audit skills hooks settings". NÃO confundir com diagnóstico do tool MemPalace (vector DB) — para isso usar a skill irmã `memory-doctor`.
 ---
 
 Auditoria profunda da configuração Claude Code do projecto actual e do utilizador. Orchestra 10 subagentes paralelos. Detecta pastas que beneficiariam de CLAUDE.md próprio e propõe criação.
@@ -176,7 +176,7 @@ Nenhuma é obrigatória — a auditoria funciona standalone.
 
 Skills irmãs nesta plugin-base (não obrigatórias, mas complementares):
 
-- **`mempalace-doctor`** — domínio distinto: faz audit do **tool MemPalace** (vector DB com drawers/HNSW/Knowledge Graph em `~/.mempalace/`). Se o subagente 8 (Memory health) detectar uso de MemPalace pelo utilizador (presença de `~/.mempalace/`), recomendar como acção a invocação directa de `/mempalace:doctor` em vez de inferir saúde via filesystem.
+- **`memory-doctor`** — domínio distinto: faz audit das 3 camadas de memória, incluindo o **tool MemPalace** (vector DB com drawers/HNSW/Knowledge Graph em `~/.mempalace/`). Se o subagente 8 (Memory health) detectar uso de MemPalace pelo utilizador (presença de `~/.mempalace/`), recomendar como acção a invocação directa de `/mempalace:doctor` em vez de inferir saúde via filesystem.
 - **`/vault-audit`, `/vault-list`, `/vault-integrate`** (commands da mesma plugin-base) — se o subagente 7 (MCP servers audit) detectar API keys hardcoded ou `.mcp.json` git-tracked com creds, propor migração para Vault usando `/vault-integrate` como acção concreta em vez de só sinalizar como `CRITICAL`.
 - **Hook `vault-session-check.sh`** (SessionStart) — se o subagente 6 (Hooks audit) o detectar, classificar como conhecido e não como "comando inexistente"; descreve-se em `lib/vault-env.sh`.
 
@@ -184,6 +184,6 @@ Se `lib/prumo-common.sh` estiver disponível, o relatório final pode ser logado
 
 ## Ver também
 
-- `mempalace-doctor` (skill irmã) — diagnóstico do **tool MemPalace**, não da configuração Claude Code.
+- `memory-doctor` (skill irmã) — diagnóstico das camadas de memória (incluindo o **tool MemPalace**), não da configuração Claude Code.
 - `/prumo-vault-doctor` (em prumo-secops) — diagnóstico do **servidor Vault** (HA, seal, audit, AppRoles).
 - `/vault-audit` (mesma plugin-base) — auditoria de **integração Vault por-projecto** (PLACEHOLDERs, policy coverage, .env).

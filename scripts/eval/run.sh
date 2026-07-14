@@ -45,6 +45,7 @@ hook_path() {
     pii-redact)    echo "$REPO_ROOT/secops/hooks/pre-tool-pii-redact.sh" ;;
     approval-gate) echo "$REPO_ROOT/secops/hooks/pre-tool-approval-gate.sh" ;;
     second-opinion) echo "$REPO_ROOT/secops/hooks/pre-tool-second-opinion.sh" ;;
+    memory-scope)  echo "$REPO_ROOT/base/hooks/pre-tool-memory-scope.sh" ;;
     *) echo "" ;;
   esac
 }
@@ -185,7 +186,7 @@ fi
 # ── relatório humano ─────────────────────────────────────────────────────────
 echo
 echo "${C_B}Por hook:${C_0}"
-for h in audit-guard vault-ttl pii-redact approval-gate second-opinion; do
+for h in audit-guard vault-ttl pii-redact approval-gate second-opinion memory-scope; do
   t="$(jq --arg h "$h" '[.[]|select(.hook==$h)]|length' <<<"$RESULTS_JSON")"
   [ "$t" -gt 0 ] || continue
   o="$(jq --arg h "$h" '[.[]|select(.hook==$h and .pass)]|length' <<<"$RESULTS_JSON")"

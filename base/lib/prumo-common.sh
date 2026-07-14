@@ -72,7 +72,7 @@ prumo_mode() {
 # ────────────────────────────────────────────────────────────────────────────
 # prumo_scope · devolve o scope preferido do utilizador
 #
-# Lê ~/.prumo/scope (definido pelo mempalace-doctor).
+# Lê ~/.prumo/scope (definido pelo memory-doctor).
 # Valores: global | project | hybrid (default: hybrid)
 # ────────────────────────────────────────────────────────────────────────────
 prumo_scope() {
@@ -260,7 +260,7 @@ prumo_require() {
 
 # ────────────────────────────────────────────────────────────────────────────
 # prumo_init_dirs · cria a estrutura ~/.prumo/ se ausente
-# Chamado pelo mempalace-doctor no passo 6.
+# Chamado pelo memory-doctor antes de qualquer acção que mute ficheiros (Gate 3).
 # ────────────────────────────────────────────────────────────────────────────
 prumo_init_dirs() {
   mkdir -p "$PRUMO_HOME" "$PRUMO_BACKUPS_DIR" "$PRUMO_LOG_DIR" 2>/dev/null || true

@@ -1,5 +1,5 @@
 {
-  "description": "Auto-unseal the local Vault at session start and inject available-credentials context. PreToolUse audit-guard bloqueia operações destrutivas durante contexto de audit do devkit a menos que apply esteja explicitamente aprovado.",
+  "description": "Auto-unseal the local Vault at session start and inject available-credentials context. PreToolUse audit-guard bloqueia operações destrutivas durante contexto de audit do devkit a menos que apply esteja explicitamente aprovado. PreToolUse memory-scope guarda o âmbito de memória em comandos Bash.",
   "hooks": {
     "SessionStart": [
       {
@@ -20,7 +20,17 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-audit-guard.sh",
-            "timeout_ms": 3000
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-memory-scope.sh",
+            "timeout": 3
           }
         ]
       }

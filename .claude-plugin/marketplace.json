@@ -9,7 +9,7 @@
     {
       "name": "prumo-base",
       "source": "./base",
-      "description": "Plugin foundacional — vault-toolkit, doctors (prumo-doctor, mempalace-doctor, claude-deep-audit), gestão de modo operacional e telemetria dos guardrails, helpers bash partilhados e hooks SessionStart (auto-unseal) + PreToolUse (audit-guard). Instalar primeiro."
+      "description": "Plugin foundacional — vault-toolkit, doctors (prumo-doctor, memory-doctor, claude-deep-audit), gestão de modo operacional e telemetria dos guardrails, helpers bash partilhados e hooks SessionStart (auto-unseal) + PreToolUse (audit-guard + memory-scope). Instalar primeiro."
     },
     {
       "name": "prumo-secops",
