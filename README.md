@@ -6,7 +6,7 @@ Marketplace privado **prumo** com o ecossistema de plugins para Claude Code.
 
 | Plugin | Versão | Domínio |
 |--------|--------|---------|
-| **prumo-base** | 0.5.0 | Foundacional — 14 commands (`vault-toolkit`: 5 `/vault-*` + 2 bootstraps `/prumo-vault-bootstrap` e `/prumo-vault-kv-migrate` + `/prumo-vault-policy`; setup/diagnóstico: `/prumo-onboard`, `/prumo-doctor`, `/prumo-mode`, `/prumo-context-pack`, `/prumo-upgrade`, `/prumo-smoke`), 10 skills (incl. `mempalace-doctor`, `claude-deep-audit`), helpers bash partilhados (`lib/prumo-common.sh`, `lib/vault-env.sh`), hook SessionStart auto-unseal + hook PreToolUse `audit-guard` que dá defense-in-depth ao `prumo-devkit`. **Instalar primeiro.** |
+| **prumo-base** | 0.5.0 | Foundacional — 14 commands (`vault-toolkit`: 5 `/vault-*` + 2 bootstraps `/prumo-vault-bootstrap` e `/prumo-vault-kv-migrate` + `/prumo-vault-policy`; setup/diagnóstico: `/prumo-onboard`, `/prumo-doctor`, `/prumo-mode`, `/prumo-context-pack`, `/prumo-upgrade`, `/prumo-smoke`), 10 skills (incl. `memory-doctor`, `claude-deep-audit`), helpers bash partilhados (`lib/prumo-common.sh`, `lib/vault-env.sh`), hook SessionStart auto-unseal + hook PreToolUse `audit-guard` que dá defense-in-depth ao `prumo-devkit`. **Instalar primeiro.** |
 | **prumo-secops** | 0.5.0 | SecOps com Agentes IA para a Wire enquanto fornecedora SaaS de eGovernment local (170+ autarquias). 6 agents, 10 commands `/prumo-*` (inclui `/prumo-secops-bootstrap` para provisionar policies + AppRoles + Keychain numa só corrida), 6 skills com **20 templates `references/`** (progressive disclosure), cadeia de hooks PreToolUse/PostToolUse/Stop **funcional**. Assume `prumo-base` instalado. |
 | **prumo-devkit** | 0.5.0 | Toolkit de auditoria de developer — `full-audit`, `security-scan`, `infra-audit`, `ux-audit`, `code-quality`, `performance-audit`, `chrome-live` (browser ao vivo via CDP, gated), agente `local-reviewer` e `ngrok-expose`. **Read-only por defeito**: relatórios não tocam em ficheiros; correcção é opt-in via `--apply`, com loop de feedback (fingerprint semântico + accept) que suprime falsos-positivos entre corridas. Dependência soft do `prumo-base`. |
 | **prumo-craft** | 0.5.0 | Tooling generativo — `html-plan` (HTML designed em 2 fases com disciplina anti-AI-slop: 8px grid, contraste WCAG AA, real data, 5 surfaces). Standalone, zero deps externas. Roadmap: `logo-generator` em v0.3.0. |
@@ -22,7 +22,7 @@ Marketplace privado **prumo** com o ecossistema de plugins para Claude Code.
 │   ├── lib/      (prumo-common.sh, vault-env.sh)
 │   ├── hooks/    (SessionStart → vault-session-check.sh; PreToolUse → pre-tool-audit-guard.sh)
 │   ├── commands/ (14 commands: 5 /vault-* + /prumo-vault-{bootstrap,kv-migrate,policy} + /prumo-{onboard,doctor,mode,context-pack,upgrade,smoke})
-│   └── skills/   (10 skills: vault-toolkit, mempalace-doctor, claude-deep-audit, prumo-{onboard,doctor,mode,context-pack,upgrade,smoke,vault-policy})
+│   └── skills/   (10 skills: vault-toolkit, memory-doctor, claude-deep-audit, prumo-{onboard,doctor,mode,context-pack,upgrade,smoke,vault-policy})
 ├── secops/                       ← plugin prumo-secops v0.5.0
 │   ├── .claude-plugin/plugin.json
 │   ├── agents/   (6 agents prumo-*-01)
