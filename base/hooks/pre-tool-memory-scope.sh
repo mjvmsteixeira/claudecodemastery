@@ -60,11 +60,24 @@ CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null || true)
 [ -z "$CMD" ] && exit 0
 
 # ────────────────────────────────────────────────────────────────────────────
-# Fronteira de palavra — MESMA classe endurecida do audit-guard.
+# Normalizar ANTES de procurar padrões multi-palavra.
+#
+# Continuação de linha (`graphify \` + newline + `reflect`) é UM comando lógico para
+# o shell, mas o split por clauses abaixo via-o como duas linhas — e nenhum regex
+# multi-palavra ("graphify[[:space:]]+reflect") chegava a casar. Um `graphify reflect`
+# assim escrito EXECUTAVA de facto e o hook devolvia rc=0. Colapsar `\<newline>` num
+# espaço fecha esse vector para os 5 regexes de uma vez.
+# (awk e não sed: o sed do BSD/macOS rejeita um newline literal no pattern de substituição)
+CMD=$(printf '%s\n' "$CMD" | awk '{ if (sub(/\\$/, "")) printf "%s ", $0; else print }')
+
+# ────────────────────────────────────────────────────────────────────────────
+# Fronteira de palavra — classe endurecida do audit-guard, MAIS as aspas.
 # Sem "(" e backtick, um token embrulhado em $(...), subshell ou backticks escapa
-# ao guard (família de bypass corrigida na v0.5.0). Não regredir.
-# shellcheck disable=SC2016  # backtick é literal do regex, não expansão
-B='(^|[[:space:]]|/|\\|\(|`)'
+# (família de bypass corrigida na v0.5.0). Sem as aspas, `eval "graphify reflect"`,
+# `bash -c "graphify reflect"` e `uv tool install "graphify"` escapavam — o shell
+# tira-as antes de executar, portanto o comando corre na mesma. Não regredir.
+# shellcheck disable=SC2016  # backtick e aspas são literais do regex, não expansão
+B='(^|[[:space:]]|/|\\|\(|`|"|'"'"')'
 
 # C4 · ambições episódicas do graphify (pertencem ao MemPalace)
 EPISODIC_REGEX="${B}graphify[[:space:]]+(reflect|save-result)\b|\.graphify_(learning|analysis)\.json"
@@ -76,8 +89,11 @@ CLAUDE_INSTALL_REGEX="${B}graphify[[:space:]]+claude[[:space:]]+install\b"
 GLOBAL_REGEX="${B}graphify[[:space:]]+global[[:space:]]+add\b|${B}graphify[[:space:]]+extract\b[^;&|]*--global\b"
 
 # Typosquat · o pacote legítimo é graphifyy; graphify é slot por reclamar no PyPI.
-# O "[^y]" garante que graphifyy NÃO bate.
-TYPOSQUAT_REGEX="(uv[[:space:]]+tool[[:space:]]+install|pip[[:space:]]+install|pipx[[:space:]]+install)[[:space:]]+(-[^[:space:]]+[[:space:]]+)*graphify([^y[:alnum:]]|==|$)"
+# `[^y[:alnum:]]` garante que graphifyy NÃO bate (é o prefixo do legítimo).
+# `pip3?` porque pip3 é o alias por omissão em macOS/Linux com Python 3.
+# `["']?` porque `uv tool install "graphify"` instala o pacote na mesma — o shell
+# tira as aspas antes de executar.
+TYPOSQUAT_REGEX="(uv[[:space:]]+tool[[:space:]]+install|pip3?[[:space:]]+install|pipx[[:space:]]+install)[[:space:]]+(-[^[:space:]]+[[:space:]]+)*[\"']?graphify([^y[:alnum:]]|==|\$)"
 
 # C3 · mempalace mine tem DEFAULT --mode projects → indexa código.
 # A camada episódica exige --mode convos. Tratado à parte (exige ausência de flag).
