@@ -183,12 +183,16 @@ while [ -z "$BLOCK_REASON" ] && IFS= read -r CLAUSE; do
   #                        bloquear — aceitável (tem bypass), e é o MESMO custo
   #                        que já pagamos no awk/sed. O invariante fica de uma
   #                        linha: programável ⇒ fora da allowlist.
+  #   - less/more/man    → pagers: `man -P "graphify reflect"` / `less +!cmd`
+  #                        executam um comando-pager (mesma classe do git). Fora.
+  #                        Um `man graphify`/`less README` legítimo não tem
+  #                        deny-pattern, logo já passa sem estar na allowlist.
   CMDWORD=$(printf '%s' "$TRIMMED" | sed -E 's/^([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*//' | awk '{print $1}')
   # shellcheck disable=SC2016  # '$(' '`' '<(' '>(' são literais do grep -F, não expansão
   if ! printf '%s' "$TRIMMED" | grep -qF '$(' && ! printf '%s' "$TRIMMED" | grep -qF '`' \
      && ! printf '%s' "$TRIMMED" | grep -qF '<(' && ! printf '%s' "$TRIMMED" | grep -qF '>('; then
     case "$CMDWORD" in
-      grep|egrep|fgrep|rg|ag|echo|printf|cat|bat|head|tail|less|more|man|history) continue ;;
+      grep|egrep|fgrep|rg|ag|echo|printf|cat|bat|head|tail|history) continue ;;
     esac
   fi
 
