@@ -79,14 +79,22 @@ CMD=$(printf '%s\n' "$CMD" | awk '{ if (sub(/\\$/, "")) printf "%s ", $0; else p
 # \042 = " · \047 = ' · \134 = \  (octal; o tr do BSD/macOS aceita escapes octais)
 CMD=$(printf '%s' "$CMD" | tr -d '\042\047\134')
 
+# ${IFS} / $IFS expandem para whitespace no shell, portanto `graphify${IFS}reflect`
+# corre `graphify reflect`. Sem separador visível, nenhum regex multi-palavra
+# casava. Normalizar essas expansões para um espaço fecha o vector.
+# shellcheck disable=SC2016  # $IFS é literal no pattern do sed, não expansão do shell
+CMD=$(printf '%s' "$CMD" | sed -E 's/\$\{IFS[^}]*\}/ /g; s/\$IFS/ /g')
+
 # ────────────────────────────────────────────────────────────────────────────
 # Fronteira de palavra — classe endurecida do audit-guard, MAIS as aspas.
 # Sem "(" e backtick, um token embrulhado em $(...), subshell ou backticks escapa
 # (família de bypass corrigida na v0.5.0). Sem as aspas, `eval "graphify reflect"`,
 # `bash -c "graphify reflect"` e `uv tool install "graphify"` escapavam — o shell
 # tira-as antes de executar, portanto o comando corre na mesma. Não regredir.
-# shellcheck disable=SC2016  # backtick e aspas são literais do regex, não expansão
-B='(^|[[:space:]]|/|\\|\(|`|"|'"'"')'
+# O `\$` fecha o ANSI-C quoting: `eval $'graphify reflect'` fica, após despir as
+# aspas, `eval $graphify reflect` — sem `$` na fronteira, o `$graphify` escapava.
+# shellcheck disable=SC2016  # backtick, aspas e `$` são literais do regex, não expansão
+B='(^|[[:space:]]|/|\\|\(|`|"|'"'"'|\$)'
 
 # C4 · ambições episódicas do graphify (pertencem ao MemPalace)
 EPISODIC_REGEX="${B}graphify[[:space:]]+(reflect|save-result)\b|\.graphify_(learning|analysis)\.json"
