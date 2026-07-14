@@ -48,9 +48,10 @@ jq -r '.hooks.PreToolUse[]?.matcher // empty' ~/.claude/settings.json 2>/dev/nul
 **Deteção:**
 ```bash
 mempalace mine --help 2>&1 | grep -A2 'mode'          # confirmar o default do CLI
-mempalace_status                                       # wings/rooms: há wings de código?
 find . -name '.mempalace' -maxdepth 2 2>/dev/null      # palace de projecto
 ```
+E, para inspeccionar wings/rooms, chamar o tool MCP **`mempalace_status`** (não é um binário — é MCP; fallback CLI `mempalace status`).
+
 Sinal forte: wings com nomes de directórios de código, ou drawers cujo corpus é `.py`/`.ts`/`.go`.
 
 **Remediação:** minerar **sempre** com `--mode convos`. O código pertence ao Graphify (`extract --code-only`). Se já houver código indexado, reportar — a limpeza é decisão do utilizador (fora de âmbito da skill).
@@ -105,7 +106,9 @@ grep -qE 'graphify-out' .claudeignore 2>/dev/null && echo ok || echo "FALTA grap
 ls ~/.graphify/global-graph.json 2>/dev/null && graphify global list 2>/dev/null
 ```
 
-**Remediação:** `graphify global remove <tag>`; instalar sempre com `graphify install --project` (nunca global).
+**Remediação:** `graphify global remove <tag>` (confirmado no `--help`; `graphify global list` mostra os tags registados).
+
+> **Nota de verdade-base:** o `graphify install` aceita **`--platform <P>`**, **não** existe uma flag `--project` (verificado no `--help` de graphifyy 0.9.15 — zero ocorrências). O âmbito por-projecto obtém-se **não usando** `global add` nem `extract --global`, e mantendo o `graphify-out/` dentro do repositório — não através de uma flag de instalação.
 
 ---
 
