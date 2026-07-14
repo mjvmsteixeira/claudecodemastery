@@ -190,7 +190,27 @@ Sem isto, o palace emite `EmbedderIdentityUnknownWarning` e **um upgrade futuro 
 
 ---
 
-# mempalace-doctor — detalhe das etapas
+## Thresholds desta camada
+
+Usados pelas Etapas 1-7 abaixo. (Os thresholds do **modelo de escritores** — `MCP_WRITERS_WARN`, `LOCKS_CHURN_*`, `DAEMON_FAILED_WARN`, `QUARANTINE_SEGMENTS_WARN`, `MINING_LAG_WARN` — e o `VERSION_LAG_WARN` da Etapa 0 vivem no `SKILL.md`, por serem transversais.)
+
+```
+LINK_LISTS_WARN=500M     # link_lists.bin tamanho — bloat HNSW
+LINK_LISTS_CRIT=2G
+PALACE_SIZE_WARN=5G      # tamanho total
+PALACE_SIZE_CRIT=20G
+BACKUP_AGE_WARN=14d
+BACKUP_AGE_CRIT=60d
+DIARY_GAP_WARN=14d       # último diary_write
+KG_TRIPLES_MIN=100       # raso se < 100
+KG_EXPIRED_RATIO_WARN=30 # % de triples expirados
+WING_IMBALANCE_RATIO=100 # alerta se wing maior > 100× wing menor
+DRAWER_DIVERGENCE=100    # |sqlite - hnsw| > 100
+```
+
+---
+
+# Detalhe das etapas
 
 > Todos os comandos usam as variáveis definidas no `SKILL.md` (`PALACE_DIR`, `PALACE_BACKUP`,
 > etc.), resolvidas a partir de `$HOME`/`MEMPALACE_HOME`. Não usar paths absolutos hardcoded.
