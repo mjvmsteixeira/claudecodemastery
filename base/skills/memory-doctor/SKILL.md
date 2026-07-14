@@ -125,7 +125,21 @@ Ver `references/arbitro.md` (Fase 2).
 
 ## 3. Relatório
 
-Agrupado por camada + secção de colisões + a regra de encaminhamento proposta. Emoji só no relatório (✅ / ⚠️ / 🚨 / ℹ️).
+Agrupado por camada + **escritores** + colisões + a regra de encaminhamento proposta. Emoji só no relatório (✅ / ⚠️ / 🚨 / ℹ️).
+
+A secção **ESCRITORES** é obrigatória sempre que a camada episódica esteja activa — é onde se explicam, de uma só vez, corrupção de índice, mining parado e jobs falhados:
+
+```
+## ESCRITORES
+- mempalace-mcp vivos: <n>          (1 por sessão Claude aberta)
+- Lease do palace: detida por PID <x> (<processo>) → ⚠️ escritas de fundo bloqueadas
+- Daemon: <estado> (PID <y>) | jobs: <n> failed (LockHeldByOtherProcess), <n> ok
+- Locks: <n> | churn: <ritmo — medir, não o valor absoluto>
+- Segmentos em quarentena: <du -sh dos .drift-* / .corrupt-*>
+- Veredicto: <ex.: mining DIFERIDO — drena quando nenhuma sessão segurar a lease. Sem perda de dados.>
+```
+
+Distinguir sempre **frescura** de **perda**: mining diferido não é perda de dados; corrupção de índice é.
 
 ## 4. Governança (`--apply`)
 
@@ -134,14 +148,32 @@ Ver `references/routing-rule.md` (Fase 3). **Antes de aplicar qualquer alteraç�
 ## Thresholds
 
 ```
-TOOL_BUDGET_WARN=35        # tools de memória num agente (MemPalace sozinho já traz 30)
-MEMPALACE_VERSION_DRIFT=1  # CLI vs plugin em cache divergem → upgrade pendente
-GRAPH_STALE_DAYS=7         # graph.json mais velho que o último commit
+TOOL_BUDGET_WARN=35          # tools de memória num agente (MemPalace sozinho já traz 30)
+VERSION_LAG_WARN=1           # ≥1 minor atrás → ler o changelog ANTES de investigar
+GRAPH_STALE_DAYS=7           # graph.json mais velho que o último commit
+
+# Modelo de escritores (camada episódica) — explica corrupção, mining parado e jobs falhados
+MCP_WRITERS_WARN=2           # ≥2 processos mempalace-mcp vivos
+LOCKS_CHURN_WARN=500         # ficheiros em locks/
+LOCKS_CHURN_CRIT=1000
+DAEMON_FAILED_WARN=1         # ≥1 job failed com LockHeldByOtherProcess
+QUARANTINE_SEGMENTS_WARN=1   # qualquer segmento .drift-* / .corrupt-*
+MINING_LAG_WARN=24h          # desde o último job de mine bem-sucedido
 ```
 
-## Regra de ouro
+## Regras de ouro
 
-Nunca instalar, actualizar, escrever no CLAUDE.md, correr `repair --yes`, `kg_invalidate` ou `VACUUM` sem confirmação explícita do utilizador. Diagnóstico primeiro; acção só com aprovação por mensagem.
+**1. Changelog antes de laboratório.** Antes de investigar **qualquer** sintoma, verificar a versão instalada e ler as notas de todas as releases em falta. Custa 30 segundos e pode terminar o diagnóstico ali — um bug que já está corrigido a montante não se depura, actualiza-se. Se o sintoma observado aparecer num changelog não instalado, a acção é o **upgrade**, não a investigação. **Isto aplica-se às três camadas**, não só à episódica.
+
+**2. Nunca desligar uma guarda de integridade para destravar performance.** (Ex.: `MEMPALACE_MCP_ALLOW_PEER_WRITER=1` "resolve" o mining diferido trocando integridade por frescura — reabre a porta à corrupção.) Frescura recupera-se; um índice corrompido, não.
+
+**3. Ler a schema da ferramenta antes de a acusar de avaria.** Um `Internal tool error` é, quase sempre, um parâmetro errado. Confirmar o contrato antes de reportar bug.
+
+**4. A métrica de uma falha recorrente é o intervalo entre recorrências, não a ocorrência.** Um intervalo a encurtar (semanas → dias → horas) é a assinatura de falha sistemática, não de incidente isolado.
+
+**5. Um fix não está feito até ser verificado pelo comportamento, não pelo check.** Um `integrity-check` a passar não prova que a pesquisa devolve resultados — correr uma query real e confirmar o output.
+
+**6. Nada muta sem confirmação.** Nunca instalar, actualizar, escrever no CLAUDE.md, correr `repair --yes`, `kg_invalidate`, `VACUUM` ou um rebuild sem aprovação explícita por mensagem. Diagnóstico primeiro; acção só depois.
 
 ## Integração com prumo-base
 
