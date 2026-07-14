@@ -70,6 +70,16 @@ CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null || true)
 # (awk e não sed: o sed do BSD/macOS rejeita um newline literal no pattern de substituição)
 CMD=$(printf '%s\n' "$CMD" | awk '{ if (sub(/\\$/, "")) printf "%s ", $0; else print }')
 
+# Despir aspas ANTES de casar. O shell remove-as antes de executar, portanto
+# `graphify "reflect"` corre `graphify reflect` na mesma. A fronteira `B` só
+# ancora o PRIMEIRO token; embrulhar o SEGUNDO token em aspas
+# (`graphify "reflect"`, `graphify claude "install"`, `mempalace "mine"`)
+# escapava a todos os regexes multi-palavra — a mesma família de aspas do
+# corpus (ms-19..23), só deslocada um token para a direita. Remover `"` e `'`
+# do comando fecha a família inteira de uma vez.
+# \042 = " · \047 = ' (octal; o tr do BSD/macOS aceita escapes octais)
+CMD=$(printf '%s' "$CMD" | tr -d '\042\047')
+
 # ────────────────────────────────────────────────────────────────────────────
 # Fronteira de palavra — classe endurecida do audit-guard, MAIS as aspas.
 # Sem "(" e backtick, um token embrulhado em $(...), subshell ou backticks escapa
@@ -106,9 +116,10 @@ GLOBAL_REGEX="${B}graphify[[:space:]]+global[[:space:]]+add\b|${B}graphify[[:spa
 # Typosquat · o pacote legítimo é graphifyy; graphify é slot por reclamar no PyPI.
 # `[^y[:alnum:]]` garante que graphifyy NÃO bate (é o prefixo do legítimo).
 # `pip3?` porque pip3 é o alias por omissão em macOS/Linux com Python 3.
-# `["']?` porque `uv tool install "graphify"` instala o pacote na mesma — o shell
-# tira as aspas antes de executar.
-TYPOSQUAT_REGEX="(uv[[:space:]]+tool[[:space:]]+install|pip3?[[:space:]]+install|pipx[[:space:]]+install)[[:space:]]+(-[^[:space:]]+[[:space:]]+)*[\"']?graphify([^y[:alnum:]]|==|\$)"
+# As aspas já foram removidas do CMD acima; o `["']?` fica como cinto-e-suspensórios.
+# Enumerar os gestores: uv (tool install E add), pip/pip3, pipx, poetry, conda,
+# rye, pdm — qualquer um instala o slot 'graphify' na mesma.
+TYPOSQUAT_REGEX="(uv[[:space:]]+tool[[:space:]]+install|uv[[:space:]]+add|pip3?[[:space:]]+install|pipx[[:space:]]+install|poetry[[:space:]]+add|conda[[:space:]]+install|rye[[:space:]]+add|pdm[[:space:]]+add)[[:space:]]+(-[^[:space:]]+[[:space:]]+)*[\"']?graphify([^y[:alnum:]]|==|\$)"
 
 # C3 · mempalace mine tem DEFAULT --mode projects → indexa código.
 # A camada episódica exige --mode convos. Tratado à parte (exige ausência de flag).
@@ -122,6 +133,22 @@ CLAUSES=$(printf '%s\n' "$CMD" | sed -E 's/(&&|\|\||;|\|)/\n/g')
 while [ -z "$BLOCK_REASON" ] && IFS= read -r CLAUSE; do
   TRIMMED=$(printf '%s' "$CLAUSE" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
   [ -z "$TRIMMED" ] && continue
+
+  # Palavra-de-comando da clause (o 1º token, após env-assignments FOO=bar).
+  # Se for um comando de TEXTO PURO (grep/echo/…), o token graphify/mempalace é
+  # DADO — nada executa — e bloquear seria falso positivo (`grep "graphify install"
+  # docs/`, `history | grep 'graphify reflect'`). Nesses casos, saltar a clause.
+  # EXCEPÇÃO: se a clause tiver substituição de comando (`$(...)` ou backtick), o
+  # comando interno EXECUTA independentemente do comando externo — `echo $(graphify
+  # reflect)` corre graphify — logo NÃO se pode saltar. (o backtick foi removido do
+  # CMD? não: só removemos aspas `"`/`'`, o backtick fica.)
+  CMDWORD=$(printf '%s' "$TRIMMED" | sed -E 's/^([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*//' | awk '{print $1}')
+  # shellcheck disable=SC2016  # '$(' e '`' são literais para o grep -F, não expansão
+  if ! printf '%s' "$TRIMMED" | grep -qF '$(' && ! printf '%s' "$TRIMMED" | grep -qF '`'; then
+    case "$CMDWORD" in
+      grep|egrep|fgrep|rg|ag|echo|printf|cat|bat|head|tail|less|more|man|history) continue ;;
+    esac
+  fi
 
   if printf '%s' "$TRIMMED" | grep -qiE "$EPISODIC_REGEX"; then
     BLOCK_REASON="episodic"; BLOCK_CLAUSE="$TRIMMED"; break
@@ -137,7 +164,15 @@ while [ -z "$BLOCK_REASON" ] && IFS= read -r CLAUSE; do
   fi
   # mine sem --mode convos (o default do CLI é --mode projects → código)
   if printf '%s' "$TRIMMED" | grep -qiE "$MINE_REGEX"; then
-    if ! printf '%s' "$TRIMMED" | grep -qiE -- '--mode[[:space:]=]+convos'; then
+    # --help/--dry-run não indexam nada — é o próprio passo de detecção do C3
+    # que o arbitro.md manda correr; bloqueá-lo tornava a skill incoerente.
+    if printf '%s' "$TRIMMED" | grep -qiE -- '--(help|dry-run)\b'; then
+      continue
+    fi
+    # Tirar comentário de fim-de-linha antes de procurar 'convos': um `# --mode
+    # convos` colado a seguir a `--mode projects` satisfazia o check e passava.
+    NOCOMMENT=$(printf '%s' "$TRIMMED" | sed -E 's/[[:space:]]+#.*$//')
+    if ! printf '%s' "$NOCOMMENT" | grep -qiE -- '--mode[[:space:]=]+convos'; then
       BLOCK_REASON="corpus"; BLOCK_CLAUSE="$TRIMMED"; break
     fi
   fi
