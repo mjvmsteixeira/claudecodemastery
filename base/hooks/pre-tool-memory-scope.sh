@@ -83,7 +83,22 @@ B='(^|[[:space:]]|/|\\|\(|`|"|'"'"')'
 EPISODIC_REGEX="${B}graphify[[:space:]]+(reflect|save-result)\b|\.graphify_(learning|analysis)\.json"
 
 # C1/C2 · graphify a escrever no CLAUDE.md + PreToolUse hook sobre Read/Glob
-CLAUDE_INSTALL_REGEX="${B}graphify[[:space:]]+claude[[:space:]]+install\b"
+#
+# São TRÊS caminhos de escrita, não um (derivado de install.py, não do --help):
+#   - `graphify claude install`            → o óbvio
+#   - `graphify install` (SEM argumentos)  → install.py:1894 `default_platform = "claude"`
+#                                            → _PLATFORM_CONFIG["claude"]["claude_md"]=True
+#                                            → escreve (e cria) ~/.claude/CLAUDE.md GLOBAL
+#   - `graphify install --project`         → `--project` existe no parser (install.py:1904,
+#                                            1941) apesar de NÃO estar no --help; muda o
+#                                            alvo para ./.claude/CLAUDE.md
+# `graphify install` é o comando mais natural que um agente escreveria — e era o que
+# escapava. O segundo ramo apanha as três formas de uma vez.
+#
+# NÃO apanha (verificado): `graphify hook install` (há "hook" entre os tokens),
+# `graphify uninstall`/`claude uninstall` (o \b exige "install" colado após o espaço,
+# e "uninstall" começa por 'u'), nem `uv tool install graphifyy`.
+CLAUDE_INSTALL_REGEX="${B}graphify[[:space:]]+claude[[:space:]]+install\b|${B}graphify[[:space:]]+install\b"
 
 # C7 · âmbito global (instalação é por-projecto)
 GLOBAL_REGEX="${B}graphify[[:space:]]+global[[:space:]]+add\b|${B}graphify[[:space:]]+extract\b[^;&|]*--global\b"

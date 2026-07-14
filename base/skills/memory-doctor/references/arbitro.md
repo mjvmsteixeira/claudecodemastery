@@ -108,7 +108,11 @@ ls ~/.graphify/global-graph.json 2>/dev/null && graphify global list 2>/dev/null
 
 **Remediação:** `graphify global remove <tag>` (confirmado no `--help`; `graphify global list` mostra os tags registados).
 
-> **Nota de verdade-base:** o `graphify install` aceita **`--platform <P>`**, **não** existe uma flag `--project` (verificado no `--help` de graphifyy 0.9.15 — zero ocorrências). O âmbito por-projecto obtém-se **não usando** `global add` nem `extract --global`, e mantendo o `graphify-out/` dentro do repositório — não através de uma flag de instalação.
+> **Nota de verdade-base — e uma lição sobre ela.** O `graphify install` aceita `--platform <P>`. Existe **também** uma flag `--project` que **não aparece no `--help`** mas está no parser (`install.py:1904,1941`) — muda o alvo da escrita para `./.claude/CLAUDE.md`.
+>
+> Uma versão anterior desta nota afirmava que `--project` "não existe, verificado no `--help`". Estava errada: o `--help` é **documentação**, e a regra desta skill é derivar verdade-base do **código**. O erro foi cometido pela própria skill que o proíbe — fica aqui como lembrete.
+>
+> **Nenhuma das duas flags dá o âmbito por-projecto que queremos.** Esse obtém-se **não usando** `global add` nem `extract --global`, e mantendo o `graphify-out/` dentro do repositório.
 
 ---
 

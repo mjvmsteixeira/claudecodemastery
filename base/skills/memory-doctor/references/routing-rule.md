@@ -42,17 +42,24 @@ BLOCK_FILE="$1"          # ficheiro com o bloco canónico a escrever
 # (ou prumo_backup, se o prumo-common.sh estiver disponível)
 [ -f "$CLAUDE_MD" ] && cp "$CLAUDE_MD" "${CLAUDE_MD}.bak"
 
-has_start=0; has_end=0
-grep -qF "$START" "$CLAUDE_MD" 2>/dev/null && has_start=1
-grep -qF "$END"   "$CLAUDE_MD" 2>/dev/null && has_end=1
+# Range por NÚMERO DE LINHA, nunca por padrão.
+# Um range por padrão (/START/,/END/) que não encontra o END depois do START corre
+# até EOF e apaga o resto do ficheiro. Isso acontece tanto com o END ausente como
+# com o END ANTES do START (órfão de merge/edição) — nesse caso ambos os marcadores
+# "existem", uma guarda por presença passa, e o sed come tudo à mesma.
+s_line=$(grep -nF "$START" "$CLAUDE_MD" 2>/dev/null | head -1 | cut -d: -f1)
+e_line=$(grep -nF "$END"   "$CLAUDE_MD" 2>/dev/null | head -1 | cut -d: -f1)
 
-if [ "$has_start" = 1 ] && [ "$has_end" = 1 ]; then
-  # Ambos presentes → remover o bloco antigo (range fechado, seguro)
-  sed -i.bak "/$START/,/$END/d" "$CLAUDE_MD"
-elif [ "$has_start" != "$has_end" ]; then
-  # SÓ UM presente → corrupção. NÃO apagar: o range comeria até EOF.
-  echo "ERRO: marcador de routing desemparelhado em $CLAUDE_MD (START=$has_start END=$has_end)." >&2
-  echo "Possível corrupção ou edição manual. Corrigir à mão antes de reaplicar — nada foi escrito." >&2
+if [ -n "$s_line" ] && [ -n "$e_line" ]; then
+  if [ "$e_line" -lt "$s_line" ]; then
+    echo "ERRO: marcadores de routing fora de ordem em $CLAUDE_MD (END na linha $e_line, START na $s_line)." >&2
+    echo "Corrupção provável. Corrigir à mão — nada foi escrito." >&2
+    exit 1
+  fi
+  sed -i.bak "${s_line},${e_line}d" "$CLAUDE_MD"   # range fechado: não pode correr até EOF
+elif [ -n "${s_line}${e_line}" ]; then
+  echo "ERRO: marcador de routing desemparelhado em $CLAUDE_MD (START=${s_line:-ausente} END=${e_line:-ausente})." >&2
+  echo "Corrupção ou edição manual. Corrigir à mão — nada foi escrito." >&2
   exit 1
 fi
 
