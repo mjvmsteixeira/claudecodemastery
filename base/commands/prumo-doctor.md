@@ -53,7 +53,7 @@ Lançar em paralelo os doctors aplicáveis:
 
 | Doctor | Domínio | Condição |
 |--------|---------|----------|
-| `memory-doctor` (skill, base) | Saúde do MemPalace local | `HAS_BASE && HAS_MEMPALACE` |
+| `memory-doctor` (skill, base) | Setup de memória em 3 camadas: episódica (MemPalace), estrutural (Graphify), humana (docs) — saúde, colisões e regra de encaminhamento | `HAS_BASE` (as 3 camadas são soft-deps; a skill inventaria e reporta as ausentes) |
 | `claude-deep-audit` (skill, base) | Auditoria profunda da configuração Claude Code | `HAS_BASE` |
 | `/vault-audit` (command, base) | Health da integração Vault local do projecto actual | `HAS_BASE` |
 | `/prumo-vault-doctor` (command, secops) | Diagnóstico do Vault de **produção** do SaaS | `HAS_SECOPS` (e fora da VPN: pode reportar inacessível) |

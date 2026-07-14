@@ -260,7 +260,7 @@ prumo_require() {
 
 # ────────────────────────────────────────────────────────────────────────────
 # prumo_init_dirs · cria a estrutura ~/.prumo/ se ausente
-# Chamado pelo memory-doctor no passo 6.
+# Chamado pelo memory-doctor antes de qualquer acção que mute ficheiros (Gate 3).
 # ────────────────────────────────────────────────────────────────────────────
 prumo_init_dirs() {
   mkdir -p "$PRUMO_HOME" "$PRUMO_BACKUPS_DIR" "$PRUMO_LOG_DIR" 2>/dev/null || true
