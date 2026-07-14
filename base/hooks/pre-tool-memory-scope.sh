@@ -86,15 +86,17 @@ CMD=$(printf '%s' "$CMD" | tr -d '\042\047\134')
 CMD=$(printf '%s' "$CMD" | sed -E 's/\$\{IFS[^}]*\}/ /g; s/\$IFS/ /g')
 
 # ────────────────────────────────────────────────────────────────────────────
-# Fronteira de palavra — classe endurecida do audit-guard, MAIS as aspas.
-# Sem "(" e backtick, um token embrulhado em $(...), subshell ou backticks escapa
-# (família de bypass corrigida na v0.5.0). Sem as aspas, `eval "graphify reflect"`,
-# `bash -c "graphify reflect"` e `uv tool install "graphify"` escapavam — o shell
-# tira-as antes de executar, portanto o comando corre na mesma. Não regredir.
-# O `\$` fecha o ANSI-C quoting: `eval $'graphify reflect'` fica, após despir as
-# aspas, `eval $graphify reflect` — sem `$` na fronteira, o `$graphify` escapava.
-# shellcheck disable=SC2016  # backtick, aspas e `$` são literais do regex, não expansão
-B='(^|[[:space:]]|/|\\|\(|`|"|'"'"'|\$)'
+# Fronteira de palavra — DENYLIST de caracteres de identificador, não allowlist
+# de separadores. A versão anterior enumerava os separadores permitidos
+# (espaço, `/`, `(`, backtick, aspas, `$`) e era incompleta por construção: cada
+# novo contexto de invocação trazia um separador não listado que escapava —
+# `$(...)` (v0.5.0), aspas, `$'...'` (ANSI-C), e por fim `alias.q=!graphify`
+# (o `!`/`=` não estavam na lista). Negar `[A-Za-z0-9_]` apanha QUALQUER
+# caractere não-identificador antes de `graphify`/`mempalace` — `!`, `=`, `:`,
+# `$`, espaço, `(`, `/`, backtick, aspas — de uma só vez, sem enumerar.
+# `mygraphify` continua a não casar (o `y`/letra antes é identificador); o sufixo
+# `graphifyy` é tratado à parte pelo `[^y[:alnum:]]` de cada regex.
+B='(^|[^A-Za-z0-9_])'
 
 # C4 · ambições episódicas do graphify (pertencem ao MemPalace)
 EPISODIC_REGEX="${B}graphify[[:space:]]+(reflect|save-result)\b|\.graphify_(learning|analysis)\.json"
@@ -124,12 +126,13 @@ GLOBAL_REGEX="${B}graphify[[:space:]]+global[[:space:]]+add\b|${B}graphify[[:spa
 # `[^y[:alnum:]]` garante que graphifyy NÃO bate (é o prefixo do legítimo).
 # `pip3?` porque pip3 é o alias por omissão em macOS/Linux com Python 3.
 # As aspas já foram removidas do CMD acima; o `["']?` fica como cinto-e-suspensórios.
-# Enumerar os gestores: uv (tool install/run E add), uvx, pip/pip3, pipx
+# Enumerar os gestores: uv (tool install/run, run, add), uvx, pip/pip3, pipx
 # (install E run), poetry, conda, rye, pdm — qualquer um instala OU corre
-# efemeramente o slot 'graphify'. `uvx`/`uv tool run`/`pipx run` fazem
-# fetch+execução sem instalar — mesmo threat model (executa código do slot
-# por-reclamar), por isso entram na mesma alternação.
-TYPOSQUAT_REGEX="(uv[[:space:]]+tool[[:space:]]+install|uv[[:space:]]+tool[[:space:]]+run|uvx|uv[[:space:]]+add|pip3?[[:space:]]+install|pipx[[:space:]]+install|pipx[[:space:]]+run|poetry[[:space:]]+add|conda[[:space:]]+install|rye[[:space:]]+add|pdm[[:space:]]+add)[[:space:]]+(-[^[:space:]]+[[:space:]]+)*[\"']?graphify([^y[:alnum:]]|==|\$)"
+# efemeramente o slot 'graphify'. `uvx`/`uv tool run`/`uv run --with`/`pipx run`
+# fazem fetch+execução sem instalar — mesmo threat model (executa código do slot
+# por-reclamar), por isso entram na mesma alternação. O grupo de flags
+# `(-[^[:space:]]+[[:space:]]+)*` apanha o `--with` de `uv run --with graphify`.
+TYPOSQUAT_REGEX="(uv[[:space:]]+tool[[:space:]]+install|uv[[:space:]]+tool[[:space:]]+run|uv[[:space:]]+run|uvx|uv[[:space:]]+add|pip3?[[:space:]]+install|pipx[[:space:]]+install|pipx[[:space:]]+run|poetry[[:space:]]+add|conda[[:space:]]+install|rye[[:space:]]+add|pdm[[:space:]]+add)[[:space:]]+(-[^[:space:]]+[[:space:]]+)*[\"']?graphify([^y[:alnum:]]|==|\$)"
 
 # C3 · mempalace mine tem DEFAULT --mode projects → indexa código.
 # A camada episódica exige --mode convos. Tratado à parte (exige ausência de flag).
@@ -152,25 +155,31 @@ while [ -z "$BLOCK_REASON" ] && IFS= read -r CLAUSE; do
   [ -z "$TRIMMED" ] && continue
 
   # Palavra-de-comando da clause (o 1º token, após env-assignments FOO=bar).
-  # Se for um comando de TEXTO PURO (grep/echo/git commit/…), o token
-  # graphify/mempalace é DADO — nada executa — e bloquear seria falso positivo
-  # (`grep "graphify install" docs/`, `git commit -m "...graphify reflect..."`).
-  # Nesses casos, saltar a clause.
+  # Se for um comando de TEXTO PURO (grep/echo/cat/…), o token graphify/mempalace
+  # é DADO — nada executa — e bloquear seria falso positivo (`grep "graphify
+  # install" docs/`). Nesses casos, saltar a clause.
   #
   # EXCEPÇÃO: se a clause contiver substituição de comando ou de processo
   # (`$(...)`, backtick, `<(...)`, `>(...)`), o comando interno EXECUTA
   # independentemente do comando externo — `cat <(graphify reflect)` corre
   # graphify — logo NÃO se pode saltar.
   #
-  # A allowlist é deliberadamente só comandos que tratam os argumentos como
-  # dados. awk/sed/perl/jq NÃO entram: são programáveis e executam código
-  # (`awk 'BEGIN{system("graphify reflect")}'`), o que seria um bypass.
+  # A allowlist é deliberadamente SÓ comandos que tratam os argumentos como
+  # dados e nunca os executam. Ficam DE FORA todos os programáveis, sem excepção:
+  #   - awk/sed/perl/jq  → `awk 'BEGIN{system("graphify reflect")}'`
+  #   - git              → `git -c alias.q='!graphify reflect' q` (e core.pager,
+  #                        -x/--exec, foreach, bisect run, difftool -x) executam
+  #                        comandos arbitrários. Custo de excluir git: o FP raro
+  #                        `git commit -m "...graphify reflect..."` volta a
+  #                        bloquear — aceitável (tem bypass), e é o MESMO custo
+  #                        que já pagamos no awk/sed. O invariante fica de uma
+  #                        linha: programável ⇒ fora da allowlist.
   CMDWORD=$(printf '%s' "$TRIMMED" | sed -E 's/^([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*//' | awk '{print $1}')
   # shellcheck disable=SC2016  # '$(' '`' '<(' '>(' são literais do grep -F, não expansão
   if ! printf '%s' "$TRIMMED" | grep -qF '$(' && ! printf '%s' "$TRIMMED" | grep -qF '`' \
      && ! printf '%s' "$TRIMMED" | grep -qF '<(' && ! printf '%s' "$TRIMMED" | grep -qF '>('; then
     case "$CMDWORD" in
-      grep|egrep|fgrep|rg|ag|echo|printf|cat|bat|head|tail|less|more|man|history|git) continue ;;
+      grep|egrep|fgrep|rg|ag|echo|printf|cat|bat|head|tail|less|more|man|history) continue ;;
     esac
   fi
 
