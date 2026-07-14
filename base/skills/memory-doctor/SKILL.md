@@ -121,15 +121,37 @@ Cada agente audita **saúde** *e* **fidelidade ao âmbito** da sua ferramenta. S
 
 ## 2. Árbitro
 
-Ver `references/arbitro.md` (Fase 2).
+Depois do fan-out, correr o **árbitro** — o único agente que não audita nenhuma ferramenta, e sim o **espaço entre elas**. Carregar `references/arbitro.md` e avaliar as 7 colisões:
+
+| # | Colisão | Sev |
+|---|---|---|
+| C1 | Mandatos concorrentes no CLAUDE.md | CRIT |
+| C2 | PreToolUse hook do graphify sobre `Read`/`Glob` | CRIT |
+| C3 | Sobreposição de corpus (`mempalace mine` em `--mode projects`) | CRIT |
+| C4 | Ambições episódicas do Graphify (`reflect`, `save-result`, overlays) | CRIT |
+| C5 | Orçamento de tools (>`TOOL_BUDGET_WARN`) | WARN |
+| C6 | `.claudeignore` sem `graph.json` / `graphify-out/` | WARN |
+| C7 | Âmbito global (`~/.graphify/global-graph.json`) | WARN |
+
+**Anti-falso-verde:** uma colisão que não pode ser avaliada porque a camada está ausente reporta-se como **"não avaliável — camada X ausente"**, nunca como "sem colisão".
+
+O árbitro é **read-only**: nomeia a remediação, não a executa. A execução é a Fase 4.
 
 ## 3. Relatório
 
-Agrupado por camada + **escritores** + colisões + a regra de encaminhamento proposta. Emoji só no relatório (✅ / ⚠️ / 🚨 / ℹ️).
-
-A secção **ESCRITORES** é obrigatória sempre que a camada episódica esteja activa — é onde se explicam, de uma só vez, corrupção de índice, mining parado e jobs falhados:
-
 ```
+# Memory Doctor — <timestamp>
+
+## Resumo
+<estado global em uma linha: N camadas activas, M colisões CRIT, K WARN>
+
+## CAMADAS
+| Camada | Ferramenta | Estado | Saúde |
+|---|---|---|---|
+| Episódica | MemPalace v<x> | ✅ activa | <drawers, KG, backups> |
+| Estrutural | Graphify v<x> | ✅ activa | <graph.json, staleness, hooks> |
+| Humana | docs/Obsidian | ℹ️ ausente | <trade-off de não ter> |
+
 ## ESCRITORES
 - mempalace-mcp vivos: <n>          (1 por sessão Claude aberta)
 - Lease do palace: detida por PID <x> (<processo>) → ⚠️ escritas de fundo bloqueadas
@@ -137,9 +159,28 @@ A secção **ESCRITORES** é obrigatória sempre que a camada episódica esteja 
 - Locks: <n> | churn: <ritmo — medir, não o valor absoluto>
 - Segmentos em quarentena: <du -sh dos .drift-* / .corrupt-*>
 - Veredicto: <ex.: mining DIFERIDO — drena quando nenhuma sessão segurar a lease. Sem perda de dados.>
+
+## COLISÕES
+- 🚨 C1 mandatos concorrentes no CLAUDE.md — evidência: <linhas>
+      → remediação: graphify claude uninstall + regra única (Fase 4)
+- ✅ C4 ambições episódicas — limpo (sem graphify-out/memory/)
+- ⚠️ C6 .claudeignore sem graph.json — invalida prompt cache a cada commit
+- ℹ️ C7 não avaliável — camada estrutural ausente
+
+## REGRA DE ENCAMINHAMENTO (proposta)
+<o bloco de references/routing-rule.md>
+
+## VERSÕES
+- MemPalace: CLI <x> / plugin em cache <y>  ← divergência = upgrade pendente
+
+## Acções recomendadas
+1. [CRIT] ...
+2. [WARN] ...
 ```
 
-Distinguir sempre **frescura** de **perda**: mining diferido não é perda de dados; corrupção de índice é.
+A secção **ESCRITORES** é obrigatória sempre que a camada episódica esteja activa — é onde se explicam, de uma só vez, corrupção de índice, mining parado e jobs falhados. Distinguir sempre **frescura** de **perda**: mining diferido não é perda de dados; corrupção de índice é.
+
+Emoji **só** no relatório (✅ / ⚠️ / 🚨 / ℹ️), nunca fora dele.
 
 ## 4. Governança (`--apply`)
 
