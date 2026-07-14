@@ -28,21 +28,42 @@ o episódico pertence ao MemPalace. Dois registos independentes produzem memóri
 
 ## Escrita idempotente
 
-Nunca fazer append cego. Se os marcadores existirem, **substituir** o bloco entre eles; senão, acrescentar no fim.
+Nunca fazer append cego. Se **ambos** os marcadores existirem, remover o bloco antigo e anexar o novo; senão, anexar. O bloco fica sempre **no fim** do ficheiro — é o preço da idempotência simples, e é aceitável (a regra não depende da posição).
+
+**Armadilha que destrói dados — ler antes de copiar.** Um `sed` com range (`/START/,/END/d`) em que o `END` **não existe** apaga **da linha do START até ao fim do ficheiro**, levando com ele secções do utilizador que nada têm a ver com o bloco. Um `CLAUDE.md` com o `START` mas sem o `END` (merge conflict, edição manual, truncamento) é exactamente o caso em que isto acontece — silenciosamente. Por isso: **exigir os dois marcadores, e abortar se só um estiver presente.**
 
 ```bash
 CLAUDE_MD="./CLAUDE.md"
 START='<!-- PRUMO_MEMORY_ROUTING_START'
 END='<!-- PRUMO_MEMORY_ROUTING_END -->'
+BLOCK_FILE="$1"          # ficheiro com o bloco canónico a escrever
 
-if grep -qF "$START" "$CLAUDE_MD" 2>/dev/null; then
-  # bloco existe → substituir (remover o antigo, inserir o novo no mesmo sítio)
+# Backup INCONDICIONAL antes de qualquer escrita — inclui o primeiro install.
+# (ou prumo_backup, se o prumo-common.sh estiver disponível)
+[ -f "$CLAUDE_MD" ] && cp "$CLAUDE_MD" "${CLAUDE_MD}.bak"
+
+has_start=0; has_end=0
+grep -qF "$START" "$CLAUDE_MD" 2>/dev/null && has_start=1
+grep -qF "$END"   "$CLAUDE_MD" 2>/dev/null && has_end=1
+
+if [ "$has_start" = 1 ] && [ "$has_end" = 1 ]; then
+  # Ambos presentes → remover o bloco antigo (range fechado, seguro)
   sed -i.bak "/$START/,/$END/d" "$CLAUDE_MD"
+elif [ "$has_start" != "$has_end" ]; then
+  # SÓ UM presente → corrupção. NÃO apagar: o range comeria até EOF.
+  echo "ERRO: marcador de routing desemparelhado em $CLAUDE_MD (START=$has_start END=$has_end)." >&2
+  echo "Possível corrupção ou edição manual. Corrigir à mão antes de reaplicar — nada foi escrito." >&2
+  exit 1
 fi
-# acrescentar o bloco novo (mostrar o diff e confirmar antes — Gate 3)
+
+# Anexar o bloco novo (mostrar o diff e confirmar ANTES — Gate 3)
+printf '\n' >> "$CLAUDE_MD"
+cat "$BLOCK_FILE" >> "$CLAUDE_MD"
 ```
 
-Guardar sempre `.bak` antes de escrever (ou usar `prumo_backup` se o `prumo-common.sh` existir).
+`sed -i.bak` é a forma **BSD/macOS** (o `sed -i` sem sufixo, GNU-style, falha no macOS).
+
+Correr duas vezes não duplica o bloco. Acumula uma linha em branco por corrida — cosmético, não corrompe.
 
 ## Precedência
 

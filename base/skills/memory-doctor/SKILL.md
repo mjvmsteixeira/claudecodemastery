@@ -34,7 +34,7 @@ Cada agente da Fase 1 recebe **apenas a sua linha**.
 1. Fan-out: 3 agentes            → 1 por camada, em paralelo, cada um só com o seu contrato
 2. Árbitro                       → colisões cross-camada (references/arbitro.md)
 3. Relatório                     → por camada + colisões + regra de encaminhamento
-4. Governança (--apply)          → router (references/routing-rule.md), gated por safe-apply
+4. Governança (--apply)          → router (references/routing-rule.md), gated pelos 3 Gates
 ```
 
 ## 0. Inventário + provisionamento
@@ -189,7 +189,7 @@ Emoji **só** no relatório (✅ / ⚠️ / 🚨 / ℹ️), nunca fora dele.
 **Antes de aplicar qualquer alteração, executar os 3 gates da secção "Gates" desta skill:**
 Gate 1 (modo operacional — em `dev` degrada para report-only), Gate 2 (sample/empty-shell detection), Gate 3 (confirmação humana individual, com diff, para acções destrutivas).
 
-Os gates são **inline** — o `prumo-base` é foundacional e não depende do devkit (onde vive o `shared/safe-apply.md`).
+Os gates são **inline** (secção "Gates" acima) — o `prumo-base` é foundacional e standalone, não é uma referência externa.
 
 O router só age sobre colisões que o **árbitro detectou**. Cada acção é confirmada individualmente.
 
