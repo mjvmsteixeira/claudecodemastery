@@ -1,22 +1,22 @@
 {
-  "name": "prumo-craft",
-  "version": "0.5.0",
-  "description": "Plugin de tooling generativo do ecossistema prumo para Claude Code. Ship inicial: html-plan — produz HTML designed com disciplina anti-AI-slop (8px baseline grid, contraste WCAG AA, sem pure black/white, real data, focus-visible real, 5 surfaces: web/deck/poster/frame/mockup). Roadmap markdown primeiro, HTML self-contained depois. Invocação explícita por nome. Standalone — não recomenda prumo-base nem outro plugin; zero deps externas (markdown+bash, sem Python, sem API keys). Roadmap v0.3.0 inclui logo-generator (SVG via Gemini) com bootstrap de venv + API key via Vault.",
+  "name": "prumo-design",
+  "version": "0.6.0",
+  "description": "Orquestrador de design do ecossistema prumo para Claude Code. A skill product-design é um condutor fino que invoca a stack nativa de design do Claude — frontend-design (direção estética), Artifact (render de mockups visuais partilháveis) e design-sync/DesignSync (design system do produto num Claude Design project) — em vez de reimplementar regras de design. Dois modos: mockup (uma surface designed renderizada) e system (tokens + biblioteca de componentes). Zero regras de design próprias; owns routing, gating, quality-floor e degradação de dependências. Standalone quanto a outros plugins prumo. Substitui o antigo prumo-craft/html-plan.",
   "author": {
     "name": "mjvmst",
     "email": "mjvmst@gmail.com"
   },
   "license": "Proprietary - uso interno",
   "keywords": [
-    "craft",
-    "design",
-    "html",
-    "generative",
     "prumo",
+    "design",
+    "product-design",
+    "design-system",
+    "frontend-design",
+    "artifact",
+    "design-sync",
+    "mockup",
     "claude-code",
-    "anti-slop",
-    "8px-grid",
-    "wcag",
-    "html-plan"
+    "orchestrator"
   ]
 }
