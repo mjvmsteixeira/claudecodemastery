@@ -1,6 +1,6 @@
 # Changelog — marketplace prumo
 
-Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `craft/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
+Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
 Estado actual: **prumo-base 0.6.0 · prumo-secops 0.5.0 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tag `v0.6.0`)
 
