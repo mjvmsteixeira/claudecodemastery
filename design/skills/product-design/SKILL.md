@@ -44,7 +44,22 @@ Uma surface designed, renderizada e visível.
 
 ## System mode — pipeline
 
-> STUB — escrito na Fase 3 (materializa um Claude Design project via design-sync/DesignSync).
+Um design system do produto: tokens + biblioteca de componentes, num Claude Design project.
+**Dependência hard**: login claude.ai + design scopes. Sem eles, este modo está indisponível
+→ instruir `/design-login` e parar (não há fallback local; é claude.ai/design).
+
+1. **Gate & brief** — produto, âmbito, que surfaces/componentes importam.
+2. **frontend-design** — invocar a skill nativa uma vez para a linguagem do produto: tokens
+   (Type/Colors/Spacing) + signature. Contrato em `references/native-handoffs.md`.
+3. **Resolver o Claude Design project** — `DesignSync list_projects` → escolher ou
+   `create_project`; confirmar `type: PROJECT_TYPE_DESIGN_SYSTEM` com `get_project`. Sem
+   autorização → `/design-login` e parar.
+4. **Materializar** — delegar ao `design-sync`: foundation cards (tokens) primeiro, depois
+   componentes um de cada vez, cada preview com marcador `@dsCard`. Aplicar o quality floor
+   (`references/quality-floor.md`) por componente. Respeitar a ordem list/read →
+   finalize_plan → write/delete.
+5. **Validar** — gate `.render-check.json` (total/bad/thin/variants-identical); reportar o
+   delta.
 
 ## Dependências (degradação)
 
