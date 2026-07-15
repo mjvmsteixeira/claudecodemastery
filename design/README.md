@@ -1,124 +1,76 @@
-# prumo-craft
+# prumo-design
 
-Plugin Claude Code · tooling generativo do ecossistema prumo · v0.2.0
+Plugin Claude Code · orquestrador de design do ecossistema prumo · v0.6.0
 
 ---
 
 ## Dependências
 
-**Nenhuma.** Standalone. Não recomenda `prumo-base` nem outro plugin. Zero deps externas (markdown + bash; sem Python, sem API keys, sem Vault).
+**Standalone quanto a outros plugins prumo** (não recomenda `prumo-base`). Depende, sim, da
+**stack nativa de design do Claude**:
+
+| Peça nativa | Papel | Necessário para |
+|---|---|---|
+| skill `frontend-design` | direção estética (tokens, signature, anti-default) | ambos os modos (soft — degrada) |
+| tool `Artifact` + skill `artifact-design` | render de mockup visível/partilhável | mockup mode (soft — fallback HTML local) |
+| skill `design-sync` + tool `DesignSync` | design system num Claude Design project | system mode (**hard** — login claude.ai) |
 
 ---
 
 ## O que faz
 
-Casa tooling generativo com **disciplina** — produz output design-quality em vez de output AI-slop. Cada skill segue regras concretas (grid, contraste, naming, real data) e tem self-critique antes de entregar.
-
-Ship inicial cobre **uma** skill (`html-plan`). v0.3.0+ adiciona mais à medida que valem o esforço.
+`product-design` é um **condutor fino**: não reimplementa regras de design — invoca a stack
+nativa e garante que é usada, na ordem certa, sempre. Owns routing, gating, sequenciamento,
+quality floor e degradação de dependências; **não** owns paletas, grids nem surface CSS.
 
 | Componente | Tipo | Domínio |
-|------------|------|---------|
-| **html-plan** | skill + command `/html-plan` | Produz HTML designed em 2 fases (roadmap markdown → HTML self-contained). 8px baseline grid, contraste WCAG AA, sem pure black/white, real data, `:focus-visible` real, 5 surfaces (web / deck / poster / frame / mockup). Invocação **explícita por nome** — não auto-triggera em "make me a webpage" genérico. |
+|---|---|---|
+| **product-design** | skill + command `/product-design` | Conduz o design de produto em 2 modos. **mockup**: uma surface designed renderizada via Artifact (fallback HTML local). **system**: tokens + biblioteca de componentes num Claude Design project via design-sync. Invocação **explícita por nome**. |
 
 ---
 
-## Skill triggers
+## Dois modos
 
-| Sintoma do utilizador | Skill / Command que dispara |
-|-----------------------|------------------------------|
-| "use html-plan to make X", "invoke html-plan", `/html-plan ...` | `html-plan` |
-| "make me a webpage", "design this page" (sem nomear) | **Não triggera** — usa outro path. |
+- **mockup** — `/product-design mockup <brief>` → gate → frontend-design → build → Artifact →
+  quality floor. Uma surface, um artefacto visível.
+- **system** — `/product-design system <brief>` → gate → frontend-design → Claude Design
+  project → design-sync (foundation cards → componentes) → validação. Um design system
+  reutilizável. Requer login claude.ai/design.
 
-A regra: `html-plan` é uma escolha consciente do user para entrar no modo de discipline. Sem nomeá-la, fica fora.
-
----
-
-## Princípios da família craft
-
-1. **Disciplina antes de output.** Phase 1 é sempre um roadmap escrito (cores com contraste calculado, tipos em múltiplos de 8, layout em grid). Só depois Phase 2 escreve o ficheiro real.
-2. **Anti-slop.** Sem `#000000`/`#ffffff`. Sem lorem ipsum. Sem "John Doe". Sem três accents. Sem `outline: none` sem replacement.
-3. **Real data.** Se o user não fornece content, a skill pergunta ou gera placeholders **explicitamente labeled**.
-4. **Self-critique mensurável.** 5 dimensões (typography, color, spacing, real data, accessibility), score 1–5. Abaixo de 4 → revê antes de avançar.
-5. **Surfaces deliberadas.** Cinco categorias com convenções próprias (web, deck, poster, frame, mockup). User escolhe; a skill não adivinha.
+Sem sub-comando, o skill infere do brief; se ambíguo, pergunta antes de arrancar.
 
 ---
 
-## Arquitectura
+## Por que não reimplementa design
 
-```
-craft/
-├── .claude-plugin/
-│   └── plugin.json
-├── README.md
-├── CHANGELOG.md
-├── smoke.sh
-├── commands/
-│   └── html-plan.md                    # /html-plan — wrapper fino que invoca a skill
-└── skills/
-    └── html-plan/
-        ├── SKILL.md                    # 2-phase workflow + hard constraints summary
-        └── references/
-            ├── principles.md           # full design principles (8px grid, palettes, contraste, etc)
-            └── surfaces.md             # conventions per surface (web/deck/poster/frame/mockup)
-```
+O Claude já tem uma skill nativa de design (`frontend-design`) mais fina e atual, que avisa
+explicitamente contra os "looks AI-default". Um plugin que codificasse paletas/grids fixos
+duplicaria-a — pior, contradizia-a. `prumo-design` faz o oposto: delega a estética à nativa e
+concentra-se na orquestração, no render visual e na materialização de um design system.
 
 ---
 
 ## Como invocar
 
-**Via slash command** (recomendado para descoberta):
-
 ```
-/html-plan <surface> <brief curto>
+/product-design mockup landing page para um SaaS de billing automation
+/product-design system tokens + componentes para o produto Acme
+"use product-design to mock the pricing screen"
 ```
-
-Exemplo:
-
-```
-/html-plan web landing page para um SaaS de billing automation
-/html-plan deck pitch deck Series A para um produto de RAG
-/html-plan poster A4 para evento NIS2 (Lisbon, June 2026)
-```
-
-**Via nome da skill** (igualmente válido):
-
-```
-"use html-plan to build a landing page for Acme"
-"invoke html-plan for a tech-sharing deck on Postgres RLS"
-```
-
----
-
-## Roadmap
-
-- **v0.3.0** — `logo-generator` (SVG logos + showcase via Gemini API). Requer Python venv + `GEMINI_API_KEY` em Vault `secret/ai/gemini`. Iteração dedicada para resolver bootstrap de deps externas sem fricção (provavelmente `/prumo-craft-bootstrap` à la `/prumo-vault-bootstrap`).
-- **v0.3.0+** — possíveis adições conforme valem o esforço: deck-builder (slides com discipline equivalente ao html-plan), copy-generator (texto editorial sem AI-tropes), data-poster (visualizações com tipografia editorial).
 
 ---
 
 ## Instalação
 
 ```bash
-# 1 · Instalar via marketplace prumo
 /plugin marketplace add mjvmsteixeira/claudecodemastery
-/plugin install prumo-craft@prumo
-
-#    (alternativa · empacotar localmente)
-cd craft
-zip -r /tmp/prumo-craft.plugin . -x "*.DS_Store" "smoke.sh"
-/plugin install /tmp/prumo-craft.plugin
-
-# 2 · Sanity check
-/plugin list                                  # verificar prumo-craft v0.2.0
-/html-plan web a really small test page       # confirmar Phase 1 produz roadmap
+/plugin install prumo-design@prumo
+/plugin list                                  # verificar prumo-design v0.6.0
 ```
 
----
-
-## Nota de naming
-
-`prumo-craft` é da **família do marketplace `prumo`** (alinha com `prumo-base`, `prumo-secops`, `prumo-devkit`) — **não tem ligação operacional** ao SaaS Wire propriamente dito. `prumo-craft` serve qualquer projecto que precise de output designed com discipline, não só os 170+ municípios em produção.
+Se substitui um plugin anterior: `/plugin uninstall <anterior>@prumo` seguido de
+`/plugin install prumo-design@prumo`.
 
 ---
 
-© 2026 prumo · Uso interno · Versão 0.2.0
+© 2026 prumo · Uso interno · Versão 0.6.0
