@@ -2,6 +2,21 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.6.0 — 2026-07-15
+
+**Skill `memory-doctor` + hook `memory-scope`.** Governança do setup de memória em 3 camadas de âmbito disjunto.
+
+### Added
+- **Skill `/memory-doctor`** — audita as 3 camadas de memória (episódica/MemPalace, estrutural/Graphify, humana/docs) com um contrato de âmbito onde cada ferramenta sabe o que faz **e o que nunca faz**. Corre 3 agentes (um por camada) + um árbitro read-only das 7 colisões C1–C7 (mandatos concorrentes no CLAUDE.md, PreToolUse sobre Read/Glob, sobreposição de corpus, ambições episódicas do Graphify, orçamento de tools, `.claudeignore` sem `graph.json`, âmbito global). Fase 0 avalia install/upgrade e instala primeiro; Fase 4 `--apply` escreve **uma** regra de encaminhamento no CLAUDE.md (bloco versionado, idempotente, à prova de marcadores corrompidos) e instala o hook. References por camada: `camada-episodica.md` (modelo de escritores MCP, Etapa 0 changelog-first, FTS5 integrity/rebuild, embedder trap, thresholds), `camada-estrutural.md` (AST-only, anti-typosquat), `camada-humana.md`, `arbitro.md`, `routing-rule.md`.
+- **Hook PreToolUse `memory-scope`** (matcher **Bash apenas** — nunca Read/Glob, para não cometer a colisão C2 que a skill denuncia). Guarda de âmbito entre camadas, endurecido por 5 rondas de revisão adversarial: normalização antes de casar (aspas, backslash, continuação de linha, `${IFS}`/`$IFS`), guards de substituição de comando **e** de processo (`$()`, backtick, `<()`, `>()`), fronteira de palavra **denylist de identificador** `(^|[^A-Za-z0-9_])` (fecha `!`/`=`/`:`/`$` sem enumerar), allowlist só de comandos data-only — todos os programáveis (git, awk, sed, perl, jq, pagers less/more/man) deliberadamente **fora**, pelo invariante "programável ⇒ fora da allowlist". Deteção de typosquat `graphify` vs `graphifyy` em 11 gestores (install/add/uvx/`uv run`/`pipx run`/…), e `mempalace mine` a exigir `--mode convos`. Fronteira de âmbito documentada no header (correspondência textual sobre formas naturais + ofuscações leves; não é um parser de shell).
+
+### Changed
+- Skill **`mempalace-doctor` absorvida** por `memory-doctor` (removida; etapas, checklist, migration-recipes e scope-model migrados/reescritos nas references por camada).
+- `marketplace.json`, `README.md` e o gate do `/prumo-doctor` (`HAS_MEMPALACE` → `HAS_BASE`) actualizados para a nova skill.
+
+### Tests
+- eval-harness: corpus **96 → 135 casos** (`hook_path()` mapeia `memory-scope`; breakdown por hook), todos **mutation-proof** (remover qualquer normalização/guard reabre FN ou FP). `validate.sh` 0/0 · `smoke.sh` 35/0. Revisão final adversarial: **APROVADO**.
+
 ## v0.5.0 — 2026-07-07
 
 **Telemetria dos guardrails + hardening de segurança** (adicionado à linha 0.5.0 em 2026-07-07):

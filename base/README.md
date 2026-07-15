@@ -1,6 +1,6 @@
 # prumo-base
 
-Plugin-base do ecossistema prumo para Claude Code · v0.5.0
+Plugin-base do ecossistema prumo para Claude Code · v0.6.0
 
 ---
 
@@ -268,7 +268,7 @@ zip -r /tmp/prumo-base.plugin . -x "*.DS_Store" "*.bak.*"
 mkdir -p ~/.prumo && echo dev > ~/.prumo/mode    # ou: prod
 
 # 3 · Sanity check
-/plugin list                                  # verificar prumo-base v0.5.0
+/plugin list                                  # verificar prumo-base v0.6.0
 ls ~/.claude/plugins/prumo-base/           # estrutura completa
 
 # 5 · Primeiros usos

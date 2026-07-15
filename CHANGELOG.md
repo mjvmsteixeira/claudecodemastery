@@ -2,7 +2,11 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `craft/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.5.0 · prumo-secops 0.5.0 · prumo-devkit 0.5.1 · prumo-craft 0.5.0** (tag `v0.5.1`)
+Estado actual: **prumo-base 0.6.0 · prumo-secops 0.5.0 · prumo-devkit 0.5.1 · prumo-craft 0.5.0** (tag `v0.6.0`)
+
+## 2026-07-15 · `v0.6.0` · prumo-base 0.6.0
+
+**Skill `memory-doctor` + hook `memory-scope`.** Nova skill foundacional em prumo-base que governa o setup de memória em 3 camadas de âmbito disjunto — episódica (MemPalace), estrutural (Graphify), humana (docs) — via 3 agentes + um árbitro read-only das 7 colisões C1–C7. Fase 0 avalia install/upgrade e instala primeiro; Fase 4 `--apply` escreve **uma** regra de encaminhamento no CLAUDE.md e instala o hook PreToolUse `memory-scope` (matcher Bash). Absorve a antiga `mempalace-doctor`. O hook foi endurecido por 5 rondas de revisão adversarial (normalização aspas/backslash/`${IFS}`, guards de substituição de comando e processo, fronteira denylist de identificador, allowlist só de comandos data-only — programáveis fora pelo invariante "programável ⇒ fora", typosquat `graphify` vs `graphifyy` em 11 gestores). eval-harness 96 → 135 casos, todos mutation-proof; `validate.sh` 0/0 · `smoke.sh` 35/0. Detalhe em `base/CHANGELOG.md`.
 
 ## 2026-07-12 · `v0.5.1` · prumo-devkit 0.5.1
 
