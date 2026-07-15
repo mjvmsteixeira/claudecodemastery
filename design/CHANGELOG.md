@@ -1,6 +1,35 @@
-# Changelog — prumo-craft
+# Changelog — prumo-design
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
+
+## v0.6.0 — 2026-07-15
+
+**BREAKING — `prumo-craft` → `prumo-design`, redesign completo.** O plugin deixa de reimplementar
+regras de design (o antigo skill `html-plan`) e passa a orquestrar a stack nativa do Claude.
+
+### Removed
+- Skill `html-plan` e command `/html-plan` (+ references `principles.md`, `surfaces.md`). As
+  regras copiadas do `nexu-io/html-anything` (8px grid fixo, paletas fixas) contradiziam a
+  skill nativa `frontend-design`, que nomeia esses defaults como anti-padrões.
+
+### Added
+- Skill `product-design` + command `/product-design` — condutor fino, dois modos:
+  - **mockup**: gate → `frontend-design` (estética) → build → `Artifact` (render partilhável;
+    fallback HTML local sem login) → quality floor verificável.
+  - **system**: gate → `frontend-design` → Claude Design project → `design-sync`/`DesignSync`
+    (foundation cards → componentes, `@dsCard`) → validação `.render-check.json`. Hard-require
+    login claude.ai/design.
+- References: `routing.md` (decisão de modo + deteção/degradação de deps),
+  `native-handoffs.md` (contratos frontend-design / Artifact / design-sync), `quality-floor.md`
+  (checklist verificável).
+
+### Changed
+- Dir `craft/` → `design/`; `name` `prumo-craft` → `prumo-design`; tooling do repo
+  (`marketplace.json`, `.gitignore`, `scripts/validate.sh`, `scripts/package.sh`) atualizado.
+- Deixa de ser "zero deps": depende da stack nativa de design (soft em mockup, hard em system).
+
+### Upgrade
+- `/plugin uninstall prumo-craft@prumo` seguido de `/plugin install prumo-design@prumo`.
 
 ## v0.5.0 — 2026-07-07
 

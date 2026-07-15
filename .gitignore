@@ -1,5 +1,5 @@
 # ============================================================
-# WHITELIST MODE — só o marketplace e os quatro plugins prumo (base, secops, devkit, craft).
+# WHITELIST MODE — só o marketplace e os quatro plugins prumo (base, secops, devkit, design).
 # Tudo o resto fica IGNORADO por defeito.
 # ============================================================
 
@@ -17,7 +17,7 @@
 !base/
 !secops/
 !devkit/
-!craft/
+!design/
 !scripts/
 !.github/
 

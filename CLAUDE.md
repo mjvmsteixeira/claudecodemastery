@@ -11,7 +11,7 @@ Um **marketplace privado de plugins Claude Code** (`prumo`), não uma aplicaçã
 base/     ← prumo-base   · foundacional (instalar PRIMEIRO)
 secops/   ← prumo-secops · SecOps SaaS (recomenda prumo-base)
 devkit/   ← prumo-devkit · toolkit de auditoria (recomenda prumo-base)
-craft/    ← prumo-craft  · tooling generativo (standalone)
+design/   ← prumo-design · orquestrador de design (standalone)
 ```
 
 ## Relações entre plugins
@@ -22,7 +22,7 @@ craft/    ← prumo-craft  · tooling generativo (standalone)
 
 **`prumo-devkit`** recomenda prumo-base (soft) — só `/ngrok-expose` o consome (authtoken via Vault). Audits read-only por defeito; apply opt-in com gates.
 
-**`prumo-craft`** é standalone.
+**`prumo-design`** é standalone quanto a outros plugins prumo; depende da stack nativa de design do Claude (frontend-design + Artifact + design-sync).
 
 ## Dois CLAUDE.md de runtime — não confundir com este
 
@@ -50,4 +50,4 @@ Ignora tudo (`/*`) e re-inclui só o whitelisted. **Ficheiro novo na raiz não �
 
 ## Naming
 
-`marketplace.json` é a source of truth: marketplace `prumo`, plugins `prumo-base`, `prumo-secops`, `prumo-devkit`, `prumo-craft`. Install: `/plugin install prumo-<x>@prumo`. Rebranding wire→prumo em 2026-07-06 (ver CHANGELOG.md).
+`marketplace.json` é a source of truth: marketplace `prumo`, plugins `prumo-base`, `prumo-secops`, `prumo-devkit`, `prumo-design`. Install: `/plugin install prumo-<x>@prumo`. Rebranding wire→prumo em 2026-07-06 (ver CHANGELOG.md).

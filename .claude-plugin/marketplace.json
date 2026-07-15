@@ -4,7 +4,7 @@
     "name": "mjvmst",
     "email": "mjvmst@gmail.com"
   },
-  "description": "Marketplace privado prumo — ecossistema de plugins para Claude Code: prumo-base (foundacional), prumo-secops (SecOps SaaS eGovernment), prumo-devkit (toolkit de auditoria de developer) e prumo-craft (tooling generativo).",
+  "description": "Marketplace privado prumo — ecossistema de plugins para Claude Code: prumo-base (foundacional), prumo-secops (SecOps SaaS eGovernment), prumo-devkit (toolkit de auditoria de developer) e prumo-design (orquestrador de design).",
   "plugins": [
     {
       "name": "prumo-base",
@@ -22,9 +22,9 @@
       "description": "Toolkit de auditoria de developer — full-audit, security-scan, infra-audit, ux-audit, code-quality, performance-audit, chrome-live (browser ao vivo via CDP, gated), agente local-reviewer e ngrok-expose. Read-only por defeito; correcção opt-in via --apply com gates. Dependência soft do prumo-base."
     },
     {
-      "name": "prumo-craft",
-      "source": "./craft",
-      "description": "Tooling generativo — html-plan (HTML designed em 2 fases com disciplina anti-AI-slop: 8px grid, contraste WCAG AA, real data, 5 surfaces). Standalone, zero deps externas."
+      "name": "prumo-design",
+      "source": "./design",
+      "description": "Orquestrador de design — a skill product-design conduz a stack nativa do Claude (frontend-design + Artifact + design-sync) para produzir mockups visuais e design systems de produto, sem reimplementar regras de design. Dois modos: mockup e system. Standalone quanto a outros plugins prumo."
     }
   ]
 }

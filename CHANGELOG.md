@@ -1,8 +1,16 @@
 # Changelog — marketplace prumo
 
-Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `craft/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
+Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.6.0 · prumo-secops 0.5.0 · prumo-devkit 0.5.1 · prumo-craft 0.5.0** (tag `v0.6.0`)
+Estado actual: **prumo-base 0.6.0 · prumo-secops 0.5.0 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tag `v0.6.0`)
+
+## 2026-07-15 · `prumo-design 0.6.0` · redesign do antigo prumo-craft
+
+**`prumo-craft` → `prumo-design`.** O 4º plugin deixa de reimplementar regras de design (skill
+`html-plan`, removida) e passa a orquestrar a stack nativa do Claude: a skill `product-design`
+conduz `frontend-design` (estética), `Artifact` (mockups visíveis) e `design-sync`/`DesignSync`
+(design system num Claude Design project), em dois modos (mockup / system). Sem paletas nem
+grids próprios. Detalhe em `design/CHANGELOG.md`.
 
 ## 2026-07-15 · `v0.6.0` · prumo-base 0.6.0
 
