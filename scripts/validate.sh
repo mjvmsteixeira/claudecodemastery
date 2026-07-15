@@ -67,11 +67,11 @@ if [ $SKIP_SHELLCHECK -eq 0 ]; then
 fi
 
 # ──────────────────────── inventário ────────────────────────
-PLUGINS=("base" "secops" "devkit" "craft")
+PLUGINS=("base" "secops" "devkit" "design")
 if [ -n "$ONLY_PLUGIN" ]; then
   case " ${PLUGINS[*]} " in
     *" $ONLY_PLUGIN "*) PLUGINS=("$ONLY_PLUGIN") ;;
-    *) echo "validate.sh: --plugin $ONLY_PLUGIN não é um dos 4 plugins (base|secops|devkit|craft)" >&2; exit 2 ;;
+    *) echo "validate.sh: --plugin $ONLY_PLUGIN não é um dos 4 plugins (base|secops|devkit|design)" >&2; exit 2 ;;
   esac
 fi
 

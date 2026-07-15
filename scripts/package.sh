@@ -37,12 +37,12 @@ while [ $# -gt 0 ]; do
       grep -E '^# ' "$0" | sed 's/^# \{0,1\}//' | head -20
       exit 0
       ;;
-    base|secops|devkit|craft) SELECTED+=("$1"); shift ;;
+    base|secops|devkit|design) SELECTED+=("$1"); shift ;;
     *) echo "package.sh: argumento desconhecido: $1" >&2; exit 2 ;;
   esac
 done
 
-[ "${#SELECTED[@]}" -eq 0 ] && SELECTED=(base secops devkit craft)
+[ "${#SELECTED[@]}" -eq 0 ] && SELECTED=(base secops devkit design)
 mkdir -p "$OUT_DIR"
 
 # ──────────────────────── 1. validação prévia ────────────────────────
