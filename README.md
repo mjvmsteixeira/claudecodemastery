@@ -9,7 +9,7 @@ Marketplace privado **prumo** com o ecossistema de plugins para Claude Code.
 | **prumo-base** | 0.6.0 | Foundacional — 14 commands (`vault-toolkit`: 5 `/vault-*` + 2 bootstraps `/prumo-vault-bootstrap` e `/prumo-vault-kv-migrate` + `/prumo-vault-policy`; setup/diagnóstico: `/prumo-onboard`, `/prumo-doctor`, `/prumo-mode`, `/prumo-context-pack`, `/prumo-upgrade`, `/prumo-smoke`), 10 skills (incl. `memory-doctor`, `claude-deep-audit`), helpers bash partilhados (`lib/prumo-common.sh`, `lib/vault-env.sh`), hook SessionStart auto-unseal + hook PreToolUse `audit-guard` que dá defense-in-depth ao `prumo-devkit`. **Instalar primeiro.** |
 | **prumo-secops** | 0.5.0 | SecOps com Agentes IA para a Wire enquanto fornecedora SaaS de eGovernment local (170+ autarquias). 6 agents, 10 commands `/prumo-*` (inclui `/prumo-secops-bootstrap` para provisionar policies + AppRoles + Keychain numa só corrida), 6 skills com **20 templates `references/`** (progressive disclosure), cadeia de hooks PreToolUse/PostToolUse/Stop **funcional**. Assume `prumo-base` instalado. |
 | **prumo-devkit** | 0.5.0 | Toolkit de auditoria de developer — `full-audit`, `security-scan`, `infra-audit`, `ux-audit`, `code-quality`, `performance-audit`, `chrome-live` (browser ao vivo via CDP, gated), agente `local-reviewer` e `ngrok-expose`. **Read-only por defeito**: relatórios não tocam em ficheiros; correcção é opt-in via `--apply`, com loop de feedback (fingerprint semântico + accept) que suprime falsos-positivos entre corridas. Dependência soft do `prumo-base`. |
-| **prumo-craft** | 0.5.0 | Tooling generativo — `html-plan` (HTML designed em 2 fases com disciplina anti-AI-slop: 8px grid, contraste WCAG AA, real data, 5 surfaces). Standalone, zero deps externas. Roadmap: `logo-generator` em v0.3.0. |
+| **prumo-design** | 0.6.0 | Orquestrador de design — a skill product-design conduz a stack nativa do Claude (frontend-design + Artifact + design-sync) em dois modos (mockup / system). Sem regras de design próprias. |
 
 ## Estrutura
 
@@ -38,10 +38,10 @@ Marketplace privado **prumo** com o ecossistema de plugins para Claude Code.
 │   ├── skills/   (8 skills: 6 audits + local-reviewer + ngrok-expose)
 │   ├── agents/   (local-reviewer)
 │   └── shared/   (scoring, ci-mode, report-format, safe-apply)
-├── craft/                         ← plugin prumo-craft v0.5.0
+├── design/                        ← plugin prumo-design v0.6.0
 │   ├── .claude-plugin/plugin.json
-│   ├── commands/ (1 wrapper · /html-plan)
-│   └── skills/   (1 skill · html-plan + 2 references)
+│   ├── commands/ (1 wrapper · /product-design)
+│   └── skills/   (1 skill · product-design)
 └── scripts/
     ├── validate.sh                ← checks estáticos (JSON, frontmatter, shellcheck)
     └── package.sh                 ← empacotador unificado dos 4 plugins
@@ -63,7 +63,7 @@ Marketplace privado **prumo** com o ecossistema de plugins para Claude Code.
 /plugin install prumo-base@prumo
 /plugin install prumo-secops@prumo
 /plugin install prumo-devkit@prumo
-/plugin install prumo-craft@prumo       # opcional · tooling generativo, standalone
+/plugin install prumo-design@prumo      # opcional · orquestrador de design, standalone
 ```
 
 Ordem importa: `prumo-base` primeiro — fornece convenções e helpers que o `prumo-secops` assume e que o `ngrok-expose` do `prumo-devkit` usa. `prumo-secops` e `prumo-devkit` são independentes entre si.
@@ -73,7 +73,7 @@ Depois do primeiro install, **`/prumo-onboard`** (vive no `prumo-base`) detecta 
 ## Verificar
 
 ```
-/plugin list      # prumo-base · 0.6.0  +  prumo-secops · 0.5.0  +  prumo-devkit · 0.5.0  +  prumo-craft · 0.5.0
+/plugin list      # prumo-base · 0.6.0  +  prumo-secops · 0.5.0  +  prumo-devkit · 0.5.0  +  prumo-design · 0.6.0
 /agents           # 6 agents prumo-*-01
 /prumo-onboard    # sanity check do ecossistema + sugestões de smoke test
 ```
@@ -92,10 +92,10 @@ Claude Code não actualiza plugins in-place de forma fiável, e esta release mud
 /plugin install prumo-base@prumo
 /plugin install prumo-secops@prumo
 /plugin install prumo-devkit@prumo
-/plugin install prumo-craft@prumo
+/plugin install prumo-design@prumo
 ```
 
-Recarrega a sessão Claude Code (nova janela ou Ctrl-D + abrir). `/plugin list` deve mostrar `prumo-base · 0.6.0`, `prumo-secops · 0.5.0`, `prumo-devkit · 0.5.0`, `prumo-craft · 0.5.0`.
+Recarrega a sessão Claude Code (nova janela ou Ctrl-D + abrir). `/plugin list` deve mostrar `prumo-base · 0.6.0`, `prumo-secops · 0.5.0`, `prumo-devkit · 0.5.0`, `prumo-design · 0.6.0`.
 
 **⚠ Behavior change:** os hooks do `prumo-secops` não são bypassed. Operações destrutivas exigem `PRUMO_APPROVE=N1/N2/N3`; tool calls com PII (NIF, IBAN PT, CC PT, email, telefone PT) bloqueiam fail-closed; `/prumo-vault-doctor` exige `VAULT_ADDR` explícita. Ver `secops/CHANGELOG.md` e a secção "Variáveis de ambiente do plugin" em `secops/CLAUDE.md`.
 
