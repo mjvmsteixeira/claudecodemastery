@@ -2,6 +2,18 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.6.1 — 2026-07-17
+
+**`memory-doctor`: upgrade-check vira Gate 0, e dois bugs de verbo morto.** Origem: em uso real a skill nem sempre verificava necessidade de upgrade antes de auditar — devia ser a primeira acção. A investigação encontrou três defeitos que o explicam e dois bugs a montante da mesma família (verbos que não resolvem contra a CLI).
+
+- **Gate 0 (versão/upgrade) é agora a primeira acção, imposta.** O mandato "inventário primeiro" existia em prosa (Fase 0) e na Regra de ouro 1, a 190 linhas de distância, sem gate — nada impedia o agente de saltar para o fan-out. Passou a STOP obrigatório antes do fan-out, read-only, separado da *acção* de upgrade (essa continua opt-in via `--apply` + gates).
+- **Data-gap fechado.** O inventário comparava só CLI-vs-plugin-em-cache; nunca ia buscar o *latest* ao PyPI, pelo que o caso comum "estás N versões atrás" era indetectável. Agora `pypi_latest`/`ver_verdict` comparam instalado vs latest para `mempalace` e `graphifyy`, com `sort -V` (semver-aware, apanha `0.9.9 < 0.9.18`). Ramos verificados por comportamento: actualizado, upgrade-pendente, ausente→propor-instalar, pre-release, offline.
+- **Âmbito alargado a plugins + MCP.** O Gate 0 delega a `/prumo-upgrade` (não duplica) para as versões dos plugins prumo e dos servidores MCP; ausência de uma camada tornou-se proposta explícita de instalação (identidade PyPI + versão pinada, sob os 3 gates).
+- **Bug (verbo morto) — `graphify query`/`affected` não existem na v0.9.18** e apareciam em 4 sítios, incluindo o bloco de routing escrito no CLAUDE.md do utilizador (`routing-rule.md`): o `--apply` **regredia** um CLAUDE.md já corrigido à mão. Corrigido para `graphify explain`/`path` (verbos reais), bloco de routing subido a `v2` (substituição idempotente por marcadores).
+- **Bug (árbitro não testava resolução de rota)** — validava coerência de âmbito mas nunca corria os verbos recomendados contra a CLI, o buraco por onde o verbo morto passou. Adicionada verificação de resolução obrigatória (em `arbitro.md` e `routing-rule.md`): cada verbo do bloco tem de resolver via `graphify <verb> --help` antes da escrita, ou é alarme. Fecha o círculo da Regra de ouro 3.
+
+Relatório reordenado: secção **UPGRADES** no topo (era **VERSÕES** no fundo). Sem alteração de comportamento destrutivo — Gate 0 é read-only; toda a acção continua gated.
+
 ## v0.6.0 — 2026-07-15
 
 **Skill `memory-doctor` + hook `memory-scope`.** Governança do setup de memória em 3 camadas de âmbito disjunto.

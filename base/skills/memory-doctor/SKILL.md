@@ -7,6 +7,8 @@ description: Auditoria e governança do setup de memória do agente em 3 camadas
 
 Auditoria e governança das 3 camadas de memória do agente. Read-only por defeito; **doctor é o modo, router é o superset** (`--apply` é opt-in).
 
+**Separar o check da acção.** O *check* de versão/upgrade (Gate 0) corre **sempre e primeiro** — é read-only e não depende do `--apply`. Só a *acção* (instalar, actualizar, escrever no CLAUDE.md) é que é opt-in e gated. Reportar "estás N versões atrás" nunca precisa de `--apply`; aplicar o upgrade precisa.
+
 ## Trigger
 
 - `/memory-doctor [--apply]`
@@ -30,41 +32,63 @@ Cada agente da Fase 1 recebe **apenas a sua linha**.
 ## Fluxo
 
 ```
-0. Inventário + provisionamento  → PRIMEIRO PASSO (instala/actualiza, com confirmação)
+0. Gate 0: versão/upgrade        → STOP obrigatório ANTES do fan-out. Read-only.
+   0a. camadas de memória         → mempalace, graphifyy: instalado vs latest (PyPI)
+   0b. plugins prumo + MCP        → delega a /prumo-upgrade (não duplica)
+   0c. ausente?                   → propõe instalar (identidade PyPI + versão pinada)
 1. Fan-out: 3 agentes            → 1 por camada, em paralelo, cada um só com o seu contrato
-2. Árbitro                       → colisões cross-camada (references/arbitro.md)
-3. Relatório                     → por camada + colisões + regra de encaminhamento
+2. Árbitro                       → colisões cross-camada + resolução de rota (references/arbitro.md)
+3. Relatório                     → versões/upgrades primeiro, depois camadas + colisões + regra
 4. Governança (--apply)          → router (references/routing-rule.md), gated pelos 3 Gates
 ```
 
-## 0. Inventário + provisionamento
+**O passo 0 não é opcional nem é o fan-out.** Um sintoma que já esteja corrigido a montante não se depura — actualiza-se (Regra de ouro 1). Não avançar para o fan-out sem o veredicto de versão das três frentes (camadas, plugins, MCP). É a primeira linha de acção, sempre.
 
-Não é só deteção — **avalia o que falta ou está desactualizado e provisiona-o**. É a primeira coisa que a skill faz.
+## 0. Gate 0 — versão/upgrade (primeira acção, sempre)
 
-Por camada, apurar: binário (`command -v`), versão instalada, versão mais recente (PyPI), versão do plugin em cache, e divergências entre elas.
+**STOP obrigatório antes do fan-out.** Não é só deteção de presença — **compara instalado vs latest e emite o veredicto de upgrade** para as três frentes: camadas de memória, plugins prumo e MCP. É read-only (não instala nada), por isso corre com ou sem `--apply`.
+
+O que apurar por ferramenta: binário (`command -v`), **versão instalada**, **versão mais recente no PyPI**, versão do plugin em cache, e o *lag* entre elas. Sem o número do PyPI não há "necessidade de upgrade" — é o input que faltava e a razão de o check falhar em silêncio.
 
 ```bash
-echo "── Inventário de camadas de memória ──"
+echo "── Gate 0 · versão/upgrade (ANTES do fan-out) ──"
 
-# Episódica — MemPalace
-if command -v mempalace >/dev/null 2>&1; then
-  echo "  ✓ MemPalace CLI $(mempalace --version 2>/dev/null)"
-  find ~/.claude/plugins/cache -path '*/mempalace/*/plugin.json' -print -quit 2>/dev/null \
-    | xargs -I{} jq -r '"    plugin em cache: v\(.version)"' {} 2>/dev/null
-else
-  echo "  ✗ MemPalace ausente"
-fi
+# instalado vs latest → veredicto. Sinaliza lag; ausência vira proposta de install.
+ver_verdict() {  # $1=nome  $2=instalado  $3=latest  $4=hint-de-install
+  if [ -z "$2" ]; then
+    echo "  ✗ $1 AUSENTE — latest PyPI ${3:-?} → propor instalar: $4"
+  elif [ -z "$3" ]; then
+    echo "  ℹ $1 $2 (latest indisponível — offline/VPN?)"
+  elif [ "$2" = "$3" ]; then
+    echo "  ✓ $1 $2 (actualizado)"
+  else
+    # se $3 for o maior dos dois, há upgrade; senão o instalado vai à frente (pre-release)
+    newest=$(printf '%s\n%s\n' "$2" "$3" | sort -V | tail -1)
+    [ "$newest" = "$3" ] \
+      && echo "  ⚠ $1 $2 → latest $3 · UPGRADE PENDENTE (ler changelog ANTES de investigar)" \
+      || echo "  ℹ $1 $2 (à frente do PyPI $3 — pre-release)"
+  fi
+}
+pypi_latest() { curl -s "https://pypi.org/pypi/$1/json" 2>/dev/null | jq -r '.info.version // empty'; }
 
-# Estrutural — Graphify (pacote: graphifyy, NUNCA graphify)
-command -v graphify >/dev/null 2>&1 \
-  && echo "  ✓ Graphify $(uv tool list 2>/dev/null | grep -i '^graphifyy' || echo '(binário sem uv tool)')" \
-  || echo "  ✗ Graphify ausente"
+# 0a · Camadas de memória — pacotes PyPI: mempalace e graphifyy (NUNCA graphify)
+mp_cli=$(mempalace --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+ver_verdict "MemPalace CLI" "$mp_cli" "$(pypi_latest mempalace)" "ver skill mempalace:init"
+mp_cache=$(find ~/.claude/plugins/cache -path '*/mempalace/*/plugin.json' -print -quit 2>/dev/null | xargs -I{} jq -r '.version' {} 2>/dev/null)
+[ -n "$mp_cache" ] && [ -n "$mp_cli" ] && [ "$mp_cache" != "$mp_cli" ] \
+  && echo "  ⚠ MemPalace plugin-em-cache v$mp_cache ≠ CLI v$mp_cli · divergência = upgrade pendente"
 
-# Humana — vault de docs
+gf_inst=$(uv tool list 2>/dev/null | grep -iE '^graphifyy ' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+ver_verdict "Graphify (graphifyy)" "$gf_inst" "$(pypi_latest graphifyy)" "uv tool install graphifyy==<latest> (pinado)"
+
+# 0b · Plugins prumo + MCP — NÃO duplicar: /prumo-upgrade já compara instalado vs marketplace
+echo "  → plugins prumo + servidores MCP: correr /prumo-upgrade (instalado vs marketplace remoto)"
+
+# 0c · Humana — vault de docs (sem versão; presença + trade-off)
 echo "  docs/Obsidian: $(find "$HOME" -maxdepth 3 -type d -name '.obsidian' -print -quit 2>/dev/null || echo 'nenhum vault detectado')"
 ```
 
-Sinalizar **divergência de versão** entre CLI e plugin em cache (ex.: MemPalace CLI 3.5.0 vs plugin 3.3.3) — é upgrade pendente, não cosmético.
+**Divergência CLI vs plugin-em-cache** (ex.: MemPalace CLI 3.6.0 vs plugin 3.3.3) é upgrade pendente, não cosmético. **Ausência** não é silêncio: é uma **proposta de instalação** (identidade PyPI verificada + versão pinada — ver guarda anti-typosquat) que passa pelos 3 gates como qualquer outra acção. **`graphifyy` à frente do PyPI** ou o slot `graphify` a aparecer = alarme, não conveniência.
 
 ### Guarda anti-typosquat (fail-closed, obrigatória)
 
@@ -143,7 +167,16 @@ O árbitro é **read-only**: nomeia a remediação, não a executa. A execução
 # Memory Doctor — <timestamp>
 
 ## Resumo
-<estado global em uma linha: N camadas activas, M colisões CRIT, K WARN>
+<estado global em uma linha: N camadas activas, M colisões CRIT, K WARN, U upgrades pendentes>
+
+## UPGRADES (Gate 0 — primeiro, sempre)
+| Frente | Instalado | Latest | Estado |
+|---|---|---|---|
+| MemPalace (CLI) | <x> | <pypi> | ✅ actualizado / ⚠️ upgrade pendente |
+| Graphify (graphifyy) | <x> | <pypi> | ✅ / ⚠️ / ✗ ausente → propor instalar |
+| Plugins prumo + MCP | — | — | → /prumo-upgrade (delegado) |
+- ⚠️ Divergência CLI vs plugin-em-cache: <se houver>
+- ✗ Ausente → proposta de instalação (pinada, identidade PyPI verificada): <comando>
 
 ## CAMADAS
 | Camada | Ferramenta | Estado | Saúde |
@@ -170,13 +203,13 @@ O árbitro é **read-only**: nomeia a remediação, não a executa. A execução
 ## REGRA DE ENCAMINHAMENTO (proposta)
 <o bloco de references/routing-rule.md>
 
-## VERSÕES
-- MemPalace: CLI <x> / plugin em cache <y>  ← divergência = upgrade pendente
-
 ## Acções recomendadas
-1. [CRIT] ...
-2. [WARN] ...
+1. [UPGRADE] ... (o Gate 0 vem primeiro nas acções — um bug corrigido a montante não se depura)
+2. [CRIT] ...
+3. [WARN] ...
 ```
+
+As versões vivem na secção **UPGRADES** no topo — não repetir uma segunda tabela de versões no fim.
 
 A secção **ESCRITORES** é obrigatória sempre que a camada episódica esteja activa — é onde se explicam, de uma só vez, corrupção de índice, mining parado e jobs falhados. Distinguir sempre **frescura** de **perda**: mining diferido não é perda de dados; corrupção de índice é.
 
@@ -229,7 +262,7 @@ MINING_LAG_WARN=24h          # desde o último job de mine bem-sucedido
 
 ## Regras de ouro
 
-**1. Changelog antes de laboratório.** Antes de investigar **qualquer** sintoma, verificar a versão instalada e ler as notas de todas as releases em falta. Custa 30 segundos e pode terminar o diagnóstico ali — um bug que já está corrigido a montante não se depura, actualiza-se. Se o sintoma observado aparecer num changelog não instalado, a acção é o **upgrade**, não a investigação. **Isto aplica-se às três camadas**, não só à episódica.
+**1. Changelog antes de laboratório.** Antes de investigar **qualquer** sintoma, verificar a versão instalada e ler as notas de todas as releases em falta. Custa 30 segundos e pode terminar o diagnóstico ali — um bug que já está corrigido a montante não se depura, actualiza-se. Se o sintoma observado aparecer num changelog não instalado, a acção é o **upgrade**, não a investigação. **Isto aplica-se às três camadas**, não só à episódica. É precisamente o que o **Gate 0** (Fase 0) impõe: esta regra não é uma boa intenção no fundo da skill, é o primeiro passo executável — se o Gate 0 não correu, não há diagnóstico, há uma fila furada.
 
 **2. Nunca desligar uma guarda de integridade para destravar performance.** (Ex.: `MEMPALACE_MCP_ALLOW_PEER_WRITER=1` "resolve" o mining diferido trocando integridade por frescura — reabre a porta à corrupção.) Frescura recupera-se; um índice corrompido, não.
 

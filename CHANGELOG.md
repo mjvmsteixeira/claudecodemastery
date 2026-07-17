@@ -2,7 +2,26 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.6.0 · prumo-secops 0.5.0 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+Estado actual: **prumo-base 0.6.1 · prumo-secops 0.5.1 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+
+## 2026-07-17 · `prumo-base 0.6.1` · memory-doctor: Gate 0 + verbos mortos
+
+**O upgrade-check passa a ser a primeira acção imposta da `memory-doctor`, e dois bugs de verbo morto que regrediam o CLAUDE.md.** A skill nem sempre verificava necessidade de upgrade antes de auditar: o mandato existia em prosa e numa regra de ouro a 190 linhas, sem gate, e o inventário nunca ia buscar o *latest* ao PyPI (o caso "N versões atrás" era indetectável). Agora há um **Gate 0** read-only — instalado vs latest para `mempalace`/`graphifyy` (semver-aware), delegação a `/prumo-upgrade` para plugins+MCP, e ausência→propor-instalar. Em paralelo, os verbos `graphify query`/`affected` (inexistentes na v0.9.18) foram corrigidos para `explain`/`path` em 4 sítios — incluindo o bloco de routing escrito no CLAUDE.md, que no `--apply` regredia um ficheiro já corrigido à mão — e o árbitro ganhou verificação de resolução de rota (correr o verbo contra a CLI antes de o escrever). Detalhe em `base/CHANGELOG.md`.
+
+## 2026-07-16 · `prumo-secops 0.5.1` · os gates deixam de treinar evasão
+
+**Descoberto a partir de um commit normal.** O `pii-redact` bloqueava o trailer `Co-Authored-By:` que o
+system prompt do Claude Code exige em todos os commits; a única saída era ofuscar o email em shell —
+que passa o gate sem deixar rasto. Um gate com falsos positivos garantidos e sem válvula utilizável
+ensina o agente a contornar, e destrói o audit trail que existe para produzir. A investigação
+encontrou mais quatro defeitos da mesma família: o hook ignorava `PRUMO_OPERATING_MODE` (`exit 2` cru
+em vez de `prumo_fail_or_warn` — a máquina estava em `dev` e não fazia diferença nenhuma), o bypass
+registava `allow` em vez de `bypass`, a regex de telefone dava falso positivo em qualquer inteiro de
+10+ dígitos, e a remediação que os hooks imprimiam (`PRUMO_X=1 <comando>`) era impossível de seguir —
+um prefixo inline nunca chega a um hook PreToolUse. Este último também afectava o `approval-gate`,
+que ficava intransponível dentro da sessão. `validate.sh` ganhou dois checks de convenção (bloqueio
+via `prumo_fail_or_warn`; remediação sem prefixo inline) e o eval-harness ganhou o campo `needs_base`,
+sem o qual semântica de modo era intestável. Corpus 135 → 147 casos. Detalhe em `secops/CHANGELOG.md`.
 
 ## 2026-07-15 · `prumo-design 0.6.0` · tag `prumo-design-v0.6.1` · redesign do antigo prumo-craft
 

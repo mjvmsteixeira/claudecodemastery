@@ -10,7 +10,7 @@ O árbitro é o único agente que **não audita nenhuma ferramenta**. Audita o *
 
 ## C1 · Mandatos concorrentes no CLAUDE.md — **CRIT**
 
-Dois "consulta-me primeiro" a competir. O MemPalace diz *"procura na memória antes de responder sobre trabalho passado"*; o Graphify diz *"prefere `graphify query` a grep e a ler ficheiros"*. O agente não tem como arbitrar.
+Dois "consulta-me primeiro" a competir. O MemPalace diz *"procura na memória antes de responder sobre trabalho passado"*; o Graphify diz *"prefere o índice estrutural a grep e a ler ficheiros"*. O agente não tem como arbitrar.
 
 **Deteção:**
 ```bash
@@ -22,6 +22,18 @@ done
 ```
 
 **Remediação:** `graphify claude uninstall` (remove a secção que ele escreveu) + escrever **uma única** regra de encaminhamento nossa (Fase 3, `references/routing-rule.md`). Nunca deixar dois instaladores escreverem o CLAUDE.md.
+
+**Validação de resolução de rota (obrigatória — não basta o contrato de âmbito).** O árbitro valida que as camadas são disjuntas, mas isso não garante que os *verbos* que a regra recomenda **existam** na ferramenta instalada. Foi o buraco que deixou passar `graphify query`/`affected` (removidos na v0.9.18) para dentro do bloco escrito no CLAUDE.md. Antes de nomear a remediação, correr cada verbo proposto contra o binário (verdade-base do código, não da doc — Regra de ouro 3):
+
+```bash
+graphify --version 2>/dev/null
+for verb in explain path; do
+  graphify "$verb" --help >/dev/null 2>&1 && echo "  ✓ graphify $verb resolve" \
+    || echo "  🚨 graphify $verb NÃO resolve — regra de encaminhamento inválida; derivar de 'graphify --help'"
+done
+```
+
+Uma rota que não resolve reporta-se como colisão **detectada** (o CLAUDE.md ficaria com uma instrução impossível de cumprir), nunca como limpa.
 
 ---
 
@@ -79,7 +91,7 @@ A selecção de ferramentas degrada-se com a quantidade — é um custo real e m
 
 **Deteção:** contar as tools de memória disponíveis na sessão (`mempalace_*`, `graphify_*`). Comparar com `TOOL_BUDGET_WARN=35`.
 
-**Remediação:** consumir a camada estrutural por **CLI** (`graphify query`, `affected`, `path`) em vez de MCP. Seria incoerente esta skill medir o bloat e depois agravá-lo — por isso o `graphify-mcp` está fora de âmbito.
+**Remediação:** consumir a camada estrutural por **CLI** (`graphify explain`, `path` — verbos reais da v0.9.18; `query`/`affected` foram removidos) em vez de MCP. Seria incoerente esta skill medir o bloat e depois agravá-lo — por isso o `graphify-mcp` está fora de âmbito.
 
 ---
 

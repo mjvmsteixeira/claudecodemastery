@@ -9,7 +9,7 @@ O artefacto que resolve a colisão C1. Hoje **não existe em lado nenhum**: cada
 Delimitado por marcadores e versionado — reescrever é idempotente:
 
 ```markdown
-<!-- PRUMO_MEMORY_ROUTING_START v1 -->
+<!-- PRUMO_MEMORY_ROUTING_START v2 -->
 ## Memória — regra de encaminhamento
 
 As camadas de memória têm âmbitos disjuntos. Encaminha a pergunta pela camada certa:
@@ -17,7 +17,7 @@ As camadas de memória têm âmbitos disjuntos. Encaminha a pergunta pela camada
 - **Decisões, histórico, rationale** ("porque é que fizemos X?", "o que decidimos sobre Y?")
   → **MemPalace** (memória episódica: conversas).
 - **Estrutura, dependências, impacto de alteração** ("o que chama esta função?", "o que parte se eu mexer aqui?")
-  → **`graphify query` / `graphify affected`** (memória estrutural: AST do código).
+  → **`graphify explain` / `graphify path`** (memória estrutural: AST do código).
 - **Conteúdo de um ficheiro específico** → **lê o ficheiro**. Não perguntes ao índice o que podes ler directamente.
 - **O que é oficial e citável** (runbooks, ADRs, legal) → **docs/**.
 
@@ -83,4 +83,18 @@ Esta regra **substitui** os mandatos que os instaladores escrevem. Antes de a ap
 
 ## Versionamento
 
-O marcador leva versão (`v1`). Se o bloco canónico mudar, subir a versão — o `--apply` reconhece o bloco antigo pelos marcadores e substitui-o, sem duplicar.
+O marcador leva versão (`v2`). Se o bloco canónico mudar, subir a versão — o `--apply` reconhece o bloco antigo pelos marcadores e substitui-o, sem duplicar.
+
+**Histórico:** `v2` (2026-07-17) corrigiu os verbos de consulta de `graphify query`/`affected` — que **não existem** no Graphify actual (v0.9.18) — para `graphify explain`/`path`, os verbos reais. A escrita idempotente por marcadores garante que o `--apply` substitui o bloco `v1` desactualizado sem duplicar. Um CLAUDE.md que já tenha os verbos correctos à mão não é regredido: é o mesmo bloco.
+
+## Verificação de resolução — obrigatória antes de escrever
+
+Este bloco é escrito no CLAUDE.md do utilizador; os verbos que contém têm de **resolver para operações reais** da ferramenta. A causa do bug `v1` foi exactamente esta: recomendaram-se verbos nunca corridos contra a CLI. Antes do `--apply`, confirmar cada verbo do bloco contra o binário instalado (verdade-base do código, não da doc — Regra de ouro 3):
+
+```bash
+# Falha alto se um verbo recomendado não existir no Graphify instalado.
+for verb in explain path; do
+  graphify "$verb" --help >/dev/null 2>&1 \
+    || echo "ALARME: 'graphify $verb' não resolve nesta versão ($(graphify --version 2>/dev/null)) — NÃO escrever o bloco; derivar os verbos reais de 'graphify --help'."
+done
+```

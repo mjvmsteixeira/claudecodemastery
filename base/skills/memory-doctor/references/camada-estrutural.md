@@ -40,17 +40,17 @@ Dois sistemas a registar "o que funcionou" produzem memória contraditória sem 
 |---|---|
 | `graphify hook install` — git hooks post-commit/post-checkout (determinístico, zero custo de API) | `graphify claude install` — *"write graphify section to CLAUDE.md + PreToolUse hook"* (verbatim do `--help`). É a colisão central. Remediação: `graphify claude uninstall`. |
 | `.claudeignore` com `graph.json` + `graphify-out/` | `graphify global add` / `extract --global` → funde em `~/.graphify/global-graph.json`. Instalação é **por-projecto**. |
-| Consumo por **CLI** (`query`, `affected`, `path`, `explain`) | `graphify-mcp` — +7 tools num orçamento já em 30. |
+| Consumo por **CLI** (`explain`, `path` — os verbos de consulta reais da v0.9.18) | `graphify-mcp` — +7 tools num orçamento já em 30. |
 
 Sem `.claudeignore`, o `graph.json` reescrito a cada commit **invalida a prompt cache**.
 
 ## Consultas úteis (o âmbito da camada)
 
+Derivar os verbos reais de `graphify --help` — não assumir (Regra de ouro 3). Na v0.9.18 são estes; `query`/`affected` de versões anteriores **foram removidos**:
+
 ```bash
-graphify query "<pergunta>" --budget 2000   # BFS no graph.json
-graphify affected "X" --depth 2             # traversal reverso: raio de impacto
 graphify path "A" "B"                       # caminho mais curto entre nós
-graphify explain "X"                        # nó + vizinhos em linguagem simples
+graphify explain "X"                        # nó + vizinhos: o que toca X (raio de impacto)
 ```
 
 ## Levantamento (o caso de uso de auditoria)
