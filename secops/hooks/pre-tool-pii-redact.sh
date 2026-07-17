@@ -102,7 +102,18 @@ fi
 
 LOG_DIR="$PRUMO_LOG_DIR"
 mkdir -p "$LOG_DIR" 2>/dev/null || LOG_DIR=$(mktemp -d)
-HASH=$(printf '%s' "$INPUT" | shasum -a 256 | awk '{print $1}')
+# `shasum` é um script perl — presente por defeito no macOS mas NÃO num Linux
+# mínimo (só via perl). Como esta linha está no caminho de bloqueio, antes do
+# exit, com `set -e` um `shasum` ausente fazia o hook sair 127 (não 2): a PII
+# detectada deixava de ser bloqueada — fail-OPEN. Fallback para sha256sum
+# (coreutils) e, em último caso, um marcador, para nunca abortar o bloqueio.
+if command -v shasum >/dev/null 2>&1; then
+  HASH=$(printf '%s' "$INPUT" | shasum -a 256 | awk '{print $1}')
+elif command -v sha256sum >/dev/null 2>&1; then
+  HASH=$(printf '%s' "$INPUT" | sha256sum | awk '{print $1}')
+else
+  HASH="(sem-hash: shasum/sha256sum ausentes)"
+fi
 TYPES=$(IFS=,; echo "${VIOLATIONS[*]}")
 echo "$(date -u +%FT%TZ) | input_hash=${HASH} | types=${TYPES} | user=${USER:-unknown}" \
   >> "$LOG_DIR/pii-blocks.log" 2>/dev/null || true

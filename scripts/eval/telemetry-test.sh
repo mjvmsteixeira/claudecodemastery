@@ -11,6 +11,11 @@ FAILS=0
 ok()  { printf '  ✓ %s\n' "$1"; }
 bad() { printf '  ✗ %s\n' "$1"; FAILS=$((FAILS+1)); }
 
+# Asserções sobre linhas TSV usam `$'\t'` (ANSI-C quoting: o bash expande para um
+# tab real ANTES do grep), NUNCA `'\t'`: o GNU grep do CI (Linux) trata `\t` no
+# pattern como literal, não como tab, e a asserção nunca casa. O BSD grep do
+# macOS interpretava-o, por isso passava localmente e só rebentava no CI.
+
 SANDBOX="$(mktemp -d "${TMPDIR:-/tmp}/prumo-tm.XXXXXX")"
 cleanup() { rm -rf "$SANDBOX"; }
 trap cleanup EXIT
@@ -25,7 +30,7 @@ trap cleanup EXIT
 TSV="$SANDBOX/.prumo/log/telemetry.tsv"
 if [ -f "$TSV" ] && [ "$(wc -l < "$TSV" | tr -d ' ')" = "2" ]; then ok "record: 2 linhas escritas"; else bad "record: telemetry.tsv não tem 2 linhas"; fi
 if awk -F'\t' 'NF!=4{bad=1} END{exit bad+0}' "$TSV"; then ok "record: schema TSV de 4 campos"; else bad "record: schema TSV inválido"; fi
-if grep -qE '\tapproval-gate\tblock$' "$TSV"; then ok "record: linha block correcta"; else bad "record: linha block ausente"; fi
+if grep -qE $'\tapproval-gate\tblock$' "$TSV"; then ok "record: linha block correcta"; else bad "record: linha block ausente"; fi
 
 # ── summary agrega um tsv conhecido ───────────────────────────────────────────
 KTSV="$SANDBOX/known.tsv"
@@ -52,8 +57,8 @@ run_fow() { # $1 = mode
     prumo_fail_or_warn "prumo-base" "audit-guard" "teste" ) >/dev/null 2>&1
   cat "$SANDBOX/.prumo/log/telemetry.tsv" 2>/dev/null
 }
-if run_fow dev | grep -qE '\taudit-guard\twarn$'; then ok "fail_or_warn dev → warn"; else bad "fail_or_warn dev não registou warn"; fi
-if run_fow lab | grep -qE '\taudit-guard\tbypass$'; then ok "fail_or_warn lab → bypass"; else bad "fail_or_warn lab não registou bypass"; fi
+if run_fow dev | grep -qE $'\taudit-guard\twarn$'; then ok "fail_or_warn dev → warn"; else bad "fail_or_warn dev não registou warn"; fi
+if run_fow lab | grep -qE $'\taudit-guard\tbypass$'; then ok "fail_or_warn lab → bypass"; else bad "fail_or_warn lab não registou bypass"; fi
 
 # ── camada 2: integração — os hooks emitem telemetria ─────────────────────────
 run_hook() { # $1 hook-path, $2 cmd, extra env via ambiente já exportado; imprime telemetry.tsv
@@ -75,9 +80,9 @@ run_hook() { # $1 hook-path, $2 cmd, extra env via ambiente já exportado; impri
 }
 AG="$REPO_ROOT/secops/hooks/pre-tool-approval-gate.sh"
 # bloqueio: N-level sem PRUMO_APPROVE → exit 2 (negação) → trap regista block
-if run_hook "$AG" "git push -f origin main" | grep -qE '\tapproval-gate\tblock$'; then ok "hook: approval-gate block registado"; else bad "hook: approval-gate block não registado"; fi
+if run_hook "$AG" "git push -f origin main" | grep -qE $'\tapproval-gate\tblock$'; then ok "hook: approval-gate block registado"; else bad "hook: approval-gate block não registado"; fi
 # allow: comando trivial → exit 0 → trap regista allow
-if run_hook "$AG" "ls -la" | grep -qE '\tapproval-gate\tallow$'; then ok "hook: approval-gate allow registado"; else bad "hook: approval-gate allow não registado"; fi
+if run_hook "$AG" "ls -la" | grep -qE $'\tapproval-gate\tallow$'; then ok "hook: approval-gate allow registado"; else bad "hook: approval-gate allow não registado"; fi
 # anti-PII: um marcador único do comando NUNCA aparece no telemetry.tsv
 MARK="ZZUNIQUEMARKER42"
 if run_hook "$AG" "git push -f origin $MARK" | grep -q "$MARK"; then bad "anti-PII: conteúdo do comando vazou para telemetry.tsv"; else ok "anti-PII: telemetry.tsv sem conteúdo de comando"; fi

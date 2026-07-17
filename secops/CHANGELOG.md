@@ -2,6 +2,12 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.5.2 — 2026-07-17
+
+**Portabilidade Linux: `pii-redact` deixa de fazer fail-open sem `shasum`.** Descoberto ao investigar uma falha de CI (que era outra: ver abaixo). O hook usava `shasum` (script perl) no caminho de bloqueio, **antes** do `exit`. Com `set -e`, num Linux sem perl (`shasum` ausente → 127), o hook saía 127 em vez de 2 — a PII detectada **não era bloqueada** (fail-OPEN). O CI (ubuntu-latest tem perl) nunca deu por isso. Fallback para `sha256sum` (coreutils) e, em último caso, um marcador; o bloqueio nunca aborta por falta da ferramenta de hash. Verificado em container sem `shasum`: 18/18 casos de PII bloqueiam.
+
+Nota: o `telemetry-test` do eval-harness (que fez o CI ficar vermelho) foi corrigido à parte — usava `\t` em `grep`, que o GNU grep não interpreta como tab (o BSD grep do macOS interpretava). Não é conteúdo de plugin, não altera versão.
+
 ## v0.5.1 — 2026-07-16
 
 **Os gates deixam de treinar evasão.** Origem: o `pii-redact` bloqueava o trailer `Co-Authored-By:` que o system prompt do Claude Code exige em **todos** os commits, e a única saída era ofuscar o email em shell — passando pelo gate sem deixar rasto na telemetria. Um gate que treina evasão destrói o audit trail que existe para produzir.

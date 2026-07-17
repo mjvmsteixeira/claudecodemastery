@@ -2,7 +2,11 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.6.1 · prumo-secops 0.5.1 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+Estado actual: **prumo-base 0.6.1 · prumo-secops 0.5.2 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+
+## 2026-07-17 · CI verde · portabilidade Linux (telemetry-test + pii-redact)
+
+**O CI estava vermelho há várias runs — falha pré-existente, não introduzida pelos releases de hoje.** Causa: `scripts/eval/telemetry-test.sh` usava `\t` em `grep`, que o GNU grep do runner Linux não interpreta como tab (o BSD grep do macOS interpretava — passava local, rebentava no CI). Corrigido para tab literal via `$'\t'`. Ao reproduzir num container ubuntu apanhou-se um bug adjacente e mais grave: o `pii-redact` (`prumo-secops`) fazia **fail-open** num Linux sem `shasum` — o hook saía 127 antes do `exit 2` e a PII não era bloqueada; agora tem fallback `sha256sum`. `prumo-secops` → 0.5.2. Pipeline completo (validate + package) verificado num container espelho do `ubuntu-latest`: 0 erros. Detalhe em `secops/CHANGELOG.md`.
 
 ## 2026-07-17 · `prumo-base 0.6.1` · memory-doctor: Gate 0 + verbos mortos
 
