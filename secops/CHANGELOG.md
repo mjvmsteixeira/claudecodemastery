@@ -2,6 +2,19 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.5.1 — 2026-07-16
+
+**Os gates deixam de treinar evasão.** Origem: o `pii-redact` bloqueava o trailer `Co-Authored-By:` que o system prompt do Claude Code exige em **todos** os commits, e a única saída era ofuscar o email em shell — passando pelo gate sem deixar rasto na telemetria. Um gate que treina evasão destrói o audit trail que existe para produzir.
+
+- **`pre-tool-pii-redact.sh` — allowlist estrutural.** Trailers git (`Co-Authored-By`, `Signed-off-by`, `Reviewed-by`, `Acked-by`, `Tested-by`, `Reported-by`) e remotes SSH scp-style (`git@host:`) deixam de ser lidos como email de titular. Substituição por token e não por linha (o trailer tanto vem em heredoc como em `-m` inline). Risco residual aceite e documentado: um email formatado como trailer bem-formado passa; PII *fora* do trailer continua classificada (`pii-16`).
+- **`pre-tool-pii-redact.sh` — respeita `PRUMO_OPERATING_MODE`.** Bloqueava com `exit 2` cru, pelo que `/prumo-mode dev` não tinha efeito nenhum sobre ele — era o único classificador do plugin fora da convenção do repo sem excepção documentada. Passa a bloquear via `prumo_fail_or_warn`.
+- **`pre-tool-pii-redact.sh` — bypass audit-tracked a sério.** O caminho `PRUMO_PII_DISABLE=1` saía com `exit 0` sem registar nada: a telemetria dizia `allow`, indistinguível de input limpo, contra o que o `CLAUDE.md` afirmava em dois sítios. Passa a registar decisão `bypass`, como o `second-opinion` já fazia.
+- **`pre-tool-pii-redact.sh` — falso positivo na regex de telefone.** Faltava âncora à esquerda: a regex podia começar a meio de uma corrida de dígitos e bastava-lhe o `\b` final, pelo que qualquer inteiro de 10+ dígitos cujos últimos 9 comecem em 2/3/9 disparava `telefone-PT` (ids, epochs em ms, contagens de bytes).
+- **`pre-tool-approval-gate.sh` — remediação seguível.** A mensagem mandava `PRUMO_APPROVE=Nx <comando>`, impossível de cumprir: um hook PreToolUse corre no processo do Claude Code, antes do comando e noutro ambiente, por isso o prefixo inline aplica-se ao filho e nunca ao hook. Sem outra saída documentada o gate era intransponível dentro da sessão. Passa a apontar para `settings.json` → `env`, com aviso explícito de que autoriza o nível inteiro na sessão e não o comando.
+- **`CLAUDE.md`:** corrigida a afirmação de audit-tracking; documentado que as variáveis de gate não aceitam prefixo inline; acrescentado o alcance real do `pii-redact` (dispara depois de o modelo já ter emitido o texto e não gate `Read`/`Grep` — impede persistência/transmissão, não a entrada em contexto).
+
+Sem alterações de comportamento em produção para input com PII genuína: `prod` continua fail-closed.
+
 ## v0.5.0 — 2026-07-07
 
 **Guardrail semântico + fix de segurança CRÍTICO** (adicionado à linha 0.5.0 em 2026-07-07):

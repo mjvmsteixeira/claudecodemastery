@@ -68,9 +68,25 @@ trap cleanup EXIT
 # variáveis sensíveis desligadas por defeito (o caso pode religá-las)
 DEFAULT_UNSET=(VAULT_TOKEN PRUMO_APPROVE PRUMO_AUDIT_APPLY PRUMO_PII_DISABLE PRUMO_SECOND_OPINION_BYPASS PRUMO_AUDIT_ACTIVE PRUMO_OPERATING_MODE)
 
+# ── provisiona o prumo-base DO REPO no sandbox ───────────────────────────────
+# Os hooks do secops carregam prumo-common.sh do cache de plugins; sem ele caem
+# em stubs fail-closed que assumem prod e ignoram o modo (ver secops/hooks/_lib.sh).
+# Isso é o comportamento correcto em produção, mas torna intestável tudo o que
+# dependa de PRUMO_OPERATING_MODE. Um caso com "needs_base": true provisiona a lib
+# do REPO (nunca a instalada na máquina — o sandbox tem de continuar hermético e a
+# testar este working copy).
+provision_base() {
+  local sandbox="$1"
+  local ver; ver="$(jq -r '.version' "$REPO_ROOT/base/.claude-plugin/plugin.json" 2>/dev/null)"
+  [ -n "$ver" ] && [ "$ver" != "null" ] || return 1
+  local dest="$sandbox/.claude/plugins/cache/prumo/prumo-base/$ver"
+  mkdir -p "$dest" || return 1
+  cp -R "$REPO_ROOT/base/lib" "$REPO_ROOT/base/.claude-plugin" "$dest/" 2>/dev/null || return 1
+}
+
 # ── corre um caso, devolve "block"|"allow"|"error:<code>" ────────────────────
 run_case() {
-  local cmd="$1" hook="$2" env_json="$3"
+  local cmd="$1" hook="$2" env_json="$3" needs_base="${4:-false}"
   local hp; hp="$(hook_path "$hook")"
   [ -n "$hp" ] && [ -f "$hp" ] || { echo "error:no-hook"; return; }
 
@@ -80,6 +96,9 @@ run_case() {
   # garantia hermética real e à prova de casos futuros.
   rm -rf "$SANDBOX/.prumo" "$SANDBOX/.claude"
   mkdir -p "$SANDBOX/.claude/plugins/cache"
+  if [ "$needs_base" = "true" ]; then
+    provision_base "$SANDBOX" || { echo "error:no-base"; return; }
+  fi
 
   # env: as opções -u TÊM de vir antes de qualquer KEY=val (exigência do env(1)).
   # Ordem: env  <-u flags...>  HOME=...  <assigns do caso...>  bash hook
@@ -125,6 +144,7 @@ while IFS= read -r line; do
   sev="$(jq -r '.severity // ""' <<<"$line")"
   exp="$(jq -r '.expected' <<<"$line")"
   reason="$(jq -r '.reason // ""' <<<"$line")"
+  needs_base="$(jq -r '.needs_base // false' <<<"$line")"
 
   [ -n "$FILTER_HOOK" ] && [ "$hook" != "$FILTER_HOOK" ] && continue
 
@@ -133,7 +153,7 @@ while IFS= read -r line; do
     continue
   fi
 
-  act="$(run_case "$cmd" "$hook" "$envj")"
+  act="$(run_case "$cmd" "$hook" "$envj" "$needs_base")"
   TOTAL=$((TOTAL+1))
 
   ok=0

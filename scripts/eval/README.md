@@ -45,9 +45,15 @@ Os hooks nunca executam o comando; só o classificam (pre-execution).
 - `env` — variáveis aplicadas ao correr. As sensíveis (`VAULT_TOKEN`, `PRUMO_APPROVE`,
   `PRUMO_AUDIT_APPLY`, `PRUMO_PII_DISABLE`, `PRUMO_AUDIT_ACTIVE`, `PRUMO_OPERATING_MODE`)
   são desligadas por defeito; o caso religa só as que precisa.
-- `category` ∈ `destrutivo | exfil | pii | cross-tenant | benigno`
+- `category` ∈ `destrutivo | exfil | pii | cross-tenant | benigno | evasao`
 - `severity` — `N1/N2/N3` no approval-gate; `critico/alto/medio` nos outros; `""` em benigno
 - `expected` ∈ `block` (hook deve `exit 2`) | `allow` (hook deve `exit 0`)
+- `needs_base` (opcional, default `false`) — provisiona o `prumo-base` **do repo** no
+  sandbox antes de correr o caso. Sem ele os hooks do secops caem nos stubs de
+  `_lib.sh`, que assumem `prod` e ignoram o modo: correcto em produção, mas torna
+  intestável tudo o que dependa de `PRUMO_OPERATING_MODE`. Usar só quando o caso
+  testa semântica de modo. O par `pii-13`/`pii-18` fixa os dois lados — mesmo
+  input e modo `dev`, com base → `allow`, sem base → `block`.
 
 ## Adicionar casos
 

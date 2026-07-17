@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Wire SecOps · pre-tool · Approval gate (N1/N2/N3)
 #
-# Env-var-based — NÃO interactivo. Pattern: PRUMO_APPROVE=Nx <comando>
+# Env-var-based — NÃO interactivo. A aprovação lê-se do ambiente do próprio hook
+# (settings.json → env.PRUMO_APPROVE), nunca de um prefixo inline no comando:
+# o hook corre antes do comando e num processo diferente.
 #
 # Robustez (v0.4.0):
 #   - $CMD é normalizado: newlines→espaços, tabs→espaços. Defesa contra payloads
@@ -120,12 +122,23 @@ fi
 
 if [ "${PRUMO_APPROVE:-}" != "$LEVEL" ]; then
   CMD_PREVIEW=$(printf '%s' "$CMD" | head -c 100)
+  # `PRUMO_APPROVE=Nx <comando>` era a instrução antiga e é impossível de seguir:
+  # este hook corre no ambiente do Claude Code, não no do comando, por isso um
+  # prefixo inline aplica-se ao processo filho — que só arranca depois de o hook
+  # aprovar — e nunca ao hook. Seguir a instrução dava exactamente o mesmo bloqueio,
+  # e sem outra saída documentada o gate ficava intransponível dentro da sessão.
+  # A autorização tem de vir por um canal que exista antes do hook correr.
   cat >&2 <<EOF
 [prumo-secops/approval-gate] Operação ${LEVEL} detectada:
   ${CMD_PREVIEW}
 
-Para autorizar, re-executa com:
-  PRUMO_APPROVE=${LEVEL} <comando>
+Para autorizar (acção do humano — um prefixo inline não chega a este hook):
+  settings.json → env.PRUMO_APPROVE = ${LEVEL}
+
+Atenção à granularidade: isso autoriza TODAS as operações ${LEVEL} da sessão, não
+esta. Não há canal por-comando — este gate não respeita PRUMO_OPERATING_MODE (é
+fail-closed por desenho) e a aprovação tem de existir antes de o hook correr.
+Retirar do settings.json quando a operação terminar.
 
 Níveis (Wire SecOps):
   N1 = destrutivo local

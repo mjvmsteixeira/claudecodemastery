@@ -105,6 +105,8 @@ Stack runtime: Puma + systemd + Capistrano. Sem orquestrador de containers.
 
 ## Modelo de confiança / limitações
 
+**Alcance real do `pii-redact`.** O hook é PreToolUse sobre `Bash` e `Write|Edit`: dispara *depois* de o modelo já ter emitido o texto, e `Read`/`Grep`/`Glob` não são gated. Não impede, nem pode impedir, que PII chegue ao modelo ou à API — impede que seja **persistida ou transmitida** por um comando ou por uma escrita de ficheiro. É um controlo mais estreito do que o nome sugere; para "PII não entra em contexto" o controlo tem de estar na fonte (Vault, redacção no sistema de origem), não aqui.
+
 Os controlos N1/N2/N3, second-opinion e pii-redact assentam em variáveis de ambiente (`PRUMO_APPROVE`, `PRUMO_SECOND_OPINION_BYPASS`, `PRUMO_PII_DISABLE`) e ficheiros-marcador (`~/.prumo/mode`, `~/.prumo/audit-active`, `~/.prumo/lab-mode`) que o **próprio agente gated** consegue definir ou criar na mesma tool call. Não são uma barreira de autorização humana inquebrável — são defense-in-depth, audit-logging e speed-bumps operando dentro do domínio de confiança do agente. A barreira humana real é o prompt de permissão nativo da tool Bash do Claude Code; é dele que depende, em última instância, impedir uma acção não desejada. Ausência dessas variáveis/marcadores não impede tecnicamente a acção — apenas garante que fica registada e sinalizada para revisão. Hardening para uma aprovação out-of-band genuína (token assinado externamente, ficheiro de ACL que o agente não tem permissão de escrever) fica em roadmap.
 
 ## Variáveis de ambiente do plugin
@@ -120,7 +122,7 @@ Convenção `PRUMO_*` + alguns `OLLAMA_*`/`WAZUH_*` legacy aceites. Defaults sen
 | `PRUMO_EPHEMERAL_KEY_DIR` | `/dev/shm` (Linux) / `$(mktemp -d)` (macOS) | SSH cert temp storage; auto-fallback macOS |
 | `PRUMO_RAILS_DEPLOY_BASE` | `/var/www` | Capistrano `deploy_to` root. Path final: `${PRUMO_RAILS_DEPLOY_BASE}/<produto>/current/` |
 | `PRUMO_WAZUH_HOST` | `wazuh-manager.wire.internal` | Endpoint Wazuh manager (namespace canónico; legacy `WAZUH_HOST` ainda aceite) |
-| `PRUMO_PII_DISABLE` | (unset) | `=1` em dev desactiva `pre-tool-pii-redact.sh`. NÃO recomendado em prod (uso é audit-tracked) |
+| `PRUMO_PII_DISABLE` | (unset) | `=1` desactiva `pre-tool-pii-redact.sh` (telemetria regista `bypass`). NÃO recomendado em prod. Tem de vir do ambiente do Claude Code (`settings.json` → `env`) — um prefixo inline no comando não chega ao hook |
 | `PRUMO_SECOND_OPINION_BYPASS` | (unset) | `=1` salta `pre-tool-second-opinion.sh` se Ollama down. Audit-tracked |
 | `PRUMO_VAULT_AUTO_UP` | (unset) | Auto-up do Vault Docker em prod (override do default off) |
 | `OLLAMA_HOST` | `http://127.0.0.1:11434` | Endpoint Ollama (second-opinion hook + `/prumo-ollama-doctor`) |
@@ -132,7 +134,9 @@ Convenção `PRUMO_*` + alguns `OLLAMA_*`/`WAZUH_*` legacy aceites. Defaults sen
 
 **Override em prod:** export persistente via `~/.zshrc`/`~/.bashrc` ou systemd unit ENV. Em dev: shell ad hoc.
 
-**Auditoria:** `PRUMO_APPROVE`, `PRUMO_PII_DISABLE`, `PRUMO_SECOND_OPINION_BYPASS` são audit-tracked em `${PRUMO_LOG_DIR}/`.
+**As variáveis de gate não aceitam prefixo inline.** `PRUMO_APPROVE=N1 <comando>` e `PRUMO_PII_DISABLE=1 <comando>` **não funcionam** e nunca funcionaram: os hooks PreToolUse correm no processo do Claude Code, antes do comando e noutro ambiente, por isso o prefixo aplica-se ao processo filho e nunca ao hook. O canal correcto é o ambiente do próprio Claude Code — `settings.json` → bloco `env` — ou, para o `pii-redact` e o `second-opinion`, `/prumo-mode dev`. O `approval-gate` é a excepção: é fail-closed por desenho e ignora o modo, só o `env` o autoriza (e autoriza o nível inteiro na sessão, não um comando).
+
+**Auditoria:** `PRUMO_APPROVE`, `PRUMO_PII_DISABLE`, `PRUMO_SECOND_OPINION_BYPASS` são audit-tracked em `${PRUMO_LOG_DIR}/` — `approvals.log` para o approval-gate, decisão `bypass` em `telemetry.tsv` para os outros dois.
 
 ## Slash commands (em `commands/`)
 

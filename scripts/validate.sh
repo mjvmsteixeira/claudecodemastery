@@ -190,6 +190,70 @@ for p in "${PLUGINS[@]}"; do
   pass "$p/hooks/ validados"
 done
 
+# ──────────────────────── 3c. convenção: bloquear via prumo_fail_or_warn ────────────────────────
+# O CLAUDE.md do repo manda os hooks bloquearem por prumo_fail_or_warn/prumo_require
+# (que respeitam PRUMO_OPERATING_MODE), com uma única excepção documentada: o
+# approval-gate, fail-closed por desenho. Um `exit 2` cru em qualquer outro hook
+# torna o modo inoperante para esse gate — foi assim que o pii-redact ignorou
+# `/prumo-mode dev` durante três releases sem ninguém dar por isso.
+section "convenção: hooks bloqueiam via prumo_fail_or_warn (respeitam o modo)"
+
+# Excepções: hooks fail-closed por desenho, justificados no CLAUDE.md do repo.
+FAILCLOSED_EXEMPT="pre-tool-approval-gate.sh"
+
+for p in "${PLUGINS[@]}"; do
+  [ -d "$p/hooks" ] || continue
+  for sh in "$p"/hooks/*.sh; do
+    [ -f "$sh" ] || continue
+    base_sh=$(basename "$sh")
+    # _lib.sh define o próprio stub de fail_or_warn — o exit 2 lá dentro é a
+    # implementação, não uma violação.
+    [ "$base_sh" = "_lib.sh" ] && continue
+    # Ignora o `exit 2` que está DENTRO de uma definição local de
+    # prumo_fail_or_warn — vários hooks trazem um stub de fallback para quando a
+    # lib do prumo-base não carrega, e aí o exit 2 é a implementação da própria
+    # convenção (o stub testa prumo_is_dev), não uma violação dela.
+    raw_exit=$(awk '
+      /^[[:space:]]*prumo_fail_or_warn\(\)/ { in_stub=1; depth=0 }
+      in_stub {
+        depth += gsub(/\{/, "{"); depth -= gsub(/\}/, "}")
+        if (depth <= 0 && /\}/) in_stub=0
+        next
+      }
+      /^[[:space:]]*exit 2([[:space:]]|$)/ { n++ }
+      END { print n+0 }
+    ' "$sh")
+    [ "$raw_exit" -eq 0 ] && continue
+    if [ "$base_sh" = "$FAILCLOSED_EXEMPT" ]; then
+      info "$sh: exit 2 cru — excepção documentada (fail-closed por desenho)"
+    else
+      fail "$sh: bloqueia com 'exit 2' cru em vez de prumo_fail_or_warn — ignora PRUMO_OPERATING_MODE (ver CLAUDE.md § Convenções)"
+    fi
+  done
+done
+
+# ──────────────────────── 3d. remediação não promete prefixo inline ────────────────────────
+# Um hook PreToolUse corre no ambiente do Claude Code, antes do comando e noutro
+# processo: `PRUMO_X=1 <comando>` aplica-se ao filho e nunca ao hook. Uma mensagem
+# que mande fazer isso é impossível de seguir, e o efeito prático é o agente
+# ofuscar o input até passar — que é o oposto do que um gate auditável quer.
+section "remediação dos hooks não promete prefixo inline de env var"
+
+inline_promise=0
+for p in "${PLUGINS[@]}"; do
+  [ -d "$p/hooks" ] || continue
+  for sh in "$p"/hooks/*.sh; do
+    [ -f "$sh" ] || continue
+    # Ignora linhas de comentário: o idioma aparece lá legitimamente, a explicar
+    # porque é que NÃO se usa. Só interessa o que chega ao utilizador.
+    if grep -vE '^[[:space:]]*#' "$sh" | grep -qE 'PRUMO_[A-Z_]+=[^[:space:]]+[[:space:]]+<comando>'; then
+      fail "$sh: mensagem manda usar 'PRUMO_...=x <comando>' — prefixo inline não chega a um hook PreToolUse; apontar para settings.json → env ou /prumo-mode"
+      inline_promise=1
+    fi
+  done
+done
+[ $inline_promise -eq 0 ] && pass "nenhum hook promete desbloqueio por prefixo inline"
+
 # ──────────────────────── 3b. smoke.sh (per plugin) ────────────────────────
 section "smoke.sh (per plugin)"
 

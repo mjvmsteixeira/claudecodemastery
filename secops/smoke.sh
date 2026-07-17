@@ -142,7 +142,11 @@ fi
 if [ -x "$plugin_root/hooks/pre-tool-vault-ttl.sh" ]; then
   set +e
   unset VAULT_TOKEN
-  echo "vault read secret/foo" | "$plugin_root/hooks/pre-tool-vault-ttl.sh" >/dev/null 2>&1
+  # Fixa o modo: este teste afirma fail-closed, e o vault-ttl bloqueia via
+  # prumo_fail_or_warn — logo é warn-only em dev/lab por desenho. Sem pinar o
+  # modo, o teste falhava em qualquer máquina com /prumo-mode dev, medindo o
+  # ambiente em vez do hook.
+  echo "vault read secret/foo" | PRUMO_OPERATING_MODE=prod "$plugin_root/hooks/pre-tool-vault-ttl.sh" >/dev/null 2>&1
   neg_rc=$?
   set -e 2>/dev/null || true
   if [ $neg_rc -ne 0 ]; then
