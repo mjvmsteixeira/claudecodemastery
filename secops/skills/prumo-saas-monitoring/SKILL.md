@@ -12,6 +12,8 @@ description: Monitorização contínua e triagem de alertas da stack SaaS Wire (
 - Env vars exportadas (ou defaults aceites): `${PRUMO_WAZUH_HOST}`, `${PRUMO_FORTIGATE_HOST}`, `${ZABBIX_URL}`, `${OLLAMA_HOST}`.
 - Referências de progressive disclosure: `references/wazuh-rules.md`, `references/wazuh-fortigate-pairs.md`, `references/zabbix-canonical-templates.md`, `references/runbook-correlacao.md`.
 
+**Se uma referência estiver em falta, assinala-o no output.** Estes ficheiros fixam os pares canónicos Wazuh ↔ Fortigate e os templates Zabbix esperados por tipo de host. Sem eles a correlação continua possível a partir dos dados ao vivo, mas passa a ser inferida em vez de verificada contra um baseline — e "não encontrei par para este alerta" deixa de se distinguir de "não sei qual seria o par esperado". Diz qual falta e que a análise foi feita sem baseline; não inventes as regras em falta.
+
 ## Padrão de query (sem wrappers)
 
 Esta skill usa **curl directo** contra as APIs Wazuh/Fortigate/Zabbix com auth via Vault. Sem dependência de scripts externos.
