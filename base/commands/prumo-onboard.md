@@ -1,6 +1,6 @@
 ---
 name: prumo-onboard
-description: Setup wizard end-to-end do ecossistema prumo — detecta plugins instalados (base/secops/devkit/design), guia a instalação dos que faltam, pergunta pelo estilo de output e sugere smoke tests por plugin. Idempotente.
+description: Setup wizard end-to-end do ecossistema prumo — detecta plugins instalados (base/secops/devkit/design), guia a instalação dos que faltam, distingue o Vault broker-pessoal do parque Wire antes de sugerir provisionamento, pergunta pelo estilo de output e sugere smoke tests por plugin. Idempotente.
 allowed-tools: Bash, Read
 ---
 
@@ -89,42 +89,76 @@ Traz: `/product-design`, orquestrador em dois modos (mockup e system) sobre a st
 
 Se a marketplace `mjvmsteixeira/claudecodemastery` ainda não estiver adicionada (caso `prumo-base` seja o primeiro), incluir o `/plugin marketplace add` antes do primeiro install.
 
-## Passo 2b — Provisionamento do Vault (antes dos smoke tests)
+## Passo 2b — Vault: identificar **qual**, antes de provisionar
 
-**Ordem importa.** O Passo 3 propõe `/vault-list` como smoke test do `prumo-base`, mas isso pressupõe um Vault já provisionado: kv-v2 montado em `secret/`, approle auth activo, engines `transit/` e `ssh/`. Numa máquina limpa esse smoke test falha por desenho, e a mensagem de erro não diz que o problema é o Vault nunca ter sido bootstrapped.
+**Há dois Vaults no ecossistema prumo, com propósitos diferentes. Confundi-los é o erro que este passo existe para evitar.**
 
-Detectar o estado antes de sugerir o que quer que seja:
+| | **Broker pessoal** | **Parque Wire** |
+|---|---|---|
+| Endereço típico | `https://127.0.0.1:8200` | `https://vault.wire.internal:8200` |
+| Para que serve | Credenciais do próprio utilizador, por projecto | Infraestrutura SaaS multi-tenant em produção |
+| Árvore típica | `secret/ai/`, `tokens/`, `credentials/`, `projects/`, `infrastructure/` | `secret/observability/`, `tenants/`, `ir/`, `cicd/`, `compliance/` |
+| AppRoles | um por projecto do utilizador | os 7 `wire-*` |
+| Engines necessários | `kv-v2` + `approle` | acrescenta `transit/` e `ssh/` |
+| Quem provisiona | `/prumo-vault-bootstrap` | acrescenta `/prumo-secops-bootstrap` |
+
+O broker pessoal **não precisa** de `transit/` nem de `ssh/`, e **nunca** deve receber policies `wire-*`. Reportar essas ausências como lacunas num broker pessoal é ruído — o Vault está completo para o que faz.
+
+Muitos utilizadores têm o broker pessoal há muito mais tempo do que os plugins prumo. Não assumir que um Vault local existe *por causa* do ecossistema.
+
+### Detecção
 
 ```bash
-echo "=== Vault — estado do provisionamento ==="
-if [ ! -d "${HOME}/vault" ]; then
-  echo "  ✗ ~/vault ausente — sem instância local; saltar este passo"
+echo "=== Vault — identificação ==="
+ADDR="${VAULT_ADDR:-https://127.0.0.1:8200}"
+echo "  VAULT_ADDR: $ADDR"
+
+KIND="indeterminado"
+case "$ADDR" in
+  *127.0.0.1*|*localhost*) KIND="broker pessoal (local)" ;;
+  *wire.internal*)         KIND="parque Wire (produção)" ;;
+esac
+echo "  Tipo inferido: $KIND"
+
+if [ ! -d "${HOME}/vault" ] && [ "$KIND" = "broker pessoal (local)" ]; then
+  echo "  ✗ ~/vault ausente — sem instância local. Saltar o passo."
 elif ! command -v docker >/dev/null 2>&1 && ! command -v vault >/dev/null 2>&1; then
-  echo "  ~ ~/vault existe mas não há CLI vault nem docker — não dá para verificar"
+  echo "  ~ sem CLI vault nem docker — não dá para verificar"
 else
-  echo "  ✓ ~/vault presente · correr /prumo-vault-bootstrap --plan para o estado real"
+  echo "  → confirmar com /prumo-vault-bootstrap --plan (read-only)"
 fi
 ```
 
-O bootstrap é **idempotente** e o default é `--plan` (read-only, não escreve). A ordem correcta:
+Se o tipo ficar **indeterminado**, perguntar ao utilizador antes de sugerir qualquer bootstrap. Um `--apply` contra o Vault errado escreve policies e AppRoles onde não pertencem.
+
+### Provisionamento — broker pessoal
+
+Só o bootstrap genérico, e só se faltar alguma coisa:
 
 ```
-1. /prumo-vault-bootstrap --plan     # o que falta provisionar (não escreve)
-2. /prumo-vault-bootstrap --apply    # audit device, kv-v2, approle, transit, ssh
+/prumo-vault-bootstrap --plan     # read-only; diz o que falta
+/prumo-vault-bootstrap --apply    # audit device, kv-v2, approle
 ```
 
-Requer um token com policy `root`. Se o `--plan` disser que está tudo provisionado, saltar o `--apply`.
+**Não sugerir o `/prumo-secops-bootstrap` aqui.** As policies `wire-*` descrevem um parque de produção que não existe nesta máquina; criá-las localmente não habilita nada e deixa objectos órfãos.
 
-**Se `prumo-secops` estiver instalado**, há um segundo bootstrap, específico do parque Wire, que corre **depois** do genérico:
+Se o `--plan` assinalar `transit/` ou `ssh/` em falta, **dizer que são opcionais neste contexto**: só interessam a quem use cifra-como-serviço ou SSH CA. Um broker que guarda chaves estáticas em `secret/infrastructure/<host>` não precisa de nenhum dos dois.
+
+### Provisionamento — parque Wire
+
+Requer `prumo-secops` instalado e um token com policy `root` **nesse** Vault. Ordem obrigatória — o segundo depende dos engines que o primeiro monta:
 
 ```
-3. /prumo-secops-bootstrap --plan
-4. /prumo-secops-bootstrap --apply   # 7 policies wire-*, 7 AppRoles, transit/keys/forensics, ssh roles
+1. /prumo-vault-bootstrap --plan   →  2. --apply    # + transit/ e ssh/
+3. /prumo-secops-bootstrap --plan  →  4. --apply    # 7 policies wire-*, 7 AppRoles,
+                                                     # transit/keys/forensics, ssh CA + roles
 ```
 
 Os nomes `wire-*` são objectos reais do Vault de produção, não branding — não renomear (ver `secops/CLAUDE.md`).
 
-Se `~/vault` não existir, saltar o passo inteiro: o `vault-toolkit` degrada e os smoke tests do Passo 3 que dependem do Vault devem ser omitidos em vez de sugeridos para falhar.
+### Consequência para o Passo 3
+
+O smoke test `/vault-list` só faz sentido contra o **broker pessoal**, e só depois de provisionado. Sem `~/vault`, ou com o `--plan` a assinalar kv-v2 ou approle em falta, **omitir a sugestão em vez de a deixar falhar** — o `vault-toolkit` degrada com aviso, e um smoke que falha por falta de setup lê-se como avaria.
 
 ## Passo 3 — Smoke tests por plugin já instalado
 
@@ -143,7 +177,7 @@ Exit codes:
 
 Smoke tests operacionais (mais pesados) ficam como sugestões secundárias por plugin instalado:
 
-- **`prumo-base`** · `/vault-list` (segredos do projecto actual) · esperado: lista de paths em `secret/projects/<projecto>/*` mais partilhados (`secret/ai`, `secret/tokens`). **Só sugerir se o Passo 2b confirmou Vault provisionado** — sem isso falha por falta de setup, não por avaria.
+- **`prumo-base`** · `/vault-list` (segredos do projecto actual) · esperado: lista de paths em `secret/projects/<projecto>/*` mais partilhados (`secret/ai`, `secret/tokens`). **Só sugerir se o Passo 2b identificou um broker pessoal provisionado** — contra o parque Wire esses paths não existem, e sem provisionamento falha por falta de setup, não por avaria.
 - **`prumo-secops`** · `/prumo-stack-doctor` · esperado: verde/amarelo/vermelho por componente (Vault, Wazuh, Fortigate, Zabbix). Pode falhar fora da VPN — é normal.
 - **`prumo-devkit`** · `/full-audit --ci` num projecto qualquer · esperado: JSON consolidado com counts e exit code 0/1/2.
 - **`prumo-design`** · `/product-design` em modo mockup · esperado: um Artifact renderizado. Não tem smoke automatizado (depende da stack nativa de design).
@@ -217,7 +251,9 @@ Imprimir resumo: quantos plugins instalados (X/4), próximas acções pendentes 
 ```
 === RESUMO ===
 Plugins prumo instalados: X/4  (versões actualizadas: sim/não/não verificado)
-Vault provisionado: <sim/não/sem ~/vault>  (secops bootstrap: sim/não/n.a.)
+Vault alvo: <broker pessoal | parque Wire | indeterminado> · <VAULT_ADDR>
+  provisionado: <sim/não/sem ~/vault>
+  secops bootstrap: <n.a. — broker pessoal | sim | não>   ← n.a. não é lacuna
 Modo operacional: <prod/dev/lab> (fonte: env/ficheiro/default)
 Estilo de output: <normal/focus/nenhum> (projecto · user)
 Próximas acções: [lista de items dos passos 2 e 3 que ficaram pendentes]

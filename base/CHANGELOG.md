@@ -2,6 +2,17 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.7.3 — 2026-07-20
+
+**O Passo 2b do `/prumo-onboard` tratava dois Vaults como um.** Origem: ao correr o wizard contra um setup real, o passo reportou `transit/`, `ssh/` e as 7 policies `wire-*` como lacunas de um Vault local que, ao ser inspeccionado, se revelou um **broker de credenciais pessoal** — árvore `secret/ai|tokens|credentials|projects|infrastructure`, 10 AppRoles por projecto do utilizador, zero objectos `wire-*`, e ficheiros de instalação três meses anteriores ao próprio ecossistema de plugins.
+
+- **A ausência não era lacuna.** Um broker pessoal não precisa de `transit/` nem de `ssh/` (só interessam a quem use cifra-como-serviço ou SSH CA) e **nunca** deve receber policies `wire-*`, que descrevem um parque de produção inexistente nessa máquina. Criá-las localmente não habilita nada e deixa objectos órfãos.
+- **Passo 2b reescrito para identificar primeiro, provisionar depois.** Tabela comparativa dos dois Vaults (endereço, propósito, árvore, AppRoles, engines, quem provisiona), inferência do tipo a partir do `VAULT_ADDR`, e caminhos de provisionamento separados. Contra um broker pessoal, o `/prumo-secops-bootstrap` **não é sugerido**; `transit/`/`ssh/` em falta são reportados como opcionais, não como desvio.
+- **Tipo indeterminado pergunta em vez de assumir.** Um `VAULT_ADDR` que não seja reconhecidamente local nem `wire.internal` suspende a sugestão de bootstrap: um `--apply` contra o Vault errado escreve policies e AppRoles onde não pertencem.
+- **Relatório final passa a nomear o alvo** (`broker pessoal | parque Wire | indeterminado` + `VAULT_ADDR`) e a distinguir `n.a.` de `não` no secops bootstrap — `n.a.` não é pendente.
+- Passo 3 ajustado: `/vault-list` só é sugerido contra broker pessoal provisionado; contra o parque Wire os paths `secret/projects/*` não existem.
+- Quatro cenários de detecção verificados por comportamento (local, `wire.internal`, host desconhecido, `VAULT_ADDR` ausente), mais o caso sem `~/vault`.
+
 ## v0.7.2 — 2026-07-20
 
 **Bug — o `smoke.sh` validava a versão errada.** `find … -print -quit` devolve o **primeiro** manifest que a travessia encontra, não o mais recente. O cache do Claude Code guarda **todas** as versões instaladas: com cinco versões de `prumo-secops` presentes (0.5.0 a 0.6.4), o smoke validava a **0.5.2** enquanto a 0.6.4 estava instalada e activa. Corrigido para `sort -V | tail -1`. As duas ocorrências que apenas testam presença (`| grep -q .`) ficam como estavam — aí qualquer match serve.
