@@ -2,7 +2,13 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.7.1 · prumo-secops 0.5.3 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+Estado actual: **prumo-base 0.7.1 · prumo-secops 0.6.0 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+
+## 2026-07-20 · `prumo-secops 0.6.0` · skills que decidiam com base em ficheiros inexistentes
+
+**Quatro avisos do smoke catalogados como dívida da Fase 3 escondiam um defeito de fundo.** Investigados, revelaram 17 ficheiros `references/` citados em 4 skills, nenhum existente — e as skills não os mencionam, **delegam-lhes decisões**. O `prumo-ir-multitenant` mandava classificar severidade S1–S4 por uma matriz inexistente e redigir a notificação ao município (RGPD Art. 33 §2) a partir de um template inexistente. Sem os ficheiros, o agente improvisa, sob pressão de incidente e com prazos regulatórios a correr; a peça sai com aspecto institucional e sem lastro, e ninguém dá pela diferença.
+
+Escritas as 5 referências do IR (560 linhas), marcadas como rascunho operacional com cabeçalho de validação — os limiares e o formulário do CNCS não foram verificados contra fonte oficial, e isso está dito em cada ficheiro em vez de silenciado. Acrescentada às 4 skills uma regra de falha ruidosa, graduada pelo risco: IR e compliance **param**; monitoring e release-safety degradam com aviso. A dívida das outras três mantém-se, mas deixou de falhar em silêncio.
 
 ## 2026-07-20 · `prumo-base 0.7.1` · `prumo-secops 0.5.3` · dois bugs apanhados a correr o próprio onboard
 

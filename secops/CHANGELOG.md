@@ -2,6 +2,18 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.6.0 — 2026-07-20
+
+**As skills mandavam decidir com base em ficheiros que não existiam.** Descoberto ao investigar os 4 avisos `references/ ausente` do smoke, que estavam catalogados como dívida da Fase 3. Não eram cosméticos: 17 ficheiros citados em 4 skills, **zero existentes** — e as skills não os *mencionam*, delegam-lhes decisões.
+
+O caso extremo estava no `prumo-ir-multitenant`: *"Classifica severidade (S1–S4) usando os critérios em `references/severity-matrix.md`"* e *"Template em `references/template-cliente.md`"* para a notificação ao município ao abrigo do RGPD Art. 33 §2. Sem os ficheiros, o agente inventa a classificação e redige a notificação de raiz — sob pressão de incidente, e com prazos regulatórios a correr. O modo de falha é silencioso: a peça sai com aspecto institucional e sem lastro nenhum.
+
+- **5 referências do IR escritas** (560 linhas): `severity-matrix.md` (portas S1–S4, regra do sinal ausente Wazuh↔Fortigate, multiplicador multi-tenant, desescalada com visto), `timeline-template.md` (UTC, append-only, facto separado de hipótese, T0 = conhecimento, cadeia de custódia), `distribuicao-classificacao.md` (TLP v2.0 por destinatário, regra de degradação), `template-cliente.md` (inicial/actualização/encerramento, com secção de correcção explícita), `cncs-template.md` (três fases T+24h/T+72h/T+30d, e a distinção entre a notificação da Wire como fornecedor e a de cada município como entidade essencial — paralelas, não alternativas).
+- **Marcadas como rascunho operacional.** Cada ficheiro traz cabeçalho de validação. Estruturam-se sobre o que o `SKILL.md` já compromete, mas limiares internos e o formulário do CNCS **não foram verificados contra fonte oficial** — está dito no cabeçalho de cada um. Um template com aspecto oficial e conteúdo não verificado seria pior do que a ausência.
+- **Regra de paragem nas 4 skills, graduada pelo risco.** `prumo-ir-multitenant` e `prumo-compliance-provider` **param e assinalam** se uma referência faltar — inventar uma matriz de severidade ou um mapping de controlos produz uma afirmação sem lastro que ninguém detecta a tempo. `prumo-saas-monitoring` e `prumo-release-safety` degradam com aviso explícito, com a excepção da lista de tenants representativos do canary, que não se deduz e tem de ser pedida.
+- No IR acresce que referências marcadas como rascunho não validado **não saem para destinatário externo** (município, CNCS, CNPD) sem visto do Coordenador SecOps.
+- Avisos do smoke: 4 → 3. Os 3 restantes (`compliance-provider`, `saas-monitoring`, `release-safety`) mantêm-se como dívida assumida, agora com falha ruidosa em vez de silenciosa.
+
 ## v0.5.3 — 2026-07-20
 
 **`/prumo-secops-bootstrap`: o split do HCL partia-se quando corrido como slash command.** O Passo 5 usava `match($0, …)`/`substr($0, …)` em awk para separar as 7 policies do `vault-policies.hcl`.

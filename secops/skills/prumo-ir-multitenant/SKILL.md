@@ -14,6 +14,18 @@ description: Resposta a Incidentes (IR) para incidentes que afectam dois ou mais
   - `references/severity-matrix.md` — decision tree S1/S2/S3/S4.
   - `references/timeline-template.md` — formato canónico de timeline cruzada.
   - `references/distribuicao-classificacao.md` — TLP + templates de comunicação a clientes/CNCS.
+  - `references/template-cliente.md` — comunicação ao município.
+  - `references/cncs-template.md` — notificação ao CNCS em três fases.
+
+## Se uma referência estiver em falta — PARA
+
+Esta skill delega decisões a ficheiros de `references/`. **Se um deles não existir, não improvises: pára e assinala.**
+
+Classificar severidade com uma matriz inventada, ou redigir uma notificação regulatória a partir de um template que não existe, produz uma peça que *parece* institucional e não tem fundamento nenhum. Sob pressão de incidente, ninguém dá pela diferença — e é essa a razão de isto ser uma paragem e não um aviso.
+
+Comportamento exigido: diz qual o ficheiro em falta, o que ele deveria fixar, e pergunta como proceder. Prossegue sem ele apenas com instrução explícita do utilizador, e nesse caso marca no output que a peça foi produzida sem base documental.
+
+Aplica-se também ao **estado** das referências: todas trazem um cabeçalho de validação. As que estiverem marcadas como rascunho não validado **não podem sair para destinatário externo** — município, CNCS ou CNPD — sem visto do Coordenador SecOps. Assinala isso ao entregar.
 
 ## Vault audit hash (para correlation evidence — CTRL-W-IR-007)
 

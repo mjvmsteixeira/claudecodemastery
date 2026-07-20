@@ -98,6 +98,12 @@ Bloqueante = se falha, NO-GO automático. Avaliativo = depende do contexto.
 - Não corre os testes; valida o **resultado** dos testes.
 - Não decide go/no-go autonomamente em casos com bloqueante por justificar — escala para humano.
 
+## Se uma referência estiver em falta — assinala
+
+**Se um dos templates abaixo não existir, diz qual e prossegue com estrutura própria, marcando-o no output.** Aqui a degradação é aceitável: um plano de canary ou de rollback construído de raiz para o release em causa é utilizável, ao contrário de uma matriz de severidade ou de um mapping de conformidade inventados.
+
+A excepção é o `canary-plan-template.md`, que fixa **quais os tenants representativos**. Essa lista não se deduz — é uma escolha deliberada sobre que municípios exercitam que caminhos de código. Sem ela, não escolhas tenants por conta própria: pede-os, ou assinala que o canary corre sobre uma amostra não validada.
+
 ## Referências
 
 - `references/canary-plan-template.md` — template para definir tenants representativos.

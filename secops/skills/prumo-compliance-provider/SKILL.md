@@ -98,6 +98,16 @@ Por produto wire*, a DPIA documenta:
 - Resposta a questionário cliente requer revisão humana antes de envio.
 - DPIA final é responsabilidade conjunta com DPO Wire + DPO do município.
 
+## Se uma referência estiver em falta — PARA
+
+Os mappings e templates abaixo são a base factual das peças que esta skill produz. **Se um deles não existir, não o reconstituas de memória: pára e assinala.**
+
+Um mapping de controlos inventado dá uma tabela plausível que não corresponde ao que a Wire implementa. Entregue a um auditor ou a um cliente, é uma afirmação de conformidade sem lastro — e o erro só aparece quando alguém for verificar o controlo.
+
+Comportamento exigido: identifica o ficheiro em falta, diz o que ele deveria fixar, e pergunta como proceder. Com instrução explícita para prosseguir, marca no output que a peça não tem base documental e não pode ser entregue sem revisão.
+
+Isto reforça a regra que já existe acima: resposta a questionário de cliente exige revisão humana antes de envio.
+
 ## Referências
 
 - `references/mapping-nis2.md` — controlos Wire ↔ NIS2 (a criar).
