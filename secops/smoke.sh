@@ -187,6 +187,9 @@ for skill_md in "$plugin_root"/skills/*/SKILL.md; do
   skill_dir="$(dirname "$skill_md")"
   skill="$(basename "$skill_dir")"
   cited=0; missing=0; missing_list=""
+  # O padrão apanha também cross-references (`../prumo-<skill>/references/x.md`),
+  # que são legítimas: uma política partilhada vive numa skill só, e duplicá-la
+  # criaria duas versões a divergir. Resolver o caminho relativo à skill que cita.
   while IFS= read -r ref; do
     [ -n "$ref" ] || continue
     cited=$((cited+1))
@@ -194,7 +197,7 @@ for skill_md in "$plugin_root"/skills/*/SKILL.md; do
       missing=$((missing+1))
       missing_list="$missing_list $ref"
     fi
-  done <<< "$(grep -ohE 'references/[A-Za-z0-9._-]+\.md' "$skill_md" 2>/dev/null | sort -u)"
+  done <<< "$(grep -ohE '(\.\./[A-Za-z0-9._-]+/)?references/[A-Za-z0-9._-]+\.md' "$skill_md" 2>/dev/null | sort -u)"
 
   if [ "$cited" -eq 0 ]; then
     ok "skills/$skill não cita references/"
