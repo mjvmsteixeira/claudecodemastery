@@ -86,7 +86,10 @@ vault_unseal() {
 
 vault_ready() {
   local sealed
-  sealed="$(V status -format=json 2>/dev/null | jq -r '.sealed // "true"' 2>/dev/null || echo true)"
+  # `.sealed | tostring`, nunca `.sealed // "true"`: em jq o operador // trata
+  # `false` como ausente, logo um Vault destrancado (sealed=false) devolvia
+  # "true" e vault_ready falhava sempre. Fallback só quando não há JSON válido.
+  sealed="$(V status -format=json 2>/dev/null | jq -r '.sealed | tostring' 2>/dev/null || true)"
   [ "$sealed" = "false" ]
 }
 

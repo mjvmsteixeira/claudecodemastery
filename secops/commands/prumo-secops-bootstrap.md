@@ -91,18 +91,27 @@ fi
 TMPDIR=$(mktemp -d -t wire-secops-policies.XXXXXX)
 trap "rm -rf '$TMPDIR'" EXIT
 
-awk -v out="$TMPDIR" '
-  /^# wire-[a-z-]+ —/ {
-    match($0, /wire-[a-z-]+/)
-    name = substr($0, RSTART, RLENGTH)
-    f = out "/policy-" name ".hcl"
-    next
-  }
-  # Terminador: linhas "# ====" marcam o fim das policies (início da secção
-  # "Configuração dos AppRoles" no HCL). Fecha o policy actual.
-  /^# =+/ { f = ""; next }
-  f != "" && !/^# -+$/ { print >> f }
-' "$HCL_FILE"
+# NÃO usar awk com $0/$1 aqui. Num slash command, o harness substitui as
+# variáveis posicionais NUAS ($0, $1, …) pelos argumentos da invocação antes de
+# o bloco correr — `match($0, …)` chegaria ao awk como `match(--plan, …)`, que é
+# aritmética e não a linha, e o split produziria 0 ficheiros. ${1:-…} (com
+# chavetas) sobrevive, $0 não. Loop em bash puro: só nomes próprios, sem colisão.
+f=""
+while IFS= read -r line; do
+  case "$line" in
+    '# wire-'*)
+      # cabeçalho de policy: "# wire-<nome> — <agente> (<descrição>)"
+      name="${line#\# }"; name="${name%% *}"
+      f="$TMPDIR/policy-${name}.hcl"; : > "$f"; continue ;;
+    '# ='*)
+      # "# ====" fecha a secção das policies (começa a dos AppRoles)
+      f=""; continue ;;
+    '# -'*)
+      # "# ----" é só separador visual
+      continue ;;
+  esac
+  [ -n "$f" ] && printf '%s\n' "$line" >> "$f"
+done < "$HCL_FILE"
 
 POLICY_FILES=("$TMPDIR"/policy-*.hcl)
 if [ "${#POLICY_FILES[@]}" -lt 7 ]; then

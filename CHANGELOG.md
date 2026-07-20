@@ -2,7 +2,15 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.7.0 · prumo-secops 0.5.2 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+Estado actual: **prumo-base 0.7.1 · prumo-secops 0.5.3 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+
+## 2026-07-20 · `prumo-base 0.7.1` · `prumo-secops 0.5.3` · dois bugs apanhados a correr o próprio onboard
+
+**O `/prumo-onboard` recém-revisto foi corrido contra o setup real e encontrou dois defeitos que nenhum teste apanhava.** O novo Passo 2b levou ao `/prumo-secops-bootstrap --plan`, e a cadeia partiu-se em dois sítios diferentes.
+
+O primeiro é o mais grave: `vault_ready()` na `lib/vault-env.sh` usava `jq '.sealed // "true"'`, e em jq o operador `//` trata `false` como ausente — um Vault destrancado devolvia `"true"` e a função falhava **sempre**, em qualquer estado. Doze consumidores em três plugins abortavam com "Vault inacessível ou sealed": todos os `/vault-*`, ambos os bootstraps, o `kv-migrate` e o `/ngrok-expose`. O sintoma era visível há muito e ninguém o ligou à causa — o hook SessionStart emitia *"Vault is sealed and auto-unseal failed"* em todos os arranques com o Vault a funcionar. É a mesma armadilha do `.sealed // …` corrigida no `~/vault/vault-read.sh` na mesma sessão: o padrão `.<bool> // <alt>` é que é o defeito, não o sítio.
+
+O segundo é específico de slash commands: o `/prumo-secops-bootstrap` separava as 7 policies do HCL com `match($0, …)` em awk, mas o harness substitui variáveis posicionais **nuas** pelos argumentos da invocação antes de o bloco correr — o awk recebia `match(--plan, …)` e o split produzia zero ficheiros. `${1:-…}` com chavetas sobrevive, `$0` não. Reescrito em bash puro, sem variáveis de campo.
 
 ## 2026-07-20 · `prumo-base 0.7.0` · `/prumo-style` v2 com perfis
 

@@ -2,6 +2,15 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.7.1 — 2026-07-20
+
+**`vault_ready()` nunca podia devolver verdadeiro.** Encontrado a correr o `/prumo-onboard` recém-actualizado contra o setup real — o Passo 2b levou ao `/prumo-secops-bootstrap --plan`, que abortou com "Vault inacessível ou sealed" tendo o Vault destrancado e a responder.
+
+- **Bug — `jq '.sealed // "true"'` em `lib/vault-env.sh`.** Em jq, `//` trata `false` como ausente: com `sealed=false` a expressão devolvia `"true"`, e `vault_ready` falhava **sempre**, em qualquer estado do Vault. Corrigido para `.sealed | tostring`, com o fallback a aplicar-se só quando não há JSON válido.
+- **Raio de impacto: 12 consumidores** em três plugins. Todos os `/vault-*` (`list`, `set`, `audit`, `backup`, `integrate`), ambos os bootstraps, o `kv-migrate`, o `/ngrok-expose` do devkit e o `/prumo-secops-bootstrap` abortavam com "Vault inacessível ou sealed" independentemente do estado real.
+- **Sintoma visível há muito**: o hook SessionStart `vault-session-check.sh` emitia *"Vault is sealed and auto-unseal failed"* em todos os arranques, mesmo com o Vault operacional — as duas mensagens contraditórias no início de cada sessão vinham daqui.
+- Mesma família do defeito corrigido no `~/vault/vault-read.sh` na mesma sessão; o padrão `.<bool> // <alternativa>` é a armadilha, não este sítio em concreto.
+
 ## v0.7.0 — 2026-07-20
 
 **`/prumo-style` v2: três regras novas no bloco base e um perfil `focus` para execução multi-passo.** Origem: análise do [`ayghri/i-have-adhd`](https://github.com/ayghri/i-have-adhd) (MIT), uma skill de output-shaping ADHD-friendly com 10 regras. Sete já estavam cobertas pelo bloco `prumo-style` v1 ou pelo `CLAUDE.md` global do utilizador; instalar o plugin acrescentaria uma terceira camada de estilo com duplicados e contradições. As regras genuinamente novas foram absorvidas.
