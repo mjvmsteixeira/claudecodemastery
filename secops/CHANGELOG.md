@@ -2,6 +2,18 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.6.2 — 2026-07-20
+
+**5 referências do `prumo-saas-monitoring` escritas (472 linhas).** Restam 3, todas do `prumo-release-safety`.
+
+- `wazuh-rules.md` — gamas de ID (nativas 0–99999 vs locais ≥100000), tradução `level` → P1–P4 com a ressalva de que **level 12+ não é automaticamente P1** (o critério é blast radius) e o inverso importa mais: um level 5 em vários municípios é P1. Estrutura de catálogo com campo obrigatório de falsos positivos conhecidos, e os comandos que cruzam regras definidas com regras que dispararam — de onde saem directamente os alertas silenciosos e ruidosos da auditoria.
+- `wazuh-fortigate-pairs.md` — catálogo de 9 pares com a semântica dos quatro resultados possíveis. Fixa a assimetria que dá valor à correlação: **Fortigate sem Wazuh é bom sinal** (perímetro conteve), **Wazuh sem Fortigate é mau sinal** (algo entrou sem ser visto). Inclui pares com "nenhuma correspondência esperada" — sem eles, toda a ausência é tratada como suspeita e a triagem afoga-se.
+- `zabbix-canonical-templates.md` — mapping host-tipo → template obrigatório, com items mínimos por template. `p95` comparado com baseline do produto e não com limiar fixo (com produtos entre 95 ms e 310 ms, um absoluto ou nunca dispara ou dispara sempre). Trigger sem acção de notificação classificado como crítico: dá cobertura aparente, pior do que ausência assumida.
+- `runbook-correlacao.md` — 8 passos, do evento âncora à escalada. Abre com verificação de deriva de NTP, porque uma correlação sobre relógios dessincronizados não é imprecisa, é aleatória. Exige duas hipóteses com contra-evidência explícita.
+- `painel-template.md` — origem de cada campo e regras de degradação. `n/d` nunca é substituído por valor plausível, e `COVERAGE` sem dados fica `n/d` e não `0%` — zero é medição, `n/d` é ausência dela.
+- **IDs custom e inventário ficam por preencher**, pelo mesmo critério das versões anteriores: são facto do ambiente, e `rule_id` inventados produzem queries que devolvem vazio e passam por "sem alertas".
+- Avisos do smoke: 2 → 1.
+
 ## v0.6.1 — 2026-07-20
 
 **5 referências do `prumo-compliance-provider` escritas (515 linhas), e um achado maior a montante.**
