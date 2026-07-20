@@ -2,6 +2,12 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.6.5 — 2026-07-20
+
+**Bug — o `smoke.sh` validava a versão errada.** `find … -print -quit` devolve o **primeiro** manifest que a travessia encontra, não o mais recente. O cache do Claude Code guarda **todas** as versões instaladas: com cinco versões de `prumo-secops` presentes (0.5.0 a 0.6.4), o smoke validava a **0.5.2** enquanto a 0.6.4 estava instalada e activa. Corrigido para `sort -V | tail -1`. As duas ocorrências que apenas testam presença (`| grep -q .`) ficam como estavam — aí qualquer match serve.
+
+Consequência prática: os 6 avisos de `references/` reportados após o update para 0.6.4 eram sobre a 0.5.2, uma versão anterior a todo o trabalho de referências. Com a selecção corrigida, o smoke passa a `exit=0`, 29 checks verdes, 0 avisos.
+
 ## v0.6.4 — 2026-07-20
 
 **Colisão de nomes resolvida — e dois dos quatro casos não eram o que pareciam.** Todas as 24 citações `references/` do plugin resolvem agora para ficheiros existentes, e não há dois ficheiros com o mesmo basename.

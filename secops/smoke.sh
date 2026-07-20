@@ -14,7 +14,10 @@ warn() { echo "  ! $*"; WARNED=$((WARNED+1)); }
 echo "── prumo-secops smoke ──"
 
 # 1. plugin.json válido — cache (post-install) com fallback source tree (dev/CI)
-manifest=$(find ~/.claude/plugins/cache -path "*/prumo-secops/*/.claude-plugin/plugin.json" -print -quit 2>/dev/null)
+# sort -V | tail -1, nunca -print -quit: o cache guarda TODAS as versões instaladas
+# e o -quit devolve a primeira que a travessia encontrar, não a mais recente.
+# Com 5 versões em cache, o smoke chegou a validar a 0.5.2 com a 0.6.4 instalada.
+manifest=$(find ~/.claude/plugins/cache -path "*/prumo-secops/*/.claude-plugin/plugin.json" 2>/dev/null | sort -V | tail -1)
 if [ -z "$manifest" ]; then
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
   [ -f "$script_dir/.claude-plugin/plugin.json" ] && manifest="$script_dir/.claude-plugin/plugin.json"

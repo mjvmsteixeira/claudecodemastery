@@ -2,6 +2,10 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.7.2 — 2026-07-20
+
+**Bug — o `smoke.sh` validava a versão errada.** `find … -print -quit` devolve o **primeiro** manifest que a travessia encontra, não o mais recente. O cache do Claude Code guarda **todas** as versões instaladas: com cinco versões de `prumo-secops` presentes (0.5.0 a 0.6.4), o smoke validava a **0.5.2** enquanto a 0.6.4 estava instalada e activa. Corrigido para `sort -V | tail -1`. As duas ocorrências que apenas testam presença (`| grep -q .`) ficam como estavam — aí qualquer match serve.
+
 ## v0.7.1 — 2026-07-20
 
 **`vault_ready()` nunca podia devolver verdadeiro.** Encontrado a correr o `/prumo-onboard` recém-actualizado contra o setup real — o Passo 2b levou ao `/prumo-secops-bootstrap --plan`, que abortou com "Vault inacessível ou sealed" tendo o Vault destrancado e a responder.
