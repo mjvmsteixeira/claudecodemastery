@@ -2,7 +2,13 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.7.2 · prumo-secops 0.6.5 · prumo-devkit 0.5.2 · prumo-design 0.6.1** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+Estado actual: **prumo-base 0.7.3 · prumo-secops 0.6.5 · prumo-devkit 0.5.2 · prumo-design 0.6.1** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+
+## 2026-07-20 · `prumo-base 0.7.3` · o onboard tratava dois Vaults como um
+
+**O Passo 2b reportava lacunas que não eram lacunas.** Ao correr contra um setup real, sinalizou `transit/`, `ssh/` e as 7 policies `wire-*` como ausências de um Vault local que, inspeccionado, se revelou um **broker de credenciais pessoal** — árvore por projecto do utilizador, 10 AppRoles próprios, zero objectos `wire-*`, e instalado três meses antes do ecossistema de plugins existir.
+
+São dois Vaults com propósitos distintos que só o wizard conflacionava: o broker pessoal não precisa de `transit/` nem de `ssh/`, e policies `wire-*` descrevem um parque de produção que não existe nessa máquina. O passo passa a **identificar o alvo antes de propor seja o que for**, com caminhos de provisionamento separados, e a **perguntar** quando o `VAULT_ADDR` não é inequívoco — um `--apply` contra o Vault errado escreve objectos onde não pertencem.
 
 ## 2026-07-20 · release coordenada dos 4 plugins · o smoke validava a versão errada
 
