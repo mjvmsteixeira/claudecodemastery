@@ -2,7 +2,13 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.7.1 · prumo-secops 0.6.1 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+Estado actual: **prumo-base 0.7.1 · prumo-secops 0.6.2 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+
+## 2026-07-20 · `prumo-secops 0.6.2` · referências do saas-monitoring
+
+**Escritas as 5 do `prumo-saas-monitoring` (472 linhas); restam 3, todas do `release-safety`.** O catálogo de pares Wazuh ↔ Fortigate fixa a assimetria que dá sentido à correlação — Fortigate sem Wazuh é bom sinal, Wazuh sem Fortigate é mau — e inclui pares com "nenhuma correspondência esperada", sem os quais toda a ausência passa a suspeita e a triagem afoga-se em falsos sinais. O runbook abre com verificação de deriva de NTP: uma correlação sobre relógios dessincronizados não é imprecisa, é aleatória.
+
+Mantido o critério das versões anteriores — os `rule_id` custom e o inventário de hosts ficam por preencher, por serem facto do ambiente. IDs inventados produziriam queries que devolvem vazio e passam por "sem alertas", que é o pior modo de falha possível numa camada de monitorização.
 
 ## 2026-07-20 · `prumo-secops 0.6.1` · referências do compliance, e os controlos que ninguém define
 
