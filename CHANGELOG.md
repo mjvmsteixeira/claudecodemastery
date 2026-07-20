@@ -2,7 +2,15 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.7.1 · prumo-secops 0.6.3 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+Estado actual: **prumo-base 0.7.1 · prumo-secops 0.6.4 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+
+## 2026-07-20 · `prumo-secops 0.6.4` · a colisão de nomes, e o que ela escondia
+
+**Dois dos quatro casos não eram ficheiros em falta.** O `template-cliente.md` do `prumo-tenant-isolation` era um **nome errado** para um ficheiro que já existia (`template-relatorio.md`), citado correctamente 90 linhas abaixo na mesma skill — e o nome errado calhava ser o de uma peça diferente noutra skill. O `distribuicao-classificacao.md` do `cliente-dossier` era uma **cross-reference legítima** à política TLP que vive no IR, e que não deve ser duplicada: duas políticas de distribuição em vigor é pior do que nenhuma.
+
+Os outros dois foram escritos, com nomes desambiguados. O `queries-evidencia.md` mostrou-se escrevível ao contrário dos mappings do compliance, porque aqui **os controlos estão definidos** — a matriz CTRL-W-T-001..016 vive na própria skill. Cada query leva um campo obrigatório de limitação, que é o que separa evidência de conformidade aparente: o audit log de acessos cross-tenant, por exemplo, só prova ausência de acesso *registado*.
+
+Todas as 24 citações `references/` do plugin resolvem, e não há dois ficheiros com o mesmo basename.
 
 ## 2026-07-20 · `prumo-secops 0.6.3` · fecha o release-safety, e o check que contava mal
 

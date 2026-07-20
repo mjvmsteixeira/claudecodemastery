@@ -139,5 +139,5 @@ Linha proactiva: o que o município deveria fazer / melhorar do seu lado (forma�
 
 - `references/dossier-template.md` — template institucional.
 - `references/sla-calculation.md` — fórmula oficial Wire para cálculo de SLA.
-- `references/distribuicao-classificacao.md` — política de classificação e distribuição.
+- `../prumo-ir-multitenant/references/distribuicao-classificacao.md` — política TLP de classificação e distribuição. **Vive na skill de IR e não é duplicada aqui**: uma segunda cópia divergiria da primeira, e ter duas políticas de distribuição em vigor é pior do que não ter nenhuma.
 - WIRE.PRC.AUD.004 — auditoria e retenção.

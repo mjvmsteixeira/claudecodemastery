@@ -2,6 +2,17 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.6.4 — 2026-07-20
+
+**Colisão de nomes resolvida — e dois dos quatro casos não eram o que pareciam.** Todas as 24 citações `references/` do plugin resolvem agora para ficheiros existentes, e não há dois ficheiros com o mesmo basename.
+
+- **`tenant-isolation` → `template-cliente.md` era um nome errado, não um ficheiro em falta.** O relatório Art. 28 já existia como `template-relatorio.md`, e a própria skill citava-o correctamente 90 linhas mais abaixo. A linha de pré-requisitos usava um nome que, por acaso, é o de uma peça **diferente** no `prumo-ir-multitenant` (comunicação de incidente ao município). Corrigida a citação; nenhum ficheiro novo.
+- **`cliente-dossier` → `distribuicao-classificacao.md` é cross-reference legítima.** Passa a apontar para `../prumo-ir-multitenant/references/`. A política TLP vive numa skill só — duplicá-la criaria duas versões a divergir, e ter duas políticas de distribuição em vigor é pior do que não ter nenhuma.
+- **`painel-template.md` → renomeado para `painel-isolamento.md`** e escrito. É o painel transversal dos 16 controlos, distinto do `painel-template.md` do `prumo-saas-monitoring`, que é o de saúde da plataforma. Impõe "não avaliado" como categoria própria (nunca conforme), não-conformidade crítica a reprovar o painel inteiro sem média ponderada, e registo da cobertura da própria auditoria — `16/16` sobre 5 municípios amostrados de 170 não afirma o mesmo que sobre o parque completo.
+- **`queries-evidencia.md` escrito.** Ao contrário dos mappings do compliance, **este era escrevível**: a matriz CTRL-W-T-001..016 está definida no `SKILL.md` desta skill. Queries por controlo, cada uma com campo obrigatório de **limitação** — o mais omitido e o que evita relatórios de conformidade falsos de boa-fé. Duas limitações materiais assinaladas: `relforcerowsecurity` sem o qual o dono da tabela contorna a RLS (activa e a não proteger nada), e o audit log de cross-tenant que só prova ausência de acesso *registado*, não de acesso.
+- **Check 13 do `smoke.sh` passa a aceitar cross-references** `../<skill>/references/x.md`, que de outro modo contaria como ficheiro em falta.
+- Avisos do smoke relativos a referências: **0**.
+
 ## v0.6.3 — 2026-07-20
 
 **3 referências do `prumo-release-safety` escritas — e o check que as contava estava a mentir.**

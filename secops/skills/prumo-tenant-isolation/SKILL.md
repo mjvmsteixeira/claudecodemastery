@@ -10,9 +10,16 @@ description: Auditar e validar o isolamento multi-tenant entre municípios clien
 - AppRole Vault `wire-tenant` (read em `secret/data/db/schemas/tenant-*`).
 - Env vars: `${PRUMO_PG_HOST}` (default `postgres-wire.internal`).
 - Referências:
-  - `references/template-cliente.md` — relatório Art. 28 RGPD por cliente.
+  - `references/template-relatorio.md` — relatório Art. 28 RGPD entregue ao cliente.
   - `references/queries-evidencia.md` — queries SQL canónicas para os 16 CTRL-W-T-*.
-  - `references/painel-template.md` — painel consolidado de isolamento.
+  - `references/painel-isolamento.md` — painel consolidado de isolamento.
+
+> **Nomes desambiguados de propósito.** O relatório era citado aqui como `template-cliente.md` e
+> mais abaixo, correctamente, como `template-relatorio.md` — mas `template-cliente.md` é o nome de
+> uma peça **diferente** no `prumo-ir-multitenant` (comunicação de incidente ao município). Pelo
+> mesmo motivo o painel é `painel-isolamento.md` e não `painel-template.md`, que no
+> `prumo-saas-monitoring` é o painel de saúde da plataforma. Um nome ambíguo resolvido pela skill
+> errada produz a peça errada com aspecto correcto.
 
 ## Padrão de query RLS (sem wrappers)
 
