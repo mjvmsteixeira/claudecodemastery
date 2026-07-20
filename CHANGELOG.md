@@ -2,7 +2,15 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.7.1 · prumo-secops 0.6.0 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+Estado actual: **prumo-base 0.7.1 · prumo-secops 0.6.1 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+
+## 2026-07-20 · `prumo-secops 0.6.1` · referências do compliance, e os controlos que ninguém define
+
+**Escritas as 5 referências do `prumo-compliance-provider` (515 linhas) — e corrigida a contagem de ontem: são 18 ficheiros em falta, não 17.** O regex que os enumerou não incluía maiúsculas e omitiu o `anexoII-template.md`.
+
+Os três templates saíram completos (Anexo II do Art. 28(3), DPIA, e o formato do banco CAIQ). Os dois mappings **saíram com a coluna de cobertura vazia, de propósito**: a correspondência entre cláusulas de framework e controlos Wire não se pode escrever sem saber que controlos existem. E aí está o achado maior — os `CTRL-W-T-001..016` e `CTRL-W-R-001..018` são citados como intervalos em comandos, agents e skills de todo o plugin, mas **nenhum artefacto do repositório define o que cada um verifica**. Um comando que instrui *"aplica CTRL-W-T-001..016"* corre exactamente no vazio que as referências ausentes vinham corrigir, e desta vez o problema não é só das skills.
+
+Pelo mesmo critério, o `caiq-pre-filled.md` não traz respostas pré-preenchidas apesar do nome: fabricar 261 respostas de conformidade sob um rótulo que garante que ninguém as verifica seria o pior resultado possível.
 
 ## 2026-07-20 · `prumo-secops 0.6.0` · skills que decidiam com base em ficheiros inexistentes
 
