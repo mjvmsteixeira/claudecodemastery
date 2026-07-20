@@ -2,7 +2,15 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.7.1 · prumo-secops 0.6.4 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+Estado actual: **prumo-base 0.7.2 · prumo-secops 0.6.5 · prumo-devkit 0.5.2 · prumo-design 0.6.1** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+
+## 2026-07-20 · release coordenada dos 4 plugins · o smoke validava a versão errada
+
+**Todos os quatro `smoke.sh` usavam `find … -print -quit` para localizar o plugin instalado — e o `-quit` devolve o primeiro manifest que a travessia encontra, não o mais recente.** O cache do Claude Code guarda todas as versões instaladas; com cinco versões de `prumo-secops` presentes, o smoke validava a **0.5.2** enquanto a 0.6.4 estava instalada e activa.
+
+Foi apanhado logo a seguir a um `/plugin update`: o smoke reportou 6 avisos de `references/` em falta sobre skills cujas referências tinham acabado de ser escritas e verificadas no repositório. Os avisos eram verdadeiros — mas sobre um plugin de três versões atrás. Um smoke que valida a versão errada é pior do que não ter smoke, porque produz um veredicto com autoridade sobre um artefacto que ninguém está a usar.
+
+É a quarta ocorrência da mesma família nesta sessão, depois do `vault_ready` que nunca podia dar verdadeiro, do live-test que falava com um stub órfão e do check que contava pastas em vez de referências: **uma verificação que dá um veredicto confiante sobre uma condição diferente da que interessa**.
 
 ## 2026-07-20 · `prumo-secops 0.6.4` · a colisão de nomes, e o que ela escondia
 
