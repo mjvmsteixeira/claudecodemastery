@@ -2,6 +2,18 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.6.1 — 2026-07-20
+
+**5 referências do `prumo-compliance-provider` escritas (515 linhas), e um achado maior a montante.**
+
+- **Correcção à contagem de v0.6.0: são 18 referências em falta, não 17.** O regex usado para as enumerar (`references/[a-z0-9._-]+\.md`) não incluía maiúsculas e omitiu o `anexoII-template.md`. O compliance tinha **5** referências por escrever, não 4.
+- **Templates escritos na íntegra**: `anexoII-template.md` (Anexo II do Art. 28(3) — categorias, medidas técnicas, sub-subcontratantes, violação, devolução, auditoria, com nota de que só as secções de dados e titulares variam legitimamente entre municípios), `dpia-template.md` (contributo técnico da Wire para a DPIA do município, com a distinção responsável/subcontratante explícita e uma coluna "Responsável" por medida, para não dar ao município falsa cobertura), `caiq-pre-filled.md` (formato, regras de redacção e processo do banco canónico).
+- **Os dois mappings ficam com a coluna de cobertura vazia, deliberadamente.** `mapping-nis2.md` enumera as 10 medidas do Art. 21(2) e as fases do Art. 23; `mapping-iso27001.md` fixa a estrutura do Anexo A:2022 (4 temas, 93 controlos) e o processo de Declaração de Aplicabilidade. A correspondência com controlos Wire **não foi escrita** — ver ponto seguinte.
+- **`caiq-pre-filled.md` não contém respostas pré-preenchidas**, apesar do nome. O CAIQ v4 tem ~261 perguntas; fabricá-las seria emitir declarações falsas a clientes sob um rótulo ("pré-preenchido") que garante que ninguém as verifica antes de enviar. O ficheiro define formato, regras e processo; as respostas entram à medida que forem validadas.
+- **Achado — os `CTRL-W-*` são citados em todo o plugin e nunca definidos.** `CTRL-W-T-001..016` e `CTRL-W-R-001..018` aparecem como intervalos em comandos (`/prumo-tenant-audit`, `/prumo-release-gate`), agents e skills, mas nenhum artefacto do repositório diz o que cada controlo verifica — a definição vive no `WIRE.MTZ.SEC.006`, externo. É o mesmo defeito que as referências ausentes, e afecta comandos além de skills: `"aplica CTRL-W-T-001..016"` corre no vazio. Registado no `SKILL.md` do compliance como dependência por resolver; **tratar o inventário como artefacto do plugin fica por decidir**.
+- Secção de referências do `SKILL.md` actualizada — as anotações `(a criar)` já não descreviam o estado.
+- Avisos do smoke: 3 → 2.
+
 ## v0.6.0 — 2026-07-20
 
 **As skills mandavam decidir com base em ficheiros que não existiam.** Descoberto ao investigar os 4 avisos `references/ ausente` do smoke, que estavam catalogados como dívida da Fase 3. Não eram cosméticos: 17 ficheiros citados em 4 skills, **zero existentes** — e as skills não os *mencionam*, delegam-lhes decisões.

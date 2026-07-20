@@ -110,9 +110,17 @@ Isto reforça a regra que já existe acima: resposta a questionário de cliente 
 
 ## Referências
 
-- `references/mapping-nis2.md` — controlos Wire ↔ NIS2 (a criar).
-- `references/mapping-iso27001.md` — controlos Wire ↔ ISO 27001 Anexo A (a criar).
-- `references/anexoII-template.md` — template de Anexo II do contrato.
-- `references/dpia-template.md` — template de DPIA por produto.
-- `references/caiq-pre-filled.md` — CAIQ pré-preenchido para entrega rápida.
+- `references/mapping-nis2.md` — Art. 21(2) e Art. 23 enumerados; **coluna de cobertura por preencher** (depende do inventário `CTRL-W-*`).
+- `references/mapping-iso27001.md` — estrutura do Anexo A:2022 e processo de SoA; **coluna de cobertura por preencher** (idem).
+- `references/anexoII-template.md` — Anexo II do contrato de subcontratação (Art. 28(3)).
+- `references/dpia-template.md` — contributo técnico da Wire para a DPIA do município (Art. 35).
+- `references/caiq-pre-filled.md` — formato e processo do banco de respostas canónicas; **as respostas entram só depois de validadas**.
 - DL 20/2025, RGPD, ISO 27001:2022.
+
+## Dependência por resolver — inventário `CTRL-W-*`
+
+Os dois mappings têm a coluna de cobertura vazia de propósito. Os identificadores `CTRL-W-T-001..016` e `CTRL-W-R-001..018` são citados como intervalos em comandos, agents e skills deste plugin, mas **nenhum artefacto do repositório define o que cada controlo verifica** — a definição vive no `WIRE.MTZ.SEC.006`, externo.
+
+Sem esse inventário, preencher a correspondência seria inventar cobertura, contra o princípio acima e contra o que um auditor vai verificar. Perante um pedido de mapping, aplica a regra de paragem: mostra o esqueleto como trabalho já feito e pede os controlos.
+
+O problema é maior do que esta skill — um comando que diz *"aplica CTRL-W-T-001..016"* corre no mesmo vazio. Vale a pena tratar o inventário como artefacto do plugin.
