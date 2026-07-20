@@ -2,7 +2,15 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.7.1 · prumo-secops 0.6.2 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+Estado actual: **prumo-base 0.7.1 · prumo-secops 0.6.3 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+
+## 2026-07-20 · `prumo-secops 0.6.3` · fecha o release-safety, e o check que contava mal
+
+**As 3 referências do `prumo-release-safety` escritas — e, ao enumerar todas as skills para confirmar, o check que as media revelou-se cego.** O check 13 do `smoke.sh` só via se a pasta `references/` existia e tinha pelo menos um ficheiro: uma skill com 1 de 4 referências passava como coberta. Havia **4 ficheiros em falta invisíveis** em duas skills que os avisos davam como resolvidas. Passa a validar que cada ficheiro citado por um `SKILL.md` existe de facto, e a nomear os que faltam.
+
+Do conteúdo, o mais consequente é a classificação A–D do `rollback-template.md`: **classe D não tem rollback, tem recuperação de desastre**. Um `drop` de coluna tratado como reversível é o erro que o template existe para prevenir, e a altura de o descobrir não é durante a execução.
+
+Fica assinalada uma colisão de nomes por decidir — três dos quatro ficheiros em falta partilham nome com peças de outras skills mas são coisas diferentes, e um agente que resolva pela skill errada produz a peça errada com aspecto correcto.
 
 ## 2026-07-20 · `prumo-secops 0.6.2` · referências do saas-monitoring
 

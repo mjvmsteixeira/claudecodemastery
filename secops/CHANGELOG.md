@@ -2,6 +2,18 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.6.3 — 2026-07-20
+
+**3 referências do `prumo-release-safety` escritas — e o check que as contava estava a mentir.**
+
+- `canary-plan-template.md` — critérios de composição do painel (volume, produtos, versão de Rails, configuração, dataset, criticidade, fuso), degraus 5/25/50/100 com os tempos do `SKILL.md`, métricas contra baseline do produto e critérios de aborto imediato. Duas regras que evitam a maioria dos erros: nunca pôr no primeiro degrau um município em época crítica, e manter o painel estável entre releases — rodá-lo destrói a comparabilidade e deixa de se saber se a métrica mudou por causa do release ou do painel. **A lista concreta de tenants continua por preencher**: é escolha deliberada sobre que caminhos de código se quer exercitar, não se deduz.
+- `rollback-template.md` — classificação A–D por reversibilidade da migration, com a distinção que estrutura tudo: **classe D não tem rollback, tem recuperação de desastre**. Um `drop` tratado como reversível é o erro que este template existe para prevenir. Impõe preservar-antes-de-reverter (um rollback destrói a evidência de um incidente que ainda ninguém percebeu ser incidente), tentar a feature flag antes do rollback de código, e estimar o tempo da migration sobre o **maior** dataset do parque e não sobre pré-prod.
+- `changelog-template.md` — muda de eixo em vez de resumir o changelog interno: o que não tem efeito observável para o cliente não entra. Regras de breaking change (anunciar antes, nomear o que deixa de funcionar, dar alternativa, datar a remoção, contactar directamente quem está afectado) e a separação face à comunicação de incidente, que segue o `template-cliente.md` do IR.
+
+**Bug — o check 13 do `smoke.sh` só verificava se a pasta `references/` existia e tinha ≥1 ficheiro.** Uma skill com 1 de 4 referências passava como `✓`. Foi assim que **4 ficheiros em falta ficaram invisíveis** em skills marcadas como cobertas: `prumo-cliente-dossier` (1 de 3) e `prumo-tenant-isolation` (3 de 4). O check passa a validar que **cada ficheiro citado por um `SKILL.md` existe de facto**, e nomeia os que faltam. O regex inclui maiúsculas — um `[a-z]` tinha omitido o `anexoII-template.md` numa enumeração anterior.
+
+**Colisão de nomes a assinalar.** Três dos quatro em falta partilham nome com ficheiros de outras skills (`template-cliente.md`, `painel-template.md`, `distribuicao-classificacao.md`) mas são peças diferentes — o `template-cliente.md` do tenant-isolation é um relatório Art. 28, não a comunicação de incidente do IR. Um agente que resolva o nome pela skill errada produz a peça errada com aspecto correcto. Fica por decidir se são cross-references a corrigir para `../<skill>/references/` ou ficheiros distintos a escrever.
+
 ## v0.6.2 — 2026-07-20
 
 **5 referências do `prumo-saas-monitoring` escritas (472 linhas).** Restam 3, todas do `prumo-release-safety`.
