@@ -2,7 +2,15 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.6.1 · prumo-secops 0.5.2 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+Estado actual: **prumo-base 0.7.0 · prumo-secops 0.5.2 · prumo-devkit 0.5.1 · prumo-design 0.6.0** (tags: prumo-base `v0.6.0` · prumo-design `prumo-design-v0.6.1`)
+
+## 2026-07-20 · `prumo-base 0.7.0` · `/prumo-style` v2 com perfis
+
+**Absorção selectiva do `ayghri/i-have-adhd` (MIT) em vez de instalar um terceiro plugin de estilo.** Das 10 regras dessa skill, 7 já estavam cobertas pelo bloco `prumo-style` v1 ou pelo `CLAUDE.md` global — instalá-la acrescentaria uma camada com duplicados e duas contradições directas ("terminar com acção seguinte" / "tornar visível o trabalho feito" contra "sem labels de resumo/fecho"). As contradições resolveram-se por âmbito, não por escolha: são regras de *execução multi-passo*, não de Q&A. Daí o perfil `focus`, opt-in, separado do `normal` default. O bloco base subiu de 6 para 9 regras e um bug de acumulação de linhas em branco do v1 foi corrigido. Detalhe em `base/CHANGELOG.md`.
+
+O `/prumo-onboard` levou uma revisão de fundo na mesma passagem: um inventário dos 35 commands do marketplace contra o que o wizard mencionava mostrou que **19 estavam fora**, dos quais 5 eram passos de provisionamento de que o resto depende. Dois eram defeitos a sério — o wizard sugeria `/vault-list` como smoke test sem nunca provisionar o Vault (falha garantida em máquina limpa, com mensagem enganadora), e reimplementava à mão o `/prumo-mode`, ignorando a precedência `env` > ficheiro > default e o marker do modo `lab`. Entraram `/prumo-vault-bootstrap` e `/prumo-secops-bootstrap` (novo Passo 2b, antes dos smokes), `/prumo-mode` por delegação, `/prumo-upgrade` no Passo 1 e `/prumo-ollama-doctor` no Passo 3. Os outros 14 são operacionais ou por-projecto e ficam de fora por desenho — listá-los transformaria o wizard no índice que o `/prumo-context-pack` já é.
+
+Na mesma passagem apanharam-se três defeitos adjacentes, todos da família "o wizard não conhece o próprio ecossistema": o `/prumo-onboard` nunca perguntava pelo estilo de output (agora Passo 4b, que detecta e pergunta mas nunca aplica — escreve num ficheiro do utilizador) e detectava só 3 dos 4 plugins do `marketplace.json`, ignorando o `prumo-design` no loop, nos gaps, nos smokes e nos contadores. O terceiro é do eval-harness: o `second-opinion-livetest.sh` usava a porta fixa 11533, e um stub órfão de uma corrida anterior fazia o teste falar com o servidor errado — como o hook é fail-closed, 6 das 7 asserções continuavam verdes e só a de `allow` caía, produzindo um vermelho cuja mensagem apontava para o sítio errado. Passou a porta efémera atribuída pelo kernel, com reap do processo e trap em `INT`/`TERM`.
 
 ## 2026-07-17 · CI verde · portabilidade Linux (telemetry-test + pii-redact)
 
