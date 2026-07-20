@@ -2,6 +2,14 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.5.3 — 2026-07-20
+
+**`/prumo-secops-bootstrap`: o split do HCL partia-se quando corrido como slash command.** O Passo 5 usava `match($0, …)`/`substr($0, …)` em awk para separar as 7 policies do `vault-policies.hcl`.
+
+- **Bug — variáveis posicionais nuas são substituídas pelo harness.** Num slash command, `$0` é substituído pelos argumentos da invocação *antes* de o bloco correr: `match($0, /wire-[a-z-]+/)` chegava ao awk como `match(--plan, …)`, que é aritmética sobre uma variável indefinida, não a linha. O split produzia 0 ficheiros e o command abortava com "Split do HCL produziu 0 ficheiros, esperados 7". `${1:---plan}` (com chavetas) sobrevive à substituição; `$0` não — daí o defeito passar despercebido no Passo 1.
+- **Corrigido** com um loop `while IFS= read -r line` em bash puro, sem variáveis de campo do awk e portanto sem colisão possível com placeholders do harness. Verificado contra o `vault-policies.hcl` real: 7 ficheiros, todos com os `path` blocks intactos.
+- Só este ficheiro usava o padrão em todo o marketplace.
+
 ## v0.5.2 — 2026-07-17
 
 **Portabilidade Linux: `pii-redact` deixa de fazer fail-open sem `shasum`.** Descoberto ao investigar uma falha de CI (que era outra: ver abaixo). O hook usava `shasum` (script perl) no caminho de bloqueio, **antes** do `exit`. Com `set -e`, num Linux sem perl (`shasum` ausente → 127), o hook saía 127 em vez de 2 — a PII detectada **não era bloqueada** (fail-OPEN). O CI (ubuntu-latest tem perl) nunca deu por isso. Fallback para `sha256sum` (coreutils) e, em último caso, um marcador; o bloqueio nunca aborta por falta da ferramenta de hash. Verificado em container sem `shasum`: 18/18 casos de PII bloqueiam.
