@@ -173,18 +173,35 @@ if [ -x "$plugin_root/hooks/pre-tool-vault-ttl.sh" ]; then
   fi
 fi
 
-# 13. Each skill tem references/ populadas
-for skill in prumo-ir-multitenant prumo-compliance-provider prumo-saas-monitoring prumo-tenant-isolation prumo-release-safety prumo-cliente-dossier; do
-  refs_dir="$plugin_root/skills/$skill/references"
-  if [ -d "$refs_dir" ]; then
-    count=$(find "$refs_dir" -type f -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
-    if [ "$count" -gt 0 ]; then
-      ok "skills/$skill/references/ tem $count templates"
-    else
-      warn "skills/$skill/references/ vazio (Fase 3 vai resolver)"
+# 13. Cada ficheiro references/ CITADO por um SKILL.md existe de facto.
+#
+# Antes este check só via se a pasta existia e tinha >=1 ficheiro — uma skill com
+# 1 de 4 referências passava como ✓. Foi assim que 4 ficheiros em falta ficaram
+# invisíveis em skills marcadas como cobertas. O que interessa não é a pasta estar
+# populada; é não haver citação sem destino.
+#
+# O regex inclui maiúsculas de propósito: um `[a-z]` omitiu o anexoII-template.md
+# numa enumeração anterior e a contagem saiu errada.
+for skill_md in "$plugin_root"/skills/*/SKILL.md; do
+  [ -f "$skill_md" ] || continue
+  skill_dir="$(dirname "$skill_md")"
+  skill="$(basename "$skill_dir")"
+  cited=0; missing=0; missing_list=""
+  while IFS= read -r ref; do
+    [ -n "$ref" ] || continue
+    cited=$((cited+1))
+    if [ ! -f "$skill_dir/$ref" ]; then
+      missing=$((missing+1))
+      missing_list="$missing_list $ref"
     fi
+  done <<< "$(grep -ohE 'references/[A-Za-z0-9._-]+\.md' "$skill_md" 2>/dev/null | sort -u)"
+
+  if [ "$cited" -eq 0 ]; then
+    ok "skills/$skill não cita references/"
+  elif [ "$missing" -eq 0 ]; then
+    ok "skills/$skill/references/ — $cited/$cited citados existem"
   else
-    warn "skills/$skill/references/ ausente (Fase 3 vai resolver)"
+    warn "skills/$skill/references/ — $missing de $cited citados em falta:$missing_list"
   fi
 done
 
