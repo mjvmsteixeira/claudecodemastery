@@ -12,7 +12,9 @@ set -uo pipefail
 EVAL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$EVAL_DIR/../.." && pwd)"
 HOOK="$REPO_ROOT/secops/hooks/pre-tool-second-opinion.sh"
-PORT=11533
+# Porta efémera atribuída pelo kernel — uma porta fixa colide com stubs órfãos de
+# corridas anteriores, e o servidor estranho responde erro a tudo: as asserções de
+# bloqueio continuam verdes (fail-closed) e só a de allow cai. Falso negativo caro.
 
 command -v python3 >/dev/null 2>&1 || { echo "python3 ausente — live-test saltado (opcional)." >&2; exit 3; }
 command -v jq >/dev/null 2>&1 || { echo "jq necessário" >&2; exit 2; }
@@ -21,12 +23,13 @@ SANDBOX="$(mktemp -d "${TMPDIR:-/tmp}/prumo-so-live.XXXXXX")"
 mkdir -p "$SANDBOX/.claude/plugins/cache"
 VF="$SANDBOX/verdict"          # resposta crua que o stub devolve como .response
 REQLOG="$SANDBOX/reqlog"       # o stub grava aqui o prompt recebido
+PORTFILE="$SANDBOX/port"       # o stub escreve aqui a porta que o kernel lhe deu
 : > "$VF"; : > "$REQLOG"
 
 cat > "$SANDBOX/stub.py" <<'PY'
 import sys, json
 from http.server import BaseHTTPRequestHandler, HTTPServer
-port = int(sys.argv[1]); vf = sys.argv[2]; reqlog = sys.argv[3]
+portfile = sys.argv[1]; vf = sys.argv[2]; reqlog = sys.argv[3]
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
     def do_GET(self):
@@ -43,21 +46,33 @@ class H(BaseHTTPRequestHandler):
         body = json.dumps({"response": resp}).encode()
         self.send_response(200); self.send_header('Content-Type','application/json'); self.end_headers()
         self.wfile.write(body)
-HTTPServer(('127.0.0.1', port), H).serve_forever()
+srv = HTTPServer(('127.0.0.1', 0), H)
+with open(portfile, 'w') as f:
+    f.write(str(srv.server_address[1]))
+srv.serve_forever()
 PY
 
-python3 "$SANDBOX/stub.py" "$PORT" "$VF" "$REQLOG" &
+python3 "$SANDBOX/stub.py" "$PORTFILE" "$VF" "$REQLOG" &
 STUB_PID=$!
-cleanup() { kill "$STUB_PID" 2>/dev/null || true; rm -rf "$SANDBOX"; }
-trap cleanup EXIT
+cleanup() {
+  kill "$STUB_PID" 2>/dev/null || true
+  wait "$STUB_PID" 2>/dev/null || true   # reap: sem isto o stub sobrevive ao script
+  rm -rf "$SANDBOX"
+}
+trap cleanup EXIT INT TERM
 
 # espera o stub ficar pronto (sem timeout GNU; poll curto)
+PORT=""
 ready=0
-for _ in $(seq 1 25); do
-  if curl -sf -m 1 "http://127.0.0.1:$PORT/api/tags" >/dev/null 2>&1; then ready=1; break; fi
+for _ in $(seq 1 50); do
+  if [ -s "$PORTFILE" ]; then
+    PORT="$(cat "$PORTFILE")"
+    curl -sf -m 1 "http://127.0.0.1:$PORT/api/tags" >/dev/null 2>&1 && { ready=1; break; }
+  fi
+  kill -0 "$STUB_PID" 2>/dev/null || { echo "stub morreu no arranque" >&2; exit 1; }
   sleep 0.2
 done
-[ "$ready" = 1 ] || { echo "stub não arrancou na porta $PORT" >&2; exit 1; }
+[ "$ready" = 1 ] || { echo "stub não ficou pronto (porta ${PORT:-?})" >&2; exit 1; }
 
 FAILS=0
 # $1 resposta-crua-do-modelo · $2 comando · $3 exit esperado (0 allow / 2 block) · $4 label
