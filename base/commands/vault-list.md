@@ -22,7 +22,7 @@ PROJECT=$(basename "$PWD")
 
 # Função: listar keys de um path e imprimir prévia
 audit_path() {
-  local base="$1"
+  local base="${1}"   # chavetas obrigatórias: num slash command o harness substitui a forma nua pelo argumento da invocação
   V kv list -format=json "$base" 2>/dev/null | jq -r '.[]?' | while read -r entry; do
     V kv get -format=json "$base/$entry" 2>/dev/null \
       | jq -r --arg path "$base/$entry" \

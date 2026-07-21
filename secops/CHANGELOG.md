@@ -2,6 +2,13 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.6.6 — 2026-07-20
+
+**`/prumo-ollama-doctor` degradava por posicional nu; comentário do #3 reformulado.** Parte do sweep transversal (ver `base/CHANGELOG.md` v0.7.4).
+
+- **`/prumo-ollama-doctor`** — `awk '{print $1}'` seria expandido para `awk '{print }'` (imprime a linha toda em vez do 1.º campo). Corrigido para `$(1)`, que é o campo 1 no awk mas resiste à substituição de posicionais do harness.
+- **Comentário do `/prumo-secops-bootstrap`** (introduzido no #3) continha `$0`/`$1` literais que o próprio harness mutilaria ao expandir o command. Reformulado sem símbolos substituíveis — o código já estava correcto desde o #3, só o comentário explicativo é que se auto-sabotava.
+
 ## v0.6.5 — 2026-07-20
 
 **Bug — o `smoke.sh` validava a versão errada.** `find … -print -quit` devolve o **primeiro** manifest que a travessia encontra, não o mais recente. O cache do Claude Code guarda **todas** as versões instaladas: com cinco versões de `prumo-secops` presentes (0.5.0 a 0.6.4), o smoke validava a **0.5.2** enquanto a 0.6.4 estava instalada e activa. Corrigido para `sort -V | tail -1`. As duas ocorrências que apenas testam presença (`| grep -q .`) ficam como estavam — aí qualquer match serve.

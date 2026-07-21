@@ -91,11 +91,12 @@ fi
 TMPDIR=$(mktemp -d -t wire-secops-policies.XXXXXX)
 trap "rm -rf '$TMPDIR'" EXIT
 
-# NÃO usar awk com $0/$1 aqui. Num slash command, o harness substitui as
-# variáveis posicionais NUAS ($0, $1, …) pelos argumentos da invocação antes de
-# o bloco correr — `match($0, …)` chegaria ao awk como `match(--plan, …)`, que é
-# aritmética e não a linha, e o split produziria 0 ficheiros. ${1:-…} (com
-# chavetas) sobrevive, $0 não. Loop em bash puro: só nomes próprios, sem colisão.
+# NÃO usar awk com campos posicionais nus aqui. Num slash command, o harness
+# substitui as variáveis posicionais nuas (cifrão seguido de dígito) pelos
+# argumentos da invocação antes de o bloco correr — um match sobre o campo da
+# linha chegaria ao awk já com o argumento no lugar (ex: "--plan"), o que é
+# aritmética e não a linha, e o split produziria 0 ficheiros. A forma com
+# chavetas sobrevive; a nua não. Loop em bash puro: só nomes próprios, sem colisão.
 f=""
 while IFS= read -r line; do
   case "$line" in
