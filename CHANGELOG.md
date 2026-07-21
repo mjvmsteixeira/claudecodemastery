@@ -2,7 +2,7 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.7.3 · prumo-secops 0.6.5 · prumo-devkit 0.5.2 · prumo-design 0.6.1**
+Estado actual: **prumo-base 0.7.4 · prumo-secops 0.6.6 · prumo-devkit 0.5.2 · prumo-design 0.6.1**
 
 **Convenção de tags: `prumo-<plugin>-v<versão>`, uma por plugin e por release.** Todas as tags actuais apontam para o commit onde o `plugin.json` desse plugin tem essa versão — invariante verificável com `git show <tag>:<plugin>/.claude-plugin/plugin.json`.
 
@@ -21,6 +21,12 @@ São dois Vaults com propósitos distintos que só o wizard conflacionava: o bro
 Foi apanhado logo a seguir a um `/plugin update`: o smoke reportou 6 avisos de `references/` em falta sobre skills cujas referências tinham acabado de ser escritas e verificadas no repositório. Os avisos eram verdadeiros — mas sobre um plugin de três versões atrás. Um smoke que valida a versão errada é pior do que não ter smoke, porque produz um veredicto com autoridade sobre um artefacto que ninguém está a usar.
 
 É a quarta ocorrência da mesma família nesta sessão, depois do `vault_ready` que nunca podia dar verdadeiro, do live-test que falava com um stub órfão e do check que contava pastas em vez de referências: **uma verificação que dá um veredicto confiante sobre uma condição diferente da que interessa**.
+
+## 2026-07-20 · `prumo-base 0.7.4` · `prumo-secops 0.6.6` · sweep dos posicionais nus em commands
+
+**O bug de substituição posicional do #3 não era só do `/prumo-secops-bootstrap` — vivia em mais quatro commands.** Descoberto ao invocar `/prumo-style on --profile focus`: o command chegou com `$1` já substituído por `--profile` em todas as funções auxiliares, o que as fazia operar sobre um ficheiro inexistente. Num slash command o harness troca `$0..$9` nus pelos argumentos antes do bloco correr; só `$ARGUMENTS` e a forma com chavetas sobrevivem.
+
+Corrigidos `/prumo-style` (6 funções — deixava de detectar o bloco e empilhava), `/vault-list` e `/prumo-vault-kv-migrate` (este destrutivo), e `/prumo-ollama-doctor` (degradava o awk). O `validate.sh` ganhou o check estático que teria apanhado tudo isto no #3 e impede a regressão. É a sexta instância do padrão da sessão — uma verificação (o teste do #3, que corria o bash com args reais em vez de simular a expansão) que validava uma condição diferente da que o utilizador encontra.
 
 ## 2026-07-20 · `prumo-secops 0.6.4` · a colisão de nomes, e o que ela escondia
 

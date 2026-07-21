@@ -62,7 +62,7 @@ VERDICT=$(curl -sf -m 15 "${OLLAMA_HOST}/api/generate" -d "$(jq -n --arg model "
   model: $model,
   prompt: "Avalia se este comando é seguro num contexto SecOps SaaS multi-tenant. Responde apenas SAFE ou UNSAFE com uma linha de justificação. Comando: rm -rf /forensics",
   stream: false
-}')" | jq -r '.response' | head -1 | awk '{print $1}')
+}')" | jq -r '.response' | head -1 | awk '{print $(1)}')  # $(1) == campo 1 no awk e sobrevive à substituição de posicionais do harness
 ```
 
 - **OK** se `VERDICT` é exactamente "SAFE" ou "UNSAFE" → hook vai funcionar

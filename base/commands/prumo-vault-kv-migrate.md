@@ -71,7 +71,7 @@ fi
 # Walker recursivo sobre kv-v1 (LIST top-level + recurse em paths terminados em /).
 # Devolve linhas no formato "<path-relativo>" para folhas (não-pastas).
 walk_kv1() {
-  local prefix="$1"
+  local prefix="${1}"   # chavetas obrigatórias: num slash command o harness substitui a forma nua pelo argumento da invocação
   local listing
   listing=$(V list -format=json "secret/$prefix" 2>/dev/null | jq -r '.[]?' 2>/dev/null || true)
   while IFS= read -r entry; do

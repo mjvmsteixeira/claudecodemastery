@@ -2,6 +2,17 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.7.4 — 2026-07-20
+
+**Três commands partiam quando invocados como slash command — o mesmo bug do `/prumo-secops-bootstrap` (#3), agora varrido por completo.** Encontrado ao invocar `/prumo-style on --profile focus`: o texto expandido chegou com `local l="$1"` virado em `local l="--profile"`, e as funções `has_block`/`present_version`/`strip_block` a operar sobre um ficheiro chamado `--profile`.
+
+- **Bug — variáveis posicionais nuas em blocos bash de commands eram substituídas pelo harness.** Num slash command, `$0..$9` nus são trocados pelos argumentos da invocação antes de o bloco correr. Uma função auxiliar que usa `$1` como parâmetro próprio recebia o argumento do command (ex: `--profile`) e passava a operar sobre um ficheiro inexistente. Corrigido para `${1}` (chavetas sobrevivem à substituição) ou `$(1)` no awk (campo, mas resistente).
+- **`/prumo-style`** — 6 funções auxiliares afectadas (`prumo_backup`, `target_for`, `has_block`, `present_version`, `present_profile`, `strip_block`). Sintoma: status sempre "sem bloco", e `on` deixa de detectar bloco existente → **empilha em vez de substituir**. Idempotência restaurada (2ª corrida mantém 1/1 marcadores).
+- **`/vault-list`** — `audit_path() { local base="$1"` partia mesmo sem argumentos: `$1` → string vazia, e a função listava um path vazio em vez do recebido.
+- **`/prumo-vault-kv-migrate`** — `walk_kv1() { local prefix="$1"` num command **destrutivo** que recebe `--plan|--backup|--apply`; o `$1` global capturava o modo e a função de walk ficava inutilizável.
+- **`validate.sh` ganhou o check que faltava.** Nenhum bloco bash de command pode ter `$N` nu (só `$ARGUMENTS`). É a rede que impediria a regressão desde o #3 — verificado que passa limpo e que apanharia uma reintrodução.
+- Sweep confirmado: **zero** posicionais nus em todos os commands dos 4 plugins.
+
 ## v0.7.3 — 2026-07-20
 
 **O Passo 2b do `/prumo-onboard` tratava dois Vaults como um.** Origem: ao correr o wizard contra um setup real, o passo reportou `transit/`, `ssh/` e as 7 policies `wire-*` como lacunas de um Vault local que, ao ser inspeccionado, se revelou um **broker de credenciais pessoal** — árvore `secret/ai|tokens|credentials|projects|infrastructure`, 10 AppRoles por projecto do utilizador, zero objectos `wire-*`, e ficheiros de instalação três meses anteriores ao próprio ecossistema de plugins.

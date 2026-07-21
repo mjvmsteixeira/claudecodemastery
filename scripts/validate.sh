@@ -339,6 +339,19 @@ for p in "${PLUGINS[@]}"; do
     if [ -n "$fm_name" ] && [ "$fm_name" != "$base_name" ]; then
       warn "$cm: frontmatter name='$fm_name' difere do ficheiro '$base_name'"
     fi
+
+    # Posicionais NUAS ($0..$9) em blocos bash de um command são substituídas
+    # pelo harness pelos argumentos da invocação — partem funções auxiliares que
+    # usam $1 como parâmetro próprio. Só $ARGUMENTS é substituição desejada; a
+    # forma com chavetas (${1}) ou de campo awk ($(1)) sobrevive. Ver o bug do
+    # /prumo-style e do /prumo-secops-bootstrap. Este check impede a regressão.
+    bare=$(awk '/^```bash$/{b=1;next} /^```$/{b=0} b' "$cm" \
+           | grep -nE '(^|[^{a-zA-Z0-9_(])\$[0-9]([^0-9]|$)' \
+           | grep -v '\$ARGUMENTS' || true)
+    if [ -n "$bare" ]; then
+      fail "$cm: variável posicional nua (\$N) em bloco bash — usa \${N} (o harness substitui \$N nu):"
+      echo "$bare" | sed 's/^/      /'
+    fi
   done
   pass "$p/commands/ validados"
 done

@@ -37,7 +37,7 @@ LIB="${CLAUDE_PLUGIN_ROOT:-}/lib/prumo-common.sh"
 [ -f "$LIB" ] && . "$LIB"
 if ! declare -F prumo_backup >/dev/null 2>&1; then
   prumo_backup() {
-    local l="$1"; shift
+    local l="${1}"; shift
     local d="${HOME}/.prumo/backups"; mkdir -p "$d" 2>/dev/null || true
     local o="$d/${l}-$(date -u +%Y%m%d-%H%M%S).tgz"
     tar czf "$o" "$@" 2>/dev/null && echo "$o"
@@ -46,6 +46,13 @@ fi
 declare -F prumo_log >/dev/null 2>&1 || prumo_log() { :; }
 
 # ── parse $ARGUMENTS ──
+# NB: dentro das funções auxiliares abaixo os parâmetros são SEMPRE escritos com
+# chavetas — ${1}, nunca a forma nua. Num slash command o harness substitui as
+# variáveis posicionais nuas (cifrão seguido de dígito) pelos argumentos da
+# invocação antes do bloco correr; uma forma nua numa função passaria a valer o
+# argumento do command (ex: "--profile") e a função operaria sobre um ficheiro
+# inexistente. A forma com chavetas sobrevive (como ${1:-normal} no build_block).
+# O $ARGUMENTS logo abaixo É a substituição desejada, essa fica.
 ACTION="status"; SCOPE="project"; PROFILE="normal"; PROFILE_EXPLICIT=0; WANT_PROFILE=0
 for a in $ARGUMENTS; do
   if [ "$WANT_PROFILE" = 1 ]; then
@@ -69,24 +76,24 @@ case "$PROFILE" in
   *) echo "perfil desconhecido: $PROFILE — a usar normal" >&2; PROFILE="normal"; PROFILE_EXPLICIT=0 ;;
 esac
 
-target_for() { [ "$1" = user ] && echo "${HOME}/.claude/CLAUDE.md" || echo "${PWD}/CLAUDE.md"; }
-has_block() { grep -Eq "$BEGIN_RE|$LEGACY_RE" "$1" 2>/dev/null; }
+target_for() { [ "${1}" = user ] && echo "${HOME}/.claude/CLAUDE.md" || echo "${PWD}/CLAUDE.md"; }
+has_block() { grep -Eq "$BEGIN_RE|$LEGACY_RE" "${1}" 2>/dev/null; }
 present_version() {
-  [ -f "$1" ] || { echo ""; return; }
-  grep -Eo '<!-- (prumo|wire)-style BEGIN v[0-9][0-9]*' "$1" 2>/dev/null | grep -o 'v[0-9][0-9]*' | head -1
+  [ -f "${1}" ] || { echo ""; return; }
+  grep -Eo '<!-- (prumo|wire)-style BEGIN v[0-9][0-9]*' "${1}" 2>/dev/null | grep -o 'v[0-9][0-9]*' | head -1
 }
 present_profile() {
-  [ -f "$1" ] || { echo ""; return; }
-  grep -Eo 'prumo-style BEGIN v[0-9][0-9]* profile=[a-z][a-z]*' "$1" 2>/dev/null | sed 's/.*profile=//' | head -1
+  [ -f "${1}" ] || { echo ""; return; }
+  grep -Eo 'prumo-style BEGIN v[0-9][0-9]* profile=[a-z][a-z]*' "${1}" 2>/dev/null | sed 's/.*profile=//' | head -1
 }
-strip_block() {  # imprime $1 sem o bloco prumo-style ou o legacy wire-style
+strip_block() {  # imprime ${1} sem o bloco prumo-style ou o legacy wire-style
   awk '
     /<!-- prumo-style BEGIN/ { skip=1 }
     /<!-- wire-style BEGIN/  { skip=1 }
     skip==0 { print }
     /<!-- prumo-style END -->/ { skip=0; next }
     /<!-- wire-style END -->/  { skip=0; next }
-  ' "$1"
+  ' "${1}"
 }
 build_block() {
   local p="${1:-normal}"
