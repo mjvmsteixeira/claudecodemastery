@@ -2,6 +2,13 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.8.1 — 2026-08-01
+
+**`prumo_mode()` degradava `lab` para `prod` em silêncio.** Sem o marker `~/.prumo/lab-mode`, pedir `PRUMO_OPERATING_MODE=lab` devolvia `prod` — o modo mais restritivo — sem nada que o explicasse. Quem exportava a variável à mão levava bloqueios de prod e concluía que o modo não funcionava.
+
+- A degradação **mantém-se** (pedir lab sem marker não pode resultar em algo mais permissivo que o default), mas passa a avisar em stderr, uma vez por processo, com as duas formas de activar de facto.
+- stderr e não stdout: o stdout é o valor de retorno da função.
+
 ## v0.8.0 — 2026-08-01
 
 **O `memory-doctor` afirmava que dois verbos do Graphify não existiam. Existem — e o `--apply` regredia o `CLAUDE.md` do utilizador ao removê-los.**

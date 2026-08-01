@@ -134,7 +134,19 @@ Convenção `PRUMO_*` + alguns `OLLAMA_*`/`WAZUH_*` legacy aceites. Defaults sen
 
 **Override em prod:** export persistente via `~/.zshrc`/`~/.bashrc` ou systemd unit ENV. Em dev: shell ad hoc.
 
-**As variáveis de gate não aceitam prefixo inline.** `PRUMO_APPROVE=N1 <comando>` e `PRUMO_PII_DISABLE=1 <comando>` **não funcionam** e nunca funcionaram: os hooks PreToolUse correm no processo do Claude Code, antes do comando e noutro ambiente, por isso o prefixo aplica-se ao processo filho e nunca ao hook. O canal correcto é o ambiente do próprio Claude Code — `settings.json` → bloco `env` — ou, para o `pii-redact` e o `second-opinion`, `/prumo-mode dev`. O `approval-gate` é a excepção: é fail-closed por desenho e ignora o modo, só o `env` o autoriza (e autoriza o nível inteiro na sessão, não um comando).
+**As variáveis de gate não aceitam prefixo inline.** `PRUMO_APPROVE=N1 <comando>` e `PRUMO_PII_DISABLE=1 <comando>` **não funcionam** e nunca funcionaram: os hooks PreToolUse correm no processo do Claude Code, antes do comando e noutro ambiente, por isso o prefixo aplica-se ao processo filho e nunca ao hook. O canal correcto é o ambiente do próprio Claude Code — `settings.json` → bloco `env` — ou, para o `pii-redact` e o `second-opinion`, `/prumo-mode dev`.
+
+**Como cada modo afecta o `approval-gate`** (desde 2026-08-01; antes o gate ignorava o modo por completo):
+
+| Modo | N1 | N2 | N3 | Registo |
+|---|---|---|---|---|
+| `prod` | bloq | bloq | bloq | só o que passa, `via=approve-env` |
+| `dev` | bloq | bloq | bloq | idem — `dev` é warn-only para os *outros* hooks, não para este |
+| `lab` | passa | passa | passa | **tudo**, `via=lab-bypass` em `approvals.log` |
+
+Em `prod`/`dev` só o `env` autoriza, e autoriza o nível inteiro na sessão, não um comando. Em `lab` os três passam — decisão explícita do dono, assente em que estes níveis sempre foram *speed-bumps* e audit-log, não barreira técnica (ver "Modelo de confiança"). O que se assume: o N3 cobre 4 padrões irreversíveis, um dos quais destrói evidência de IR, e o marker `~/.prumo/lab-mode` é a única fronteira — um ficheiro que o agente consegue criar. `lab` é uma decisão humana sobre a máquina, não uma garantia.
+
+**O modo `lab` sem o marker degrada para `prod`** — o mais restritivo, de propósito. Até 2026-08-01 fazia-o em silêncio, e quem exportava `PRUMO_OPERATING_MODE=lab` à mão levava bloqueios de prod sem explicação. Agora avisa em stderr, uma vez por processo.
 
 **Auditoria:** `PRUMO_APPROVE`, `PRUMO_PII_DISABLE`, `PRUMO_SECOND_OPINION_BYPASS` são audit-tracked em `${PRUMO_LOG_DIR}/` — `approvals.log` para o approval-gate, decisão `bypass` em `telemetry.tsv` para os outros dois.
 

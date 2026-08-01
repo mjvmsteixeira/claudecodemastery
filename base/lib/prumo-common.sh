@@ -58,7 +58,19 @@ prumo_mode() {
   fi
 
   # Validação · lab exige marker
+  #
+  # A degradação é para `prod` — o modo MAIS restritivo — de propósito: pedir lab
+  # sem marker não pode resultar em algo mais permissivo do que o default.
+  # Mas degradar em silêncio é o defeito: quem exporta PRUMO_OPERATING_MODE=lab à
+  # mão recebe bloqueios de prod sem nada que explique porquê, e conclui que o
+  # modo não funciona. Avisa uma vez por processo, em stderr — nunca stdout, que
+  # é o valor de retorno desta função.
   if [ "$mode" = "lab" ] && [ ! -f "$PRUMO_LAB_MARKER" ]; then
+    if [ -z "${PRUMO_LAB_DEGRADE_WARNED:-}" ]; then
+      export PRUMO_LAB_DEGRADE_WARNED=1
+      echo "[prumo] modo 'lab' pedido mas o marker ${PRUMO_LAB_MARKER} não existe — a operar em 'prod'." >&2
+      echo "[prumo] para activar mesmo: /prumo-mode lab  (cria o marker)  ·  ou: touch ${PRUMO_LAB_MARKER}" >&2
+    fi
     echo "prod"
     return
   fi

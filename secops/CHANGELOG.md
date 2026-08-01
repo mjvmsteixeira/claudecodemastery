@@ -2,6 +2,18 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.7.0 — 2026-08-01
+
+**O modo `lab` passa a ignorar os três níveis de aprovação.** Decisão explícita do dono, com as ressalvas postas à frente antes de decidir.
+
+- **O `approval-gate` ignorava o modo por completo** — a única menção a `PRUMO_OPERATING_MODE` estava dentro do texto da mensagem de erro, sem qualquer ramificação. Isso tornava o `lab` incoerente: silenciava o `pii-redact` e o `second-opinion` mas mantinha os DROPs bloqueados — o inverso do que a intuição sugere, e o inverso do que interessa em RGPD.
+- **Em `lab`, N1/N2/N3 passam**, registados em `approvals.log` com `via=lab-bypass`. Em `prod` e `dev` nada muda: fail-closed, só o `env` autoriza.
+- **O que se assume, explicitamente**: o N3 cobre 4 padrões irreversíveis, um dos quais (`rm` sobre o dir de forensics) destrói evidência de IR. O marker `~/.prumo/lab-mode` é a única fronteira e é um ficheiro que o agente consegue criar. Isto não reduz segurança *real* — estes níveis sempre foram speed-bumps e audit-log dentro do domínio de confiança do agente, como o `CLAUDE.md` do plugin já dizia; a barreira efectiva continua a ser o prompt de permissão da tool Bash.
+- **Bug meu, apanhado em teste — o bypass escrevia o log fora do caminho seguro.** A primeira versão duplicava a escrita em `approvals.log`, saltando o `umask 077`, o `chmod 600` e a redacção de credenciais (`user:pass@`, Bearer, `token=`, `VAULT_TOKEN=`) que o caminho existente faz. Em `lab` o comando registado é *mais* provável de conter credenciais, não menos. Reestruturado para reutilizar o caminho único.
+- **Bug meu — `via=lab-bypass1`.** `${V:+a}${V:-b}` com `V=1`: o segundo devolve o *valor*, não o default. Substituído por condicional simples.
+- Documentação corrigida: o `CLAUDE.md` do plugin afirmava que o gate "ignora o modo" — deixou de ser verdade e passou a ter a matriz modo × nível.
+- Matriz verificada por comportamento nas 9 combinações; log confirmado com formato único, `600` e credencial redigida. Corpus 147/147.
+
 ## v0.6.6 — 2026-07-20
 
 **`/prumo-ollama-doctor` degradava por posicional nu; comentário do #3 reformulado.** Parte do sweep transversal (ver `base/CHANGELOG.md` v0.7.4).
