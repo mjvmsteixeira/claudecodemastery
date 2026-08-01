@@ -1,5 +1,26 @@
 # Camada episódica — MemPalace
 
+## Âmbito da auditoria (`--scope`)
+
+**Esta é a camada onde o âmbito mais custa a acertar**, porque há **um só palácio** em `~/.mempalace/` partilhado por todos os projectos — não existe palácio por-projecto.
+
+| `--scope project` (default) | `--scope machine` |
+|---|---|
+| Só os wings deste projecto (resolução no `SKILL.md` §Âmbito) | Todos os wings |
+| **+ toda a saúde global** (lista abaixo) | + distribuição de corpus, C3 completo |
+
+**Sobe sempre, em qualquer scope** — é infraestrutura partilhada e degrada este projecto tanto como os outros:
+
+- divergência SQLite ↔ HNSW (desliga a pesquisa vectorial **para todos**)
+- estado do daemon, detentor da lease, jobs falhados, churn de locks
+- segmentos em quarentena, integridade FTS5
+- idade dos backups, jobs de manutenção descarregados
+- versão do pacote vs plugin vs PyPI
+
+**Não sobe em `project`**: contagens de drawers de *outros* wings, distribuição de corpus da máquina, ou "o wing X tem N drawers de código". Verdadeiro, mas não é problema deste projecto.
+
+Se nenhum wing corresponder ao projecto, **dizê-lo e reportar só a saúde global** — nunca alargar ao palácio inteiro em silêncio.
+
 ## Contrato de âmbito
 
 | Corpus | Responde a | **Nunca faz** |

@@ -11,12 +11,64 @@ Auditoria e governança das 3 camadas de memória do agente. Read-only por defei
 
 ## Trigger
 
-- `/memory-doctor [--apply]`
+- `/memory-doctor [--scope project|machine] [--apply]`
 - `"memory doctor"`, `"saúde da memória"`, `"audit de memória"`, `"as ferramentas de memória colidem"`
+
+`--scope` default **`project`**. Ver "Âmbito" abaixo — é a primeira decisão do diagnóstico e condiciona os três agentes.
 
 ## Princípio
 
 Duas ferramentas a registar independentemente "o que funcionou" produzem **memória contraditória**, e o agente não tem como arbitrar. A defesa é um **contrato de âmbito por camada, com uma coluna "nunca faz"**. Um agente que sabe o que *não* lhe pertence é o que não invade a camada vizinha.
+
+## Âmbito (`--scope`) — decidir ANTES do fan-out
+
+**O default é `project`.** Sem isto a skill divaga: numa corrida real varreu 13 repos, 90.000 drawers de outros projectos e um vault Obsidian de um projecto em pausa — tudo verdadeiro, nada accionável para quem estava a trabalhar aqui.
+
+**As três camadas têm âmbitos naturais diferentes, e é isso que torna o problema difícil:**
+
+| Camada | Âmbito natural | Porquê |
+|---|---|---|
+| Estrutural | **projecto** | `graphify-out/graph.json` vive dentro do repo |
+| Episódica | **máquina** | há **um só** palácio em `~/.mempalace/`, partilhado por tudo |
+| Humana | **projecto** | `docs/`, `design-review/` vivem no repo |
+
+Duas são por-projecto e uma é global. Um fan-out uniforme não produz relatório coerente de projecto sem esta secção.
+
+### A regra que resolve
+
+> **Saúde da infraestrutura sobe sempre. Inventário de outros projectos só com `--scope machine`.**
+
+O critério é *"isto afecta o projecto onde estou?"*, não *"isto é global?"*. Um HNSW divergente é global **e** degrada a pesquisa deste projecto → sobe sempre. Que o `cygnai` tenha 36.000 drawers de código é global e **não** afecta este projecto → só em `machine`.
+
+| | `--scope project` (default) | `--scope machine` |
+|---|---|---|
+| **Estrutural** | grafo deste repo: frescura, hooks, `.claudeignore`, âmbito | + cobertura N projectos / M grafos, ordenada por actividade |
+| **Episódica** | wings deste projecto + **toda a saúde global** (ver abaixo) | + todos os wings, C3 completo, distribuição de corpus |
+| **Humana** | `docs/`, `design-review/`, vault **deste** repo | + inventário de vaults da máquina |
+| **Colisões** | as que se manifestam aqui | todas |
+
+**Sobem sempre, em qualquer scope** — porque degradam este projecto: versões e upgrades (Gate 0), divergência SQLite↔HNSW, estado do daemon e da lease, jobs falhados, quarentena, backups, orçamento de tools.
+
+### Determinar o projecto e os seus wings
+
+```bash
+# Raiz do projecto: git root, com fallback ao cwd. Atenção — nem sempre coincidem:
+# um directório de trabalho pode conter o repo numa subpasta.
+PROJ_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+PROJ_NAME=$(basename "$PROJ_ROOT")
+PROJ_SLUG=$(printf '%s' "$PROJ_NAME" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9' '_' | sed 's/_*$//')
+
+# Wings candidatos. A convenção NÃO é única: observam-se as duas formas em
+# simultâneo no mesmo palácio (`abaco` e `wing_abaco`), resíduo de migrações.
+# Por isso aceitam-se ambas — e há wings-hash (`wing_1b1e285a2e1e`) que não
+# mapeiam para nome nenhum.
+WINGS=$(mempalace status 2>/dev/null | grep -oE 'WING: [a-z0-9_.-]+' | sed 's/WING: //' \
+        | grep -xE "(wing_)?${PROJ_SLUG}" || true)
+```
+
+**Se nenhum wing corresponder, dizê-lo — não alargar em silêncio.** Reportar *"camada episódica não filtrável para este projecto (nenhum wing corresponde a `<slug>`); a reportar apenas saúde global"*. Alargar para o palácio inteiro por falha de correspondência é exactamente o divagar que este parâmetro existe para impedir.
+
+O âmbito escolhido, os wings resolvidos e o que ficou de fora vão **no topo do relatório**. Um leitor tem de saber o que não foi olhado.
 
 ## Contrato de âmbito (canónico)
 
@@ -131,7 +183,9 @@ Backup antes de escrever: `.bak` ao lado do ficheiro, ou `prumo_backup` se o `pr
 
 ## 1. Fan-out — 3 agentes
 
-Lançar **em paralelo**, um por camada. Cada agente recebe **só a sua linha** do contrato de âmbito + a sua reference:
+Lançar **em paralelo**, um por camada. Cada agente recebe **só a sua linha** do contrato de âmbito + a sua reference + **o âmbito resolvido**.
+
+**O prompt de cada agente tem de conter, explicitamente:** o `--scope` em vigor, a raiz do projecto (`PROJ_ROOT`), os wings resolvidos (camada episódica), e a proibição correspondente — *"em `--scope project` não varras `~/dev`, `$HOME` nem outros repos"*. Um agente sem âmbito no prompt vai buscar tudo o que encontrar, e o default do modelo é ser exaustivo. **Isto foi verificado a falhar**: a ausência desta instrução produziu uma varredura de 13 repos e um inventário de vaults da máquina inteira.
 
 | Agente | Reference |
 |---|---|
@@ -165,6 +219,11 @@ O árbitro é **read-only**: nomeia a remediação, não a executa. A execução
 
 ```
 # Memory Doctor — <timestamp>
+
+## Âmbito
+Scope: <project|machine> · Projecto: <PROJ_ROOT>
+Wings episódicos: <lista resolvida, ou "nenhum wing corresponde — só saúde global">
+Fora deste relatório: <o que o scope excluiu, em uma linha>
 
 ## Resumo
 <estado global em uma linha: N camadas activas, M colisões CRIT, K WARN, U upgrades pendentes>

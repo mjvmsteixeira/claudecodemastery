@@ -2,6 +2,17 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.9.0 — 2026-08-01
+
+**O `memory-doctor` divagava pela máquina toda em vez de auditar o projecto actual.** Numa corrida real varreu 13 repos, listou 10 alheios como lacunas, contabilizou 90.000 drawers de outros projectos e inventariou um vault Obsidian de um projecto em pausa — tudo verdadeiro, quase nada accionável para quem estava a trabalhar ali. Os achados que interessavam (índice vectorial desligado, daemon parado há 6h40m, grafo 3 commits atrás, ADR inexistente) ficaram enterrados no meio.
+
+- **Causa: a skill não definia âmbito em lado nenhum.** Zero menções a projecto actual, `cwd` ou `--scope`. O vácuo deixava cada agente do fan-out decidir sozinho, e o default de um modelo é ser exaustivo.
+- **`--scope project|machine`, default `project`.** Novo parâmetro, com a regra que o torna utilizável: **saúde da infraestrutura sobe sempre; inventário de outros projectos só com `--scope machine`**. O critério é *"isto afecta o projecto onde estou?"*, não *"isto é global?"* — um HNSW divergente é global e degrada este projecto, logo sobe; que outro wing tenha 36.000 drawers de código não afecta este projecto, logo não.
+- **A dificuldade real, agora documentada**: as três camadas têm âmbitos naturais **diferentes**. Estrutural e humana são por-projecto (vivem no repo); a episódica é por-máquina (há um só palácio em `~/.mempalace/`). Um fan-out uniforme não consegue produzir relatório coerente de projecto sem resolver isto.
+- **Resolução projecto → wings, com as ambiguidades assumidas.** A convenção não é única: o mesmo palácio tem `abaco` **e** `wing_abaco` (resíduo de migrações), e há wings-hash (`wing_1b1e285a2e1e`) que não mapeiam para nome nenhum. O matcher aceita as duas formas. Verificado em 4 casos, incluindo um duplicado e uma falha. **Se nenhum wing corresponder, reporta-se isso e fica-se pela saúde global** — alargar ao palácio inteiro por falha de correspondência era exactamente o divagar a corrigir.
+- **O âmbito é passado aos agentes no prompt**, com a proibição explícita de varrer `~/dev`/`$HOME` em `project` — sem isso o parâmetro não chega a quem faz o trabalho.
+- **O relatório abre com uma secção Âmbito** que declara scope, raiz do projecto, wings resolvidos e **o que ficou de fora**. Um leitor tem de saber o que não foi olhado.
+
 ## v0.8.1 — 2026-08-01
 
 **`prumo_mode()` degradava `lab` para `prod` em silêncio.** Sem o marker `~/.prumo/lab-mode`, pedir `PRUMO_OPERATING_MODE=lab` devolvia `prod` — o modo mais restritivo — sem nada que o explicasse. Quem exportava a variável à mão levava bloqueios de prod e concluía que o modo não funcionava.
