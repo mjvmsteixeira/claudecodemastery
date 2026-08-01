@@ -2,7 +2,7 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.8.1 · prumo-secops 0.7.0 · prumo-devkit 0.5.2 · prumo-design 0.6.1**
+Estado actual: **prumo-base 0.9.0 · prumo-secops 0.7.0 · prumo-devkit 0.5.2 · prumo-design 0.6.1**
 
 **Convenção de tags: `prumo-<plugin>-v<versão>`, uma por plugin e por release.** Todas as tags actuais apontam para o commit onde o `plugin.json` desse plugin tem essa versão — invariante verificável com `git show <tag>:<plugin>/.claude-plugin/plugin.json`.
 
@@ -21,6 +21,16 @@ São dois Vaults com propósitos distintos que só o wizard conflacionava: o bro
 Foi apanhado logo a seguir a um `/plugin update`: o smoke reportou 6 avisos de `references/` em falta sobre skills cujas referências tinham acabado de ser escritas e verificadas no repositório. Os avisos eram verdadeiros — mas sobre um plugin de três versões atrás. Um smoke que valida a versão errada é pior do que não ter smoke, porque produz um veredicto com autoridade sobre um artefacto que ninguém está a usar.
 
 É a quarta ocorrência da mesma família nesta sessão, depois do `vault_ready` que nunca podia dar verdadeiro, do live-test que falava com um stub órfão e do check que contava pastas em vez de referências: **uma verificação que dá um veredicto confiante sobre uma condição diferente da que interessa**.
+
+## 2026-08-01 · `prumo-base 0.9.0` · o doctor auditava a máquina, não o projecto
+
+**Numa corrida real o `memory-doctor` varreu 13 repos, 90.000 drawers de outros projectos e um vault de um projecto em pausa** — e os achados accionáveis (pesquisa vectorial desligada, daemon parado há 6h40m, ADR inexistente neste repo) ficaram no meio do ruído.
+
+A causa era simples e invisível: a skill **não definia âmbito em lado nenhum**. Sem `--scope`, sem menção a projecto actual, cada agente do fan-out decidia sozinho — e o default de um modelo é ser exaustivo.
+
+O que tornava isto difícil de ver é que as três camadas têm âmbitos naturais **diferentes**: estrutural e humana vivem no repo, a episódica tem um só palácio partilhado por toda a máquina. Um fan-out uniforme sobre camadas assimétricas não produz relatório de projecto.
+
+`--scope project|machine` com default `project`, e a regra que o torna utilizável: **saúde da infraestrutura sobe sempre, inventário de outros projectos só em `machine`**. O critério não é "isto é global?" mas "isto afecta o projecto onde estou?".
 
 ## 2026-08-01 · `prumo-secops 0.7.0` · `prumo-base 0.8.1` · o `lab` era incoerente
 

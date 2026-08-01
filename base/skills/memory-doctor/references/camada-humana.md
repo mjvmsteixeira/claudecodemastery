@@ -1,5 +1,21 @@
 # Camada humana — docs / Obsidian
 
+## Âmbito da auditoria (`--scope`)
+
+| `--scope project` (default) | `--scope machine` |
+|---|---|
+| `docs/`, `design-review/`, `.obsidian/` **deste** repo. Existem? têm conteúdo? estão em git? há quanto tempo foram tocados? | + inventário de vaults Obsidian da máquina |
+
+**Não varrer o `$HOME` à procura de vaults em `--scope project`.** Numa corrida real isso trouxe um vault de 469 notas de *outro* projecto, em pausa — verdadeiro, irrelevante para quem estava a trabalhar aqui, e a ocupar o lugar do achado que interessava.
+
+### O achado que esta camada existe para dar
+
+**Uma regra de encaminhamento que aponta para um ficheiro inexistente é pior que regra nenhuma.** Verificar sempre que os alvos citados pelo `CLAUDE.md` existem **neste** repo — tipicamente `design-review/00-registo.md` e `docs/`.
+
+O modo de falha é silencioso e caro: a pergunta *"qual foi a decisão X?"* devolve vazio, e o vazio é indistinguível de "a decisão não existe". Se a regra ainda der precedência a esse ficheiro sobre o MemPalace, um ficheiro inexistente ganha por regra a quem tem o contexto real.
+
+Verificar também que `docs/` está **em git**: uma camada declarada como "o registo de facto" mas não versionada não é citável nem auditável, e desaparece com a máquina. Um `.gitignore` em whitelist-mode exclui `docs/` sem o dizer — confirmar com `git ls-files docs/`, não por inspecção visual.
+
 ## Contrato de âmbito
 
 | Corpus | Responde a | **Nunca faz** |

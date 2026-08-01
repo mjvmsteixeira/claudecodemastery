@@ -1,5 +1,17 @@
 # Camada estrutural — Graphify
 
+## Âmbito da auditoria (`--scope`)
+
+Esta é a camada com âmbito natural **mais limpo**: o `graphify-out/graph.json` vive dentro do repo, logo "este projecto" é uma fronteira real.
+
+| `--scope project` (default) | `--scope machine` |
+|---|---|
+| **Este** repo: existe grafo? frescura em commits, hooks git, `.claudeignore`, fidelidade ao âmbito (C4/C7) | + varredura de repos da máquina: quantos têm grafo, ordenados por commits nos últimos 90 dias |
+
+**Não varrer `~/dev`, `~/Documents` nem o `$HOME` em `--scope project`.** A pergunta *"quantos dos meus 13 repos têm grafo?"* é legítima e valiosa — mas é uma pergunta de **inventário**, não de saúde deste projecto, e pertence a `machine`. Numa corrida real esta varredura produziu uma tabela de 10 repos alheios que afogou os achados accionáveis.
+
+Em `machine`, ordenar por **actividade recente** (commits em 90 dias), não por nome: um repo dormente há seis meses não precisa de camada estrutural, e listá-lo como lacuna é ruído.
+
 ## Contrato de âmbito
 
 | Corpus | Responde a | **Nunca faz** |
