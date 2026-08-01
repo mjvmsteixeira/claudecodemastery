@@ -40,18 +40,24 @@ Dois sistemas a registar "o que funcionou" produzem memória contraditória sem 
 |---|---|
 | `graphify hook install` — git hooks post-commit/post-checkout (determinístico, zero custo de API) | `graphify claude install` — *"write graphify section to CLAUDE.md + PreToolUse hook"* (verbatim do `--help`). É a colisão central. Remediação: `graphify claude uninstall`. |
 | `.claudeignore` com `graph.json` + `graphify-out/` | `graphify global add` / `extract --global` → funde em `~/.graphify/global-graph.json`. Instalação é **por-projecto**. |
-| Consumo por **CLI** (`explain`, `path` — os verbos de consulta reais da v0.9.18) | `graphify-mcp` — +7 tools num orçamento já em 30. |
+| Consumo por **CLI** (`affected`, `explain`, `path`, `query` — derivar de `graphify --help`, nunca fixar por versão) | `graphify-mcp` — +7 tools num orçamento já em 30. |
 
 Sem `.claudeignore`, o `graph.json` reescrito a cada commit **invalida a prompt cache**.
 
 ## Consultas úteis (o âmbito da camada)
 
-Derivar os verbos reais de `graphify --help` — não assumir (Regra de ouro 3). Na v0.9.18 são estes; `query`/`affected` de versões anteriores **foram removidos**:
+Derivar os verbos reais de `graphify --help` — **não assumir, e não fixar por versão**. A versão anterior desta secção dizia *"na v0.9.18 são estes; `query`/`affected` foram removidos"*, o que é falso: verificado na v0.9.32, existem ambos. Uma lista fixada por versão nasce a envelhecer, e esta envelheceu para o lado que retirava o verbo mais útil.
 
 ```bash
+graphify affected "X"                       # travessia inversa: nós impactados por X
+graphify explain "X"                        # nó + vizinhos: o que toca X
 graphify path "A" "B"                       # caminho mais curto entre nós
-graphify explain "X"                        # nó + vizinhos: o que toca X (raio de impacto)
+graphify query "<pergunta>"                 # travessia BFS a partir de uma pergunta
 ```
+
+Antes de recomendar qualquer um destes, confrontar com `graphify --help` da máquina — o procedimento está em [routing-rule.md](routing-rule.md#verificação-de-resolução--obrigatória-antes-de-escrever).
+
+**Nota de método:** `graphify <verbo> --help` é um stub que remete para o help principal. Verificar flags contra o subcomando dá falso negativo; a fonte é o `graphify --help` completo.
 
 ## Levantamento (o caso de uso de auditoria)
 

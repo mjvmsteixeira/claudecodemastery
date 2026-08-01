@@ -23,14 +23,20 @@ done
 
 **Remediação:** `graphify claude uninstall` (remove a secção que ele escreveu) + escrever **uma única** regra de encaminhamento nossa (Fase 3, `references/routing-rule.md`). Nunca deixar dois instaladores escreverem o CLAUDE.md.
 
-**Validação de resolução de rota (obrigatória — não basta o contrato de âmbito).** O árbitro valida que as camadas são disjuntas, mas isso não garante que os *verbos* que a regra recomenda **existam** na ferramenta instalada. Foi o buraco que deixou passar `graphify query`/`affected` (removidos na v0.9.18) para dentro do bloco escrito no CLAUDE.md. Antes de nomear a remediação, correr cada verbo proposto contra o binário (verdade-base do código, não da doc — Regra de ouro 3):
+**Validação de resolução de rota (obrigatória — não basta o contrato de âmbito).** O árbitro valida que as camadas são disjuntas, mas isso não garante que os *verbos* que a regra recomenda **existam** na ferramenta instalada.
+
+Historicamente o buraco funcionou nos dois sentidos, e o segundo é o pior: primeiro entraram verbos por confirmar no bloco; depois, ao "corrigir", **retiraram-se verbos que existiam** (`query`/`affected`) com base numa afirmação de versão nunca testada. Verificado a 2026-08-01 na v0.9.32: existem ambos.
 
 ```bash
+# Derivar a lista real do binário — nunca escrever a lista aqui.
+# `while read`, não `for v in $VAR`: em zsh o `for` não faz word-splitting e o
+# check passa sempre (verificado).
 graphify --version 2>/dev/null
-for verb in explain path; do
-  graphify "$verb" --help >/dev/null 2>&1 && echo "  ✓ graphify $verb resolve" \
-    || echo "  🚨 graphify $verb NÃO resolve — regra de encaminhamento inválida; derivar de 'graphify --help'"
-done
+REAL=$(graphify --help 2>&1 | grep -oE '^[[:space:]]{2,4}[a-z][a-z-]+' | tr -d ' ' | sort -u)
+printf '%s\n' "$REAL" | tr '\n' ' '; echo
+
+# Confrontar com os verbos que a regra proposta cita (extraídos dela, não fixos):
+#   ver routing-rule.md §"Verificação de resolução"
 ```
 
 Uma rota que não resolve reporta-se como colisão **detectada** (o CLAUDE.md ficaria com uma instrução impossível de cumprir), nunca como limpa.
@@ -91,7 +97,7 @@ A selecção de ferramentas degrada-se com a quantidade — é um custo real e m
 
 **Deteção:** contar as tools de memória disponíveis na sessão (`mempalace_*`, `graphify_*`). Comparar com `TOOL_BUDGET_WARN=35`.
 
-**Remediação:** consumir a camada estrutural por **CLI** (`graphify explain`, `path` — verbos reais da v0.9.18; `query`/`affected` foram removidos) em vez de MCP. Seria incoerente esta skill medir o bloat e depois agravá-lo — por isso o `graphify-mcp` está fora de âmbito.
+**Remediação:** consumir a camada estrutural por **CLI** (`graphify affected`, `explain`, `path`, `query` — derivar sempre de `graphify --help`, nunca fixar por versão) em vez de MCP. Seria incoerente esta skill medir o bloat e depois agravá-lo — por isso o `graphify-mcp` está fora de âmbito.
 
 ---
 

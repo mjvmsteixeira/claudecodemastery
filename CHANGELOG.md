@@ -2,7 +2,7 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.7.4 · prumo-secops 0.6.6 · prumo-devkit 0.5.2 · prumo-design 0.6.1**
+Estado actual: **prumo-base 0.8.0 · prumo-secops 0.6.6 · prumo-devkit 0.5.2 · prumo-design 0.6.1**
 
 **Convenção de tags: `prumo-<plugin>-v<versão>`, uma por plugin e por release.** Todas as tags actuais apontam para o commit onde o `plugin.json` desse plugin tem essa versão — invariante verificável com `git show <tag>:<plugin>/.claude-plugin/plugin.json`.
 
@@ -21,6 +21,16 @@ São dois Vaults com propósitos distintos que só o wizard conflacionava: o bro
 Foi apanhado logo a seguir a um `/plugin update`: o smoke reportou 6 avisos de `references/` em falta sobre skills cujas referências tinham acabado de ser escritas e verificadas no repositório. Os avisos eram verdadeiros — mas sobre um plugin de três versões atrás. Um smoke que valida a versão errada é pior do que não ter smoke, porque produz um veredicto com autoridade sobre um artefacto que ninguém está a usar.
 
 É a quarta ocorrência da mesma família nesta sessão, depois do `vault_ready` que nunca podia dar verdadeiro, do live-test que falava com um stub órfão e do check que contava pastas em vez de referências: **uma verificação que dá um veredicto confiante sobre uma condição diferente da que interessa**.
+
+## 2026-08-01 · `prumo-base 0.8.0` · o doctor removia o verbo certo
+
+**O `memory-doctor` declarava que `graphify query`/`affected` não existiam. Existem, e o `affected` é a resposta literal à pergunta principal da regra que ele escreve** — *"o que parte se eu mexer aqui?"*. O `--apply` sobre um `CLAUDE.md` correcto retirava-o e encaminhava a pergunta para verbos que respondem a outra coisa.
+
+A causa é uma afirmação de versão escrita uma vez e nunca reconciliada com o binário. A defesa nova não é acertar na versão: é derivar os verbos de `graphify --help` no momento de escrever, com a lista a sair do bloco e a verdade a sair da ferramenta.
+
+Pelo caminho, dois defeitos na própria verificação. O check anterior tinha a lista de verbos fixa dentro de si — confirmava a sua própria conclusão e passava sempre. E o `for v in $VAR` que o substituía dava verde a verbos inventados em zsh, onde variáveis não citadas não sofrem word-splitting. Ambos corrigidos e testados nos dois shells.
+
+Fica documentado o que o check **não** apanha: uma omissão. Nenhuma verificação automática detecta um verbo real que ficou de fora, e foi exactamente esse o defeito. Contra isso só há revisão editorial, e a regra ficou escrita.
 
 ## 2026-07-20 · `prumo-base 0.7.4` · `prumo-secops 0.6.6` · sweep dos posicionais nus em commands
 
