@@ -2,6 +2,26 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.8.1 — 2026-08-01
+
+**`prumo_mode()` degradava `lab` para `prod` em silêncio.** Sem o marker `~/.prumo/lab-mode`, pedir `PRUMO_OPERATING_MODE=lab` devolvia `prod` — o modo mais restritivo — sem nada que o explicasse. Quem exportava a variável à mão levava bloqueios de prod e concluía que o modo não funcionava.
+
+- A degradação **mantém-se** (pedir lab sem marker não pode resultar em algo mais permissivo que o default), mas passa a avisar em stderr, uma vez por processo, com as duas formas de activar de facto.
+- stderr e não stdout: o stdout é o valor de retorno da função.
+
+## v0.8.0 — 2026-08-01
+
+**O `memory-doctor` afirmava que dois verbos do Graphify não existiam. Existem — e o `--apply` regredia o `CLAUDE.md` do utilizador ao removê-los.**
+
+- **Bug — afirmação de versão nunca confirmada contra o binário.** O bloco de routing `v2` e três ficheiros de referência declaravam que `graphify query`/`affected` *"não existem no Graphify actual (v0.9.18)"*. Verificado na **v0.9.32 instalada: existem ambos** — `query "<question>"` (BFS a partir de uma pergunta) e `affected "X"` (travessia inversa dos nós impactados).
+- **O erro não era cosmético.** O `affected` é a resposta literal a *"o que parte se eu mexer aqui?"* — a pergunta principal da secção estrutural da própria regra — e o `v2` encaminhava-a para `explain`/`path`, que respondem a outra coisa. Um `--apply` sobre um `CLAUDE.md` correcto **retirava o verbo certo**.
+- **Bloco de routing `v3`**: repõe `affected` e `query` com a pergunta certa em cada um, e acrescenta a verificação de frescura (`built_at_commit` vs HEAD), que faltava.
+- **Bug — a verificação de resolução validava a sua própria conclusão.** O `v2` já tinha um check aqui, mas com a lista de verbos fixa dentro do check (`for verb in explain path`): confirmava que os verbos que ele próprio recomendava existiam, e nunca perguntava se eram os certos. Passa sempre. Agora a lista sai **do bloco** e a verdade sai **do binário** (`graphify --help`), nenhuma das duas escrita à mão.
+- **Bug — `for v in $VAR` dava verde a verbos inventados em zsh.** O zsh não faz word-splitting de variáveis não citadas: o `for` itera uma vez com a lista inteira, e o `grep -qx` com padrão multilinha casa se qualquer linha casar. Reescrito com `while IFS= read -r` + `grep -qxF`. Verificado nos dois shells: verbo inventado agora falha com `rc=1` e é nomeado.
+- **Limite do check, documentado em vez de silenciado.** Ele apanha *citar um verbo falso*; **não apanha** *omitir um verbo real*, que foi o defeito do `v2` — não há nada para resolver numa omissão. Contra esse sentido a defesa é editorial e está escrita: não fixar em prosa que verbo existe em que versão, e ao rever perguntar se a lista real do binário tem verbo melhor que o escolhido.
+- Corrigidos `routing-rule.md`, `camada-estrutural.md` e `arbitro.md` (duas instâncias). Sweep confirma zero afirmações fixadas por versão fora do histórico que documenta a correcção.
+- Nota de método registada: `graphify <verbo> --help` é um stub que remete para o help principal — verificar flags contra o subcomando dá falso negativo.
+
 ## v0.7.4 — 2026-07-20
 
 **Três commands partiam quando invocados como slash command — o mesmo bug do `/prumo-secops-bootstrap` (#3), agora varrido por completo.** Encontrado ao invocar `/prumo-style on --profile focus`: o texto expandido chegou com `local l="$1"` virado em `local l="--profile"`, e as funções `has_block`/`present_version`/`strip_block` a operar sobre um ficheiro chamado `--profile`.

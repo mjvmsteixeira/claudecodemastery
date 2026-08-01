@@ -117,10 +117,44 @@ fi
 [ -z "$LEVEL" ] && exit 0
 
 # ────────────────────────────────────────────────────────────────────────────
+# Modo lab · bypass integral, registado
+# ────────────────────────────────────────────────────────────────────────────
+#
+# Decisão explícita do dono (2026-08-01): em `lab` os três níveis passam,
+# incluindo N3. Antes deste ponto o gate ignorava o modo por completo, o que
+# tornava `lab` incoerente — silenciava o pii-redact e o second-opinion mas
+# mantinha os DROPs bloqueados, o inverso do que a intuição sugere.
+#
+# O que isto NÃO é: uma redução de segurança real. Estes níveis sempre foram
+# speed-bumps e audit-log dentro do domínio de confiança do agente — o próprio
+# `secops/CLAUDE.md` o diz. A barreira efectiva contra execução não-autorizada
+# continua a ser o prompt de permissão nativo da tool Bash do Claude Code, que
+# `lab` não toca.
+#
+# O que se perde e é preciso assumir: o N3 cobre 4 padrões irreversíveis, e um
+# deles (`rm` sobre o dir de forensics) destrói evidência de IR. Em `lab` deixa
+# de ter travão próprio. O marker `~/.prumo/lab-mode` é a única fronteira, e é
+# um ficheiro que o agente consegue criar — logo `lab` é uma decisão humana
+# sobre a máquina, não uma garantia técnica.
+#
+# Contrapartida obrigatória: em `lab` o registo é MAIS detalhado, não menos.
+# O bloqueio desaparece; o rasto não pode desaparecer com ele.
+#
+# NÃO escrever o log aqui. O caminho de escrita no fim do ficheiro faz `umask
+# 077`, `chmod 600` e redacção de credenciais (user:pass@, Bearer, token=,
+# VAULT_TOKEN=, Keychain -w). Um segundo caminho de escrita duplicaria a lógica
+# e perderia essas garantias — e em lab o comando registado é MAIS provável de
+# conter credenciais, não menos, porque se está a experimentar.
+LAB_BYPASS=""
+if [ "$(prumo_mode)" = "lab" ]; then
+  LAB_BYPASS=1
+fi
+
+# ────────────────────────────────────────────────────────────────────────────
 # Gate
 # ────────────────────────────────────────────────────────────────────────────
 
-if [ "${PRUMO_APPROVE:-}" != "$LEVEL" ]; then
+if [ -z "$LAB_BYPASS" ] && [ "${PRUMO_APPROVE:-}" != "$LEVEL" ]; then
   CMD_PREVIEW=$(printf '%s' "$CMD" | head -c 100)
   # `PRUMO_APPROVE=Nx <comando>` era a instrução antiga e é impossível de seguir:
   # este hook corre no ambiente do Claude Code, não no do comando, por isso um
@@ -136,8 +170,10 @@ Para autorizar (acção do humano — um prefixo inline não chega a este hook):
   settings.json → env.PRUMO_APPROVE = ${LEVEL}
 
 Atenção à granularidade: isso autoriza TODAS as operações ${LEVEL} da sessão, não
-esta. Não há canal por-comando — este gate não respeita PRUMO_OPERATING_MODE (é
-fail-closed por desenho) e a aprovação tem de existir antes de o hook correr.
+esta. Não há canal por-comando, e a aprovação tem de existir antes de o hook
+correr. Em modo 'lab' (com o marker ~/.prumo/lab-mode) os três níveis passam,
+registados em approvals.log com via=lab-bypass; em prod e dev o gate é
+fail-closed e só o env autoriza.
 Retirar do settings.json quando a operação terminar.
 
 Níveis (Wire SecOps):
@@ -175,9 +211,21 @@ s/(-w)([[:space:]]+[^[:space:]]+)?/\1 ***/g
 }
 }')
   touch "$LOG_DIR/approvals.log" 2>/dev/null && chmod 600 "$LOG_DIR/approvals.log" 2>/dev/null || true
-  echo "$(date -u +%FT%TZ) | level=$LEVEL | user=${USER:-unknown} | cmd=${CMD_LOG}" \
+  # `via=` distingue as duas origens de autorização no mesmo formato de linha —
+  # um audit log com dois formatos é mais difícil de ler e de parsear.
+  # Condicional simples, não `${V:+a}${V:-b}`: com V=1 o segundo devolve o VALOR
+  # ("1"), não o default, e a concatenação sai "lab-bypass1". Verificado.
+  if [ -n "$LAB_BYPASS" ]; then VIA="lab-bypass"; else VIA="approve-env"; fi
+  echo "$(date -u +%FT%TZ) | level=$LEVEL | via=$VIA | user=${USER:-unknown} | cmd=${CMD_LOG}" \
     >> "$LOG_DIR/approvals.log" 2>/dev/null || true
 fi
-echo "[prumo-secops/approval-gate] ${LEVEL} authorised by PRUMO_APPROVE env var · logged." >&2
+if [ -n "$LAB_BYPASS" ]; then
+  prumo_telemetry_record prumo-secops approval-gate "bypass"
+  # shellcheck disable=SC2034  # lido pelo trap _prumo_tm_on_exit em prumo-common.sh
+  PRUMO_TM_RECORDED=1
+  echo "[prumo-secops/approval-gate] ${LEVEL} IGNORADO — modo lab. Registado em approvals.log." >&2
+else
+  echo "[prumo-secops/approval-gate] ${LEVEL} authorised by PRUMO_APPROVE env var · logged." >&2
+fi
 
 exit 0
