@@ -29,6 +29,14 @@ OUT_DIR="/tmp"
 SKIP_VALIDATE=0
 SELECTED=()
 
+# A lista de plugins sai do marketplace.json — é a source of truth declarada no
+# CLAUDE.md. Escrita à mão, já deixou o prumo-design de fora três vezes sem que
+# nada falhasse.
+MARKETPLACE=".claude-plugin/marketplace.json"
+ALL_PLUGINS="$(jq -r '.plugins[].source | sub("^\\./";"")' "$MARKETPLACE" 2>/dev/null)"
+[ -n "$ALL_PLUGINS" ] || {
+  echo "package.sh: não consegui derivar a lista de plugins de $MARKETPLACE" >&2; exit 2; }
+
 while [ $# -gt 0 ]; do
   case "$1" in
     --no-validate) SKIP_VALIDATE=1; shift ;;
@@ -37,12 +45,25 @@ while [ $# -gt 0 ]; do
       grep -E '^# ' "$0" | sed 's/^# \{0,1\}//' | head -20
       exit 0
       ;;
-    base|secops|devkit|design) SELECTED+=("$1"); shift ;;
-    *) echo "package.sh: argumento desconhecido: $1" >&2; exit 2 ;;
+    *)
+      if printf '%s\n' "$ALL_PLUGINS" | grep -qxF -- "$1"; then
+        SELECTED+=("$1"); shift
+      else
+        echo "package.sh: argumento desconhecido: $1" >&2
+        echo "  plugins declarados: $(printf '%s' "$ALL_PLUGINS" | tr '\n' ' ')" >&2
+        exit 2
+      fi
+      ;;
   esac
 done
 
-[ "${#SELECTED[@]}" -eq 0 ] && SELECTED=(base secops devkit design)
+if [ "${#SELECTED[@]}" -eq 0 ]; then
+  while IFS= read -r _p; do
+    [ -n "$_p" ] && SELECTED+=("$_p")
+  done <<EOF
+$ALL_PLUGINS
+EOF
+fi
 mkdir -p "$OUT_DIR"
 
 # ──────────────────────── 1. validação prévia ────────────────────────

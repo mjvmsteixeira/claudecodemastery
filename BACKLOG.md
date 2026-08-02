@@ -105,9 +105,11 @@ O que falta é um plist que compare `pgrep` com `daemon status` e faça `launchc
 
 ---
 
-## B5 · Derivar listas em vez de as escrever
+## B5 · Derivar listas em vez de as escrever — **FECHADO** (`base` v0.10.0)
 
-**Estado:** padrão identificado três vezes; correcção estrutural por fazer.
+**Estado a 2026-08-02: resolvido, com as duas abordagens em vez de uma.** `prumo_plugins()` na `prumo-common.sh` deriva do `marketplace.json` (formatos `name`/`dir`/`pair`, fallback ruidoso), e os quatro consumidores passaram a usá-la — `/prumo-upgrade`, `/prumo-onboard`, `package.sh` e o próprio `validate.sh`, que enumerava à mão. O check `1b` do `validate.sh` garante que o fallback não diverge e que nenhum loop volta a enumerar à mão; ambos os ramos testados por injecção.
+
+### Contexto original
 
 O `prumo-design` ficou de fora de enumerações escritas à mão em **três** ocasiões: `/prumo-onboard` (corrigido em `base` v0.7.3), os contadores `X/3` (idem), e os loops do `/prumo-upgrade` (corrigido em v0.9.2).
 
