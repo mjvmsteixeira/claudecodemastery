@@ -67,11 +67,30 @@ if [ $SKIP_SHELLCHECK -eq 0 ]; then
 fi
 
 # ──────────────────────── inventário ────────────────────────
-PLUGINS=("base" "secops" "devkit" "design")
+# Derivado do marketplace.json. Até 2026-08-02 esta linha era escrita à mão — o
+# validador era ele próprio uma instância do defeito que a secção "enumerações"
+# passa a detectar.
+if [ $have_jq -eq 0 ]; then
+  echo "validate.sh: jq é obrigatório para derivar a lista de plugins do marketplace.json" >&2
+  exit 2
+fi
+
+PLUGINS=()
+while IFS= read -r _p; do
+  [ -n "$_p" ] && PLUGINS+=("$_p")
+done <<EOF
+$(jq -r '.plugins[].source | sub("^\\./";"")' .claude-plugin/marketplace.json 2>/dev/null)
+EOF
+
+if [ "${#PLUGINS[@]}" -eq 0 ]; then
+  echo "validate.sh: não consegui derivar plugins de .claude-plugin/marketplace.json" >&2
+  exit 2
+fi
+
 if [ -n "$ONLY_PLUGIN" ]; then
   case " ${PLUGINS[*]} " in
     *" $ONLY_PLUGIN "*) PLUGINS=("$ONLY_PLUGIN") ;;
-    *) echo "validate.sh: --plugin $ONLY_PLUGIN não é um dos 4 plugins (base|secops|devkit|design)" >&2; exit 2 ;;
+    *) echo "validate.sh: --plugin $ONLY_PLUGIN não está declarado no marketplace (${PLUGINS[*]})" >&2; exit 2 ;;
   esac
 fi
 
@@ -97,6 +116,50 @@ else
     python3 -c "import json,sys; json.load(open('$MP'))" 2>/dev/null && \
       pass "$MP é JSON válido (via python3)" || fail "$MP: JSON inválido"
   fi
+fi
+
+# ──────────────────────── 1b. enumerações de plugins ────────────────────────
+# O prumo-design ficou fora de listas escritas à mão três vezes, e nenhuma das
+# omissões falhou: o /prumo-upgrade reportava "tudo actualizado" sobre 75% do
+# marketplace. Esta secção existe para que a quarta vez rebente aqui.
+section "enumerações de plugins (derivadas, não escritas)"
+
+if [ -f "$MP" ] && [ $have_jq -eq 1 ]; then
+  MP_SORTED=$(jq -r '.plugins[].name' "$MP" 2>/dev/null | sort | tr '\n' ' ' | sed 's/ *$//')
+
+  FB_LINE=$(grep -E '^PRUMO_PLUGINS_FALLBACK=' base/lib/prumo-common.sh 2>/dev/null | head -1)
+  if [ -z "$FB_LINE" ]; then
+    fail "PRUMO_PLUGINS_FALLBACK não encontrado em base/lib/prumo-common.sh"
+  else
+    FB_SORTED=$(printf '%s' "$FB_LINE" | sed 's/^[^"]*"//; s/"[^"]*$//' \
+                | tr ' ' '\n' | sort | tr '\n' ' ' | sed 's/ *$//')
+    if [ "$MP_SORTED" = "$FB_SORTED" ]; then
+      pass "PRUMO_PLUGINS_FALLBACK bate com o marketplace.json ($MP_SORTED)"
+    else
+      fail "PRUMO_PLUGINS_FALLBACK diverge do marketplace.json"
+      info "marketplace: $MP_SORTED"
+      info "fallback:    $FB_SORTED"
+    fi
+  fi
+
+  # Enumerações executáveis escritas à mão: um loop, array ou lista de casos que
+  # nomeia dois ou mais plugins. Prosa e changelogs não contam — só código.
+  # O próprio validate.sh fica de fora: o padrão de busca contém os nomes.
+  # O `[a-z" -]*` entre o `in` e os nomes é deliberado: só casa listas de
+  # palavras nuas. `for p in $(prumo_plugins)` não casa — nem a prosa que
+  # documenta o anti-padrão, que foi o primeiro falso positivo desta regra.
+  HARDCODED=$(grep -rnE '(for [A-Za-z_]+ in [a-z" -]*(prumo-)?base[a-z" -]+(prumo-)?secops|(SELECTED|PLUGINS)=\([^)]*base[^)]*secops)' \
+                --include='*.sh' --include='*.md' --exclude='validate.sh' \
+                base secops devkit design scripts 2>/dev/null \
+              | grep -v 'PRUMO_PLUGINS_FALLBACK' || true)
+  if [ -n "$HARDCODED" ]; then
+    fail "enumeração de plugins escrita à mão — derivar via prumo_plugins() ou marketplace.json:"
+    printf '%s\n' "$HARDCODED" | cut -c1-160 | sed 's/^/    /'
+  else
+    pass "nenhum loop ou array enumera plugins à mão"
+  fi
+else
+  warn "enumerações não verificáveis — $MP ausente ou jq em falta"
 fi
 
 # ──────────────────────── 2. plugin.json ────────────────────────

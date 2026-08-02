@@ -281,8 +281,75 @@ prumo_init_dirs() {
 # ────────────────────────────────────────────────────────────────────────────
 # prumo_version · versão deste lib
 # ────────────────────────────────────────────────────────────────────────────
-PRUMO_COMMON_VERSION="0.1.0"
+PRUMO_COMMON_VERSION="0.2.0"
 prumo_version() { echo "$PRUMO_COMMON_VERSION"; }
+
+# ────────────────────────────────────────────────────────────────────────────
+# prumo_plugins · a lista de plugins, derivada em vez de escrita
+#
+# Enumerar plugins à mão falhou três vezes com o mesmo sintoma: o `prumo-design`
+# ficou de fora e **nada falhou** — o `/prumo-upgrade` reportava "tudo
+# actualizado" com toda a confiança sobre 75% do marketplace. Um erro que não
+# tem como se manifestar é pior que um que rebenta.
+#
+# A lista passa a sair do `.claude-plugin/marketplace.json`, que é a source of
+# truth declarada no CLAUDE.md do repo.
+#
+# Uso — emite UM POR LINHA, de propósito:
+#   while IFS= read -r p; do …; done <<EOF
+#   $(prumo_plugins)
+#   EOF
+#
+# Nunca `for p in $(prumo_plugins)`: em zsh a substituição de comando não sofre
+# word-splitting, logo o loop corre uma vez com a lista inteira como um item.
+#
+#   prumo_plugins       → prumo-base, prumo-secops, prumo-devkit, prumo-design
+#   prumo_plugins dir   → base, secops, devkit, design   (nomes de directoria)
+#   prumo_plugins pair  → "prumo-base base", … (nome e directoria na mesma linha)
+#
+# O formato `pair` existe para não haver uma segunda derivação à mão: quem
+# precisa dos dois não deve inferir um a partir do outro removendo o prefixo —
+# a correspondência nome↔directoria é do marketplace.json, não uma convenção.
+# ────────────────────────────────────────────────────────────────────────────
+
+# Fallback estático — existe num sítio só, e o validate.sh compara-o com o
+# marketplace.json. Editar aqui sem editar lá é erro apanhado no CI.
+PRUMO_PLUGINS_FALLBACK="prumo-base prumo-secops prumo-devkit prumo-design"
+
+prumo_marketplace_json() {
+  local c
+  for c in "${PRUMO_MARKETPLACE_JSON:-}" \
+           "$HOME/.claude/plugins/marketplaces/prumo/.claude-plugin/marketplace.json"; do
+    if [ -n "$c" ] && [ -r "$c" ]; then printf '%s' "$c"; return 0; fi
+  done
+  return 1
+}
+
+prumo_plugins() {
+  local fmt="${1:-name}" mp out
+  if command -v jq >/dev/null 2>&1 && mp=$(prumo_marketplace_json); then
+    case "$fmt" in
+      dir)  out=$(jq -r '.plugins[].source | sub("^\\./";"")' "$mp" 2>/dev/null) ;;
+      pair) out=$(jq -r '.plugins[] | "\(.name) \(.source | sub("^\\./";""))"' "$mp" 2>/dev/null) ;;
+      *)    out=$(jq -r '.plugins[].name' "$mp" 2>/dev/null) ;;
+    esac
+    if [ -n "$out" ]; then printf '%s\n' "$out"; return 0; fi
+  fi
+
+  # Fallback — ruidoso de propósito. Um fallback silencioso reproduz
+  # exactamente o defeito que esta função corrige.
+  if [ -z "${PRUMO_PLUGINS_WARNED:-}" ]; then
+    export PRUMO_PLUGINS_WARNED=1
+    echo "[prumo] marketplace.json ilegível — lista de plugins vem do fallback estático." >&2
+    echo "[prumo] um plugin acrescentado ao marketplace NÃO aparece nesta corrida." >&2
+  fi
+  # `tr`, não `for p in $VAR` — ver o aviso de zsh no cabeçalho desta função.
+  case "$fmt" in
+    dir)  printf '%s' "$PRUMO_PLUGINS_FALLBACK" | tr ' ' '\n' | sed 's/^prumo-//' ;;
+    pair) printf '%s' "$PRUMO_PLUGINS_FALLBACK" | tr ' ' '\n' | sed 's/^\(prumo-\(.*\)\)$/\1 \2/' ;;
+    *)    printf '%s' "$PRUMO_PLUGINS_FALLBACK" | tr ' ' '\n' ;;
+  esac
+}
 
 # ────────────────────────────────────────────────────────────────────────────
 # hook_tool_payload — extrai o "comando/texto" relevante do input de um hook.

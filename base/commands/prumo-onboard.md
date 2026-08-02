@@ -25,7 +25,14 @@ Só listar as linhas de uninstall dos que existirem de facto no cache.
 
 ```bash
 echo "=== Detectando plugins prumo instalados ==="
-for p in prumo-base prumo-secops prumo-devkit prumo-design; do
+
+# A lista sai do marketplace.json, não é escrita aqui — este loop já deixou o
+# prumo-design de fora uma vez, e a omissão não teve como se manifestar.
+. "${CLAUDE_PLUGIN_ROOT}/lib/prumo-common.sh" 2>/dev/null || {
+  echo "  ✗ lib/prumo-common.sh ilegível — abortar em vez de adivinhar a lista."; exit 1; }
+
+while IFS= read -r p; do
+  [ -n "$p" ] || continue
   manifest=$(find ~/.claude/plugins/cache -path "*/${p}/*/.claude-plugin/plugin.json" 2>/dev/null \
              | sort -V | tail -1)
   if [ -n "$manifest" ]; then
@@ -35,7 +42,9 @@ for p in prumo-base prumo-secops prumo-devkit prumo-design; do
   else
     echo "  ✗ $p · NÃO INSTALADO"
   fi
-done
+done <<EOF
+$(prumo_plugins)
+EOF
 ```
 
 ### Versões — instalado não é o mesmo que actualizado

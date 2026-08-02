@@ -2,6 +2,19 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.10.0 — 2026-08-02
+
+**B5 — a lista de plugins deixa de ser escrita.** O `prumo-design` ficou de fora de enumerações à mão **três vezes**, e nenhuma das omissões falhou: o `/prumo-upgrade` reportava *"tudo actualizado"* com toda a confiança sobre 75% do marketplace. Um erro sem forma de se manifestar é pior que um que rebenta — e a correcção de cada instância não impedia a quarta.
+
+- **Novo `prumo_plugins()` na `lib/prumo-common.sh`** (v0.1.0 → v0.2.0), com três formatos: `name`, `dir` e `pair`. O `pair` existe para que quem precisa dos dois não infira um do outro removendo o prefixo — a correspondência nome↔directoria é do `marketplace.json`, não uma convenção.
+- **Emite um por linha, e o call-site usa heredoc.** Nunca `for p in $(prumo_plugins)`: em zsh a substituição de comando não sofre word-splitting, e o loop correria uma vez com a lista inteira como um item. O heredoc também evita o subshell de um pipe, que perderia os arrays acumulados.
+- **Fallback ruidoso.** Sem `marketplace.json` legível, cai numa lista estática **e avisa em stderr**. Um fallback silencioso reproduziria o defeito que isto corrige.
+- **Quatro consumidores convertidos:** `/prumo-upgrade` (3 loops), `/prumo-onboard` (1), `scripts/package.sh` (default e validação de argumentos), e o próprio `scripts/validate.sh`, que enumerava à mão na linha 70 — o validador era ele próprio uma instância do defeito.
+- **Novo check `1b · enumerações de plugins` no `validate.sh`**, para que a quarta vez rebente no CI. Duas verificações: o `PRUMO_PLUGINS_FALLBACK` tem de bater com o `marketplace.json`, e nenhum loop ou array pode enumerar plugins à mão. Ambas testadas por injecção de regressão.
+- O padrão de busca casa só **listas de palavras nuas** — `for p in $(prumo_plugins)` não casa, nem a prosa que documenta o anti-padrão. Foi o primeiro falso positivo da regra, e ficou registado no comentário.
+
+`package.sh` passa a rejeitar um plugin não declarado mostrando a lista real, em vez de o comparar contra quatro nomes fixos.
+
 ## v0.9.3 — 2026-08-02
 
 **O check 4b.1b passa a apontar para o sinal precoce em vez de só descrever o sintoma.** Um crash loop do daemon é quase sempre consequência tardia de um índice HNSW divergente — verificar o `repair-status` primeiro é a diferença entre 30 segundos e um dia a ler stack traces de Rust.
