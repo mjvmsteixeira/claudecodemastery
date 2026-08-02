@@ -2,6 +2,15 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.9.1 — 2026-08-01
+
+**Novo check 4b.1b — "daemon vivo mas surdo", o estado que nenhum mecanismo vigiava.** Encontrado a custar 6h42m de escrita parada, 724 jobs falhados e 0 sucessos, sem um único sinal.
+
+- **O modo de falha**: o daemon não morre — fica vivo sem aceitar ligações. O socket em `LISTEN`, o `launchctl` vê processo vivo e **não relança**, o daemon segura a lease, e toda a escrita de fundo pára em silêncio. O `KeepAlive` cobre o crash; não cobre isto.
+- **A detecção é a divergência entre duas fontes que deviam concordar**: `pgrep` diz vivo, `mempalace daemon status` diz "not running". Nenhuma leitura isolada revela o problema — só a contradição. Verificado nos dois estados: apanha o encravado, não dá falso positivo no são.
+- **Recorrência, não ocorrência** (Regra de ouro 4). `LastExitStatus=11` é SIGSEGV; um `11` com PID diferente do da corrida anterior significa crash pelo meio. Observadas **duas recorrências em menos de 24h**, com um kickstart manual entre elas — assinatura sistemática, a reportar como tal e não como "resolvido".
+- **Limite declarado no próprio texto**: o `memory-doctor` corre a pedido, **detecta mas não vigia**. Os jobs existentes não tapam o buraco — o `health` corre às 09:00 (não apanha uma paragem das 14:36) e o `fts5-canary` vigia o FTS5, não o daemon. Vigilância contínua exige plist próprio e fica fora do âmbito da skill — dito ao utilizador em vez de implícito.
+
 ## v0.9.0 — 2026-08-01
 
 **O `memory-doctor` divagava pela máquina toda em vez de auditar o projecto actual.** Numa corrida real varreu 13 repos, listou 10 alheios como lacunas, contabilizou 90.000 drawers de outros projectos e inventariou um vault Obsidian de um projecto em pausa — tudo verdadeiro, quase nada accionável para quem estava a trabalhar ali. Os achados que interessavam (índice vectorial desligado, daemon parado há 6h40m, grafo 3 commits atrás, ADR inexistente) ficaram enterrados no meio.

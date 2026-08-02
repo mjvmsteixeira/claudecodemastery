@@ -97,6 +97,42 @@ mempalace daemon status
 | Pacote **< 3.5.0** e **≥2** MCP vivos | 🚨 **CRIT — risco de corrupção do índice.** Vários `PersistentClient` de longa duração mantêm estado HNSW/FTS em memória; o cadeado por operação não os obriga a esquecê-lo. |
 | Pacote **≥ 3.5.0** e ≥2 MCP | ℹ️ **INFO** — os restantes ficam read-only por desenho (#1818). Sem risco. |
 
+### 4b.1b · Daemon vivo mas surdo — o estado que ninguém vigia
+
+**Correr antes do 4b.2.** É o modo de falha mais caro observado nesta camada, e o único que nenhum mecanismo existente apanha.
+
+O daemon pode morrer com **SIGSEGV** e o `KeepAlive` do launchd relança-o — isso funciona. O problema é o outro caso: o processo fica **vivo mas sem aceitar ligações**. O socket está em `LISTEN`, o `launchctl` vê processo vivo e **não relança**, o daemon **segura a lease**, e toda a escrita de fundo pára — em silêncio, indefinidamente.
+
+Observado a 2026-08-01: **6h42m parado**, 724 jobs falhados, 0 sucessos, sem um único sinal. O processo consumira 5,18s de CPU em 6h42m com RSS de 1 MB (o MCP comparável tem 51 MB) — paginado para fora, sem trabalho.
+
+A detecção é a **divergência entre duas fontes que deviam concordar**:
+
+```bash
+DAEMON_PID=$(pgrep -f 'mempalace daemon start' | head -1)
+DAEMON_SAYS=$(mempalace daemon status 2>&1 | head -1)
+
+if [ -n "$DAEMON_PID" ] && printf '%s' "$DAEMON_SAYS" | grep -qi 'not running'; then
+  echo "🚨 CRIT · daemon VIVO (PID $DAEMON_PID) mas NÃO RESPONDE — escrita parada, lease presa."
+  echo "   Remediação: launchctl kickstart -k gui/\$UID/com.mjvmst.mempalace-daemon"
+fi
+```
+
+O `ps` diz vivo, o `status` diz morto. **Nenhuma das duas leituras isolada revela o problema** — só a contradição entre elas.
+
+#### Recorrência, não ocorrência (Regra de ouro 4)
+
+Um segfault isolado é incidente; segfaults a encurtar intervalo são falha sistemática. Medir sempre:
+
+```bash
+launchctl list com.mjvmst.mempalace-daemon 2>/dev/null | grep -E 'PID|LastExitStatus'
+```
+
+`LastExitStatus = 11` é **SIGSEGV** — o daemon anterior morreu por falha de segmentação. Um `11` com PID diferente do da corrida anterior do doctor significa que houve pelo menos um crash pelo meio.
+
+Observado no mesmo dia: **duas recorrências em menos de 24h**, com um kickstart manual entre elas. Isso é assinatura sistemática — reportar como tal, não como "já está resolvido".
+
+**Limite honesto deste check:** o `memory-doctor` corre a pedido. Detecta o estado quando é invocado; **não vigia**. Entre corridas, uma paragem passa despercebida exactamente como passou hoje. Os jobs de manutenção existentes não cobrem este buraco — o `health` corre às 09:00 diárias (não apanha uma paragem das 14:36) e o `fts5-canary` vigia o FTS5, não o daemon. Uma vigilância contínua exige um plist próprio que compare `pgrep` com `daemon status`; fica **fora do âmbito desta skill**, e deve ser dito ao utilizador em vez de ficar implícito.
+
 ### 4b.2 · Quem segura a lease de escrita — o cheque decisivo
 
 ```bash
