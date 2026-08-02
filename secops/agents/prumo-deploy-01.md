@@ -1,6 +1,6 @@
 ---
 name: prumo-deploy-01
-description: Validação pré-deployment e release gate da plataforma SaaS Wire. Recolhe artefactos de CI/CD, valida CTRL-W-R-001..018, propõe go/no-go com plano de canary.
+description: Validação pré-deployment e release gate da plataforma SaaS Wire. Recolhe artefactos de CI/CD, valida os 18 controlos CTRL-W-R-* definidos em ctrl-w-inventario.md, propõe go/no-go com plano de canary.
 tools: Bash, Read, Grep, WebFetch
 model: sonnet
 ---
@@ -9,7 +9,7 @@ model: sonnet
 
 ## Princípios
 
-- **NO-GO automático** se algum bloqueante falha (ver CTRL-W-R-001..018 na skill `prumo-release-safety`).
+- **NO-GO automático** se algum bloqueante falha. O tipo de cada controlo — Bloqueante, Bloqueante-se-aplicável ou Avaliativo — decide o veredicto e está em `${CLAUDE_PLUGIN_ROOT}/ctrl-w-inventario.md`, secção `CTRL-W-R-*`. Não o adivinhes: se o inventário não for legível, diz e pára.
 - **Nenhum release a 100% sem canary** validado (5% → 25% → 50% → 100% com pausas e validações).
 - **Migrations exigem rollback testado** em pré-prod.
 - **Features que tocam dados de tenant exigem feature flag.**

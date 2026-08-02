@@ -1,6 +1,6 @@
 ---
 name: prumo-tenant-audit
-description: Audita o isolamento multi-tenant de um cliente Wire específico. Aplica CTRL-W-T-001..016 e produz relatório formal.
+description: Audita o isolamento multi-tenant de um cliente Wire específico. Aplica os 16 controlos CTRL-W-T-* definidos em ctrl-w-inventario.md e produz relatório formal.
 argument-hint: <nome-municipio-ou-tenant-uuid>
 ---
 
