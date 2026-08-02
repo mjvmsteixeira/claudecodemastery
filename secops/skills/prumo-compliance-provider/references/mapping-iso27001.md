@@ -2,9 +2,19 @@
 
 > **Estado: esqueleto de framework — a coluna de cobertura está deliberadamente por preencher.**
 >
-> A estrutura do Anexo A (4 temas, 93 controlos) é verificável contra a norma. **A correspondência
-> com os controlos `CTRL-W-*` exige o inventário desses controlos**, indisponível a esta skill —
-> ver `mapping-nis2.md`, secção "Dependência em falta".
+> A estrutura do Anexo A (4 temas, 93 controlos) é verificável contra a norma. **O inventário
+> `CTRL-W-*` passou a existir** a 2026-08-02 (famílias `T` e `R`, 34 controlos) em
+> [`ctrl-w-inventario.md`](../../../ctrl-w-inventario.md) — ver aí a lacuna da família `IR`.
+>
+> **Esta tabela mantém-se por preencher, e por uma razão diferente da do NIS2.** Ali a barreira era
+> a ausência do inventário; aqui é que **os títulos dos 93 controlos do Anexo A são texto protegido
+> por direitos de autor** e não podem ser reproduzidos neste repositório. A tabela de trabalho
+> constrói-se a partir do exemplar licenciado da organização, e este ficheiro fixa o formato e o
+> processo — não o conteúdo da norma.
+>
+> O que o inventário permite agora: quem tiver a norma à frente pode preencher a coluna de
+> controlos Wire sem depender de mais nada. A orientação de onde procurar está na secção
+> "Controlos de atenção redobrada" abaixo, que continua válida e ganhou precisão com os IDs reais.
 >
 > Preencher com correspondências plausíveis produziria uma Declaração de Aplicabilidade sem lastro,
 > entregue a auditor externo. Confirmar a numeração contra a norma antes de uso formal; **este

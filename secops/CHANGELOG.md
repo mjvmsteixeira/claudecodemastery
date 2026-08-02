@@ -2,6 +2,18 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.8.0 — 2026-08-02
+
+**Os comandos citavam controlos que nenhum agente conseguia ler.** `/prumo-tenant-audit` dizia *"aplica CTRL-W-T-001..016"* e `/prumo-release-gate` *"aplica CTRL-W-R-001..018"* — a um agente sem acesso a definição nenhuma. As matrizes existiam, mas dentro de dois `SKILL.md` que os comandos não lêem. Um mandato impossível de cumprir, cujo incumprimento não aparecia no output.
+
+- **Novo `secops/ctrl-w-inventario.md`** — fonte única, com as famílias `T` (16 controlos) e `R` (18) transcritas das origens e **verificadas char a char** contra elas. Traz a distribuição por severidade e um bloco de verificação de coerência entre cópias.
+- **Os dois comandos apontam para o inventário** e, se não o conseguirem ler, **param e dizem-no** em vez de inferir controlos pelo número. Para o release gate ficou escrito porquê: o *tipo* (Bloqueante / Bloqueante-se-aplicável / Avaliativo) decide o veredicto, logo não pode ser adivinhado — um gate que inventa os seus critérios é pior que gate nenhum.
+- **Terceira família descoberta, e é uma lacuna: `CTRL-W-IR-*`.** O `CTRL-W-IR-007` é citado no `prumo-ir-multitenant` — associado ao `sys/audit-hash/*` — mas **não existe matriz IR em lado nenhum do repositório**. Conhece-se o `007` pelo *efeito*, não pelo enunciado. Registada como lacuna explícita, não preenchida por inferência; e a skill de IR passa a proibir afirmações de cobertura desta família.
+- **Coluna de candidatos preenchida no `mapping-nis2.md`**, com uma distinção que passa a estar escrita: *candidatos* é análise, *cobertura* é afirmação de conformidade e exige evidência verificada. A segunda continua vazia de propósito.
+- **O que as células vazias revelam vale mais que a tabela.** Os 34 controlos concentram-se no técnico e no release — a medida (e) tem nove candidatos; governança, formação, RH e avaliação de eficácia não têm **um único**. Ou existem famílias que nunca chegaram ao repo, ou são lacunas reais — não se distingue de dentro, e a resposta decide se é problema de documentação ou de controlo.
+- `mapping-iso27001.md` continua por preencher, mas por razão **diferente e agora explicitada**: os títulos dos 93 controlos do Anexo A são texto protegido e não podem ser reproduzidos aqui.
+- Verificado: contagens batem com as origens, transcrição idêntica char a char, e todos os IDs citados nos candidatos existem no inventário.
+
 ## v0.7.0 — 2026-08-01
 
 **O modo `lab` passa a ignorar os três níveis de aprovação.** Decisão explícita do dono, com as ressalvas postas à frente antes de decidir.

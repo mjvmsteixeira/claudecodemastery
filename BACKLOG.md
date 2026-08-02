@@ -53,9 +53,24 @@ Fases:
 
 ---
 
-## B3 · Inventário `CTRL-W-*` — a dependência de maior alcance
+## B3 · Inventário `CTRL-W-*` — fases 1–3 feitas, falta o que é externo
 
-**Estado:** parcialmente resolúvel com o que já existe no repo.
+**Estado a 2026-08-02: fases 1, 2 e 3 concluídas.** O que resta depende do `WIRE.MTZ.SEC.006` e não pode ser feito a partir deste repositório.
+
+Feito:
+- **Fase 1** — `secops/ctrl-w-inventario.md`, com as famílias `T` (16) e `R` (18) transcritas das origens e verificadas char a char
+- **Fase 2** — `/prumo-tenant-audit` e `/prumo-release-gate` apontam para o inventário; ambos param se não o conseguirem ler, em vez de inferir controlos pelo número
+- **Fase 3** — coluna de **candidatos** preenchida no `mapping-nis2.md`. A coluna de **cobertura** fica vazia de propósito: é afirmação de conformidade e exige evidência verificada, não mapeamento
+
+**O que falta, e só o utilizador pode dar:**
+
+1. **A matriz `CTRL-W-IR-*`.** Sabe-se que existe — o `CTRL-W-IR-007` é citado no `prumo-ir-multitenant` — mas nenhuma definição está no repo. Bloqueia a medida (b) do NIS2, tratamento de incidentes.
+2. **Resposta a uma pergunta que muda o diagnóstico:** os 34 controlos conhecidos cobrem o técnico e o release, mas **nenhum** endereça governança, formação, RH ou avaliação de eficácia. Ou existem famílias `CTRL-W-*` de governança que nunca chegaram aqui, **ou** são lacunas reais de conformidade. Não se distingue de dentro do repositório, e a resposta decide se é problema de documentação ou de controlo.
+3. **ISO 27001** — o mapping continua por preencher, mas por razão **diferente**: os títulos dos 93 controlos do Anexo A são texto protegido e não podem ser reproduzidos aqui. Quem tiver a norma licenciada preenche sem depender de mais nada.
+
+### Contexto original (mantido para referência)
+
+**Estado inicial:** parcialmente resolúvel com o que já existe no repo.
 
 Os identificadores `CTRL-W-T-001..016` e `CTRL-W-R-001..018` são citados como intervalos em comandos, agents e skills do `prumo-secops`, mas **nenhum artefacto acessível define o que cada controlo verifica** — a definição vive no `WIRE.MTZ.SEC.006`, externo.
 

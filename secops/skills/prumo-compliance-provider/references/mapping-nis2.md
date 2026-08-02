@@ -21,20 +21,39 @@ A Wire **não** é entidade essencial nem importante por si. É **fornecedora** 
 
 ## Art. 21(2) — medidas de gestão de risco
 
-As dez medidas do catálogo. A coluna "Controlos Wire" preenche-se a partir do inventário `CTRL-W-*`.
+As dez medidas do catálogo.
 
-| # | Medida (Art. 21(2)) | Controlos Wire | Cobertura | Evidência | Lacuna / plano |
+**Ler a distinção entre as duas primeiras colunas antes de usar esta tabela.** *"Controlos candidatos"* é **análise**: que controlos conhecidos endereçam esta medida. *"Cobertura"* é uma **afirmação de conformidade**, e exige evidência verificada de que o controlo está implementado e a funcionar. A primeira preenche-se a partir do inventário; a segunda **não**, e continua vazia de propósito.
+
+Candidatos derivados de [`ctrl-w-inventario.md`](../../../ctrl-w-inventario.md) a 2026-08-02 — famílias `T` (16) e `R` (18). A família `IR` não tem matriz e por isso não pode contribuir.
+
+| # | Medida (Art. 21(2)) | Controlos candidatos | Cobertura | Evidência | Lacuna / plano |
 |---|---|---|---|---|---|
-| a | Políticas de análise de risco e de segurança dos sistemas de informação | | | | |
-| b | Tratamento de incidentes | | | | |
-| c | Continuidade de negócio — cópias de segurança, recuperação, gestão de crises | | | | |
-| d | **Segurança da cadeia de fornecimento**, incluindo relações com fornecedores directos | | | | |
-| e | Segurança na aquisição, desenvolvimento e manutenção — incluindo tratamento e divulgação de vulnerabilidades | | | | |
-| f | Políticas e procedimentos de avaliação da eficácia das medidas | | | | |
-| g | Práticas básicas de ciber-higiene e formação em cibersegurança | | | | |
-| h | Políticas de uso de criptografia e, quando aplicável, cifragem | | | | |
-| i | Segurança dos recursos humanos, controlo de acessos e gestão de activos | | | | |
-| j | Autenticação multifactor ou contínua, comunicações seguras de voz/vídeo/texto, comunicações de emergência | | | | |
+| a | Políticas de análise de risco e de segurança dos sistemas de informação | **nenhum** | | | família de governança ausente do inventário |
+| b | Tratamento de incidentes | `CTRL-W-IR-*` (**matriz ausente**) · T-016 contribui (audit cross-tenant) | | | bloqueado pela lacuna IR |
+| c | Continuidade — cópias de segurança, recuperação, gestão de crises | T-012, T-013 · R-013 (adjacente) | | | |
+| d | **Segurança da cadeia de fornecimento** | R-005 (SCA/CVE), R-008 (assinatura) | | | cobre a cadeia **de entrada**; nada cobre o que a Wire exige aos seus sub-subcontratantes |
+| e | Aquisição, desenvolvimento e manutenção — incl. vulnerabilidades | R-001…R-009 | | | a família melhor coberta |
+| f | Avaliação da eficácia das medidas | **nenhum directo** — R-014/015/016 são aprovação, não avaliação | | | |
+| g | Ciber-higiene e formação | **nenhum** | | | família ausente do inventário |
+| h | Criptografia e cifragem | T-005 (Transit por tenant), T-012 (backups cifrados) | | | sem controlo de *política* de uso |
+| i | Recursos humanos, controlo de acessos, gestão de activos | T-003, T-010 (acessos) | | | **RH e gestão de activos sem candidato** |
+| j | MFA, comunicações seguras, comunicações de emergência | T-010 (MFA admin) | | | comunicações seguras e de emergência sem candidato |
+
+### O que as células vazias revelam
+
+Não é ruído — é a **forma** da lacuna, e vale mais que a tabela preenchida.
+
+Os 34 controlos conhecidos concentram-se no **técnico e no release**: (e) tem nove candidatos, (c) e (d) têm dois cada. As medidas de **governança, pessoas e processo** — (a) políticas de risco, (f) avaliação de eficácia, (g) formação, e a parte de RH e activos da (i) — não têm **um único candidato**.
+
+Duas leituras possíveis, e não se pode escolher entre elas com o que está no repositório:
+
+1. Existem famílias `CTRL-W-*` de governança no `WIRE.MTZ.SEC.006` que nunca chegaram aqui
+2. Não existem, e são lacunas reais de conformidade
+
+**A distinção importa e é a próxima pergunta a fazer**, porque a resposta muda se isto é um problema de documentação ou de controlo.
+
+A medida (b), tratamento de incidentes, é um caso à parte: é a única bloqueada por uma família cuja **existência é conhecida** (`CTRL-W-IR-007` é citado) mas cuja matriz não está aqui.
 
 Legenda de cobertura: **Directa** · **Parcial** (com plano) · **Lacuna** (descrita, com plano e responsável) · **N/A** (com justificação escrita).
 
@@ -51,9 +70,15 @@ A alínea **(d)** é a que mais importa à Wire, e por dois lados ao mesmo tempo
 
 O `SKILL.md` do `prumo-ir-multitenant` fixa T+24h / T+72h / T+30d, coerente com este regime. Os templates operacionais estão em `../prumo-ir-multitenant/references/cncs-template.md` — **não duplicar aqui**; este mapping remete para lá.
 
-## Dependência em falta — o inventário `CTRL-W-*`
+## Dependência — parcialmente resolvida a 2026-08-02
 
-Este ficheiro não pode ser completado sem a lista de controlos com as respectivas definições.
+O inventário passou a existir em [`ctrl-w-inventario.md`](../../../ctrl-w-inventario.md), com as famílias `T` (16 controlos) e `R` (18) transcritas das suas origens e verificadas char a char. Isso destrancou a coluna de **candidatos**.
+
+**O que continua bloqueado:** a coluna de **cobertura**, que é uma afirmação de conformidade e exige evidência verificada por controlo — trabalho de auditoria, não de mapeamento. E a família `CTRL-W-IR-*`, sem matriz, que bloqueia especificamente a medida (b).
+
+### Histórico
+
+Este ficheiro não podia ser completado sem a lista de controlos com as respectivas definições.
 
 O que se apurou ao escrevê-lo: os identificadores `CTRL-W-T-001..016` e `CTRL-W-R-001..018` são citados como intervalos em vários pontos do plugin — nos comandos `/prumo-tenant-audit` e `/prumo-release-gate`, nos agents e em várias skills — mas **nenhum artefacto do repositório define o que cada um verifica**. A definição vive no `WIRE.MTZ.SEC.006`, externo.
 

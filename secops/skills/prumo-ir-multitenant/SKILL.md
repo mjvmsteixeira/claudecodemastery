@@ -38,6 +38,8 @@ curl -s -k -H "X-Vault-Token: $VAULT_TOKEN" \
 
 (O AppRole `wire-ir` tem `update` em `sys/audit-hash/*` per `vault-policies.hcl`.)
 
+> **`CTRL-W-IR-007` é o único da sua família que este repositório conhece — e conhece-o pelo efeito, não pelo enunciado.** Não existe matriz `CTRL-W-IR-*` em lado nenhum do plugin; ver a secção da lacuna em `ctrl-w-inventario.md`. Consequência prática: **nunca afirmar cobertura da família IR** num relatório. Citar o `007` pelo que ele habilita (assinar evidência sem expor o input) é legítimo; dizer "controlos de IR conformes" não é, porque não há contra o que verificar.
+
 A diferença operacional crítica: enquanto um município gere o seu próprio incidente, a Wire pode estar a gerir um incidente que **atinge dezenas em simultâneo**. As decisões têm consequência colectiva e contratual.
 
 ## Critério para activar esta skill
