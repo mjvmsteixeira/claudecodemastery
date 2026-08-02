@@ -119,6 +119,41 @@ fi
 
 O `ps` diz vivo, o `status` diz morto. **Nenhuma das duas leituras isolada revela o problema** — só a contradição entre elas.
 
+#### Antes de depurar o crash: olhar para a divergência
+
+**Um crash loop do daemon é quase sempre sintoma tardio de um índice HNSW divergente.** Verificar o `repair-status` **antes** de qualquer investigação do processo — é a diferença entre 30 segundos e um dia a olhar para stack traces de Rust.
+
+Investigado a 2026-08-02, com cadeia causal fechada:
+
+| | |
+|---|---|
+| Sintoma | 45 `SIGSEGV` em 6 dias, **todos** o daemon, nunca o MCP |
+| Pilha | inteiramente dentro de `chromadb_rust_bindings.abi3.so` — nunca chega a Python |
+| Endereço de falha | `0x88` (26×) e `0x0` (19×) — *null pointer dereference* |
+| Thread | sempre diferente (29–35) → pool de workers, não caminho determinístico |
+| Estado do índice | HNSW divergente do SQLite em 1.358 entradas |
+| Depois do `repair` | **0 crashes** em 13h, +27k drawers ingeridos, 6 jobs `succeeded` (antes: 0) |
+
+A leitura: as bindings lêem o índice, encontram entrada em falta, dereferenciam ponteiro nulo, e o worker que calhar morre. Cada thread apanha um shard diferente — daí a thread variar.
+
+```bash
+# 30 segundos, e pode terminar o diagnóstico aqui.
+mempalace repair-status | grep -iE 'divergence|status:'
+
+# Corroborar: quantos crashes do MemPalace existem de facto?
+# NOTA: escrever o glob com aspas. Um glob nu que não case aborta o comando
+# inteiro em zsh (`no matches found`) e produz um falso "não há crashes" —
+# foi exactamente assim que esta pista se perdeu na primeira tentativa.
+find ~/Library/Logs/DiagnosticReports -name 'python3.12-*.ips' -mtime -7 \
+  -exec grep -l mempalace {} \; 2>/dev/null | wc -l
+```
+
+**Severidade:** divergência acima do limiar **com** crashes recentes → 🚨 CRIT, e a remediação é `mempalace repair rebuild-index --yes`, não depurar o processo.
+
+O inverso também informa: crashes **sem** divergência apontam para outra causa e aí sim justificam investigação do processo.
+
+**Ressalva de honestidade:** um caso, com antes/depois forte. Não prova que toda a divergência cause crash, nem que todo o crash venha de divergência — prova que vale sempre a pena verificar primeiro o mais barato.
+
 #### Recorrência, não ocorrência (Regra de ouro 4)
 
 Um segfault isolado é incidente; segfaults a encurtar intervalo são falha sistemática. Medir sempre:

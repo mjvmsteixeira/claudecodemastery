@@ -2,6 +2,18 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.9.3 — 2026-08-02
+
+**O check 4b.1b passa a apontar para o sinal precoce em vez de só descrever o sintoma.** Um crash loop do daemon é quase sempre consequência tardia de um índice HNSW divergente — verificar o `repair-status` primeiro é a diferença entre 30 segundos e um dia a ler stack traces de Rust.
+
+- **Cadeia causal fechada por investigação** (2026-08-02): 45 `SIGSEGV` em 6 dias, **todos** o daemon e nunca o MCP; pilha inteiramente dentro do `chromadb_rust_bindings.abi3.so`; endereços de falha `0x88` (26×) e `0x0` (19×) — *null pointer dereference*; thread de trabalho sempre diferente (29–35), assinatura de pool e não de caminho determinístico. O índice estava divergente em 1.358 entradas. Depois do `repair`: **0 crashes em 13h**, +27k drawers, e os primeiros jobs `succeeded` de sempre (antes: 0).
+- **Severidade definida**: divergência acima do limiar **com** crashes recentes → CRIT, e a remediação é o rebuild, não depurar o processo. O inverso informa na mesma — crashes **sem** divergência apontam para outra causa e aí sim justificam investigação.
+- **Armadilha de shell documentada no próprio comando.** O glob de contagem de crashes leva aspas: um glob nu que não case aborta o comando inteiro em zsh (`no matches found`) e produz um falso *"não há crashes"*. Foi exactamente assim que esta pista se perdeu na primeira tentativa desta sessão — a conclusão "não há relatórios de diagnóstico" estava errada e havia 45.
+- **Ressalva escrita no texto**: é um caso, com antes/depois forte. Não prova que toda a divergência cause crash nem o inverso — prova que compensa verificar primeiro o mais barato.
+- Ambos os comandos verificados contra o sistema real: divergência 0 hoje, 44 crashes contados com o glob citado, e o glob nu a falhar como descrito.
+
+**Novo `BACKLOG.md`, versionado.** Cinco itens abertos com o *porquê* e o *estado de verificação*, não só o título. Acrescentado à whitelist do `.gitignore` — sem isso ficaria como o `docs/`: com aspecto de guardado e fora do git.
+
 ## v0.9.2 — 2026-08-02
 
 **O `/prumo-upgrade` nunca consultou o `prumo-design`** — reportava "tudo actualizado" sobre três dos quatro plugins do marketplace.
