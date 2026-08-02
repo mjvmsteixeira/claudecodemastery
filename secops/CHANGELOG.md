@@ -2,6 +2,17 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.8.1 — 2026-08-02
+
+**A v0.8.0 corrigiu os corpos e deixou as descrições.** `/prumo-tenant-audit` e `/prumo-release-gate` passaram a apontar para o inventário no passo 4, mas o `description:` do frontmatter continuou a dizer *"aplica CTRL-W-T-001..016"* — e é o frontmatter que aparece na listagem de comandos e que alimenta o dispatch. Quem lê a listagem via exactamente a mesma superfície de antes, o que torna a correcção invisível onde mais se olha.
+
+- **Quatro `description:` reescritos** — `/prumo-tenant-audit`, `/prumo-release-gate`, `prumo-tenant-01`, `prumo-deploy-01`. Citam a contagem e o ficheiro (*"os 16 controlos CTRL-W-T-* definidos em ctrl-w-inventario.md"*) em vez do intervalo nu.
+- **Os dois agents ganham a regra de paragem** que os comandos já tinham: lêem `${CLAUDE_PLUGIN_ROOT}/ctrl-w-inventario.md` antes de aplicar e, se não o conseguirem ler, param. O `prumo-deploy-01` leva a razão explícita — o *tipo* do controlo decide o veredicto; o `prumo-tenant-01` leva a distribuição por severidade.
+
+**Auditoria de proveniência, motivada por dúvida legítima sobre se havia controlos perdidos.** Não havia — mas o que se apurou vale registo. Em `aecabaf` (2026-05-19, era pré-rebranding) existiam **59 identificadores em 6 famílias**: `C` 17, `R` 18, `T` 16, `S` 4, `O` 2, `IR` 1, `P` 1. Os 24 das famílias `C`/`S`/`O`/`P` viviam **apenas dentro das tabelas de mapping ISO 27001 e NIS2**, e eram inventados — davam `OK` a controlos sem matriz, com evidência fabricada (*"LMS completion >95% staff"*, *"Background check pré-contratação"*). Desapareceram no rebranding, e bem. O `docs/wire-defaults-aprovacao/01-catalogo-controlos.md` confirma que as 6 famílias sempre foram **taxonomia proposta**; só `T` e `R` ganharam matriz real.
+
+Consequência para o `mapping-nis2.md`: as medidas de governança sem candidato — (a) políticas de risco, (f) avaliação de eficácia, (g) formação, RH e activos da (i) — **não estão bloqueadas por controlos perdidos**. Houve uma tentativa de os inventar, que foi revertida. Das duas leituras que o ficheiro deixava em aberto, a que fica é a segunda: ou existem no `WIRE.MTZ.SEC.006` e nunca chegaram aqui, ou são lacunas reais — e o repositório não tem como decidir.
+
 ## v0.8.0 — 2026-08-02
 
 **Os comandos citavam controlos que nenhum agente conseguia ler.** `/prumo-tenant-audit` dizia *"aplica CTRL-W-T-001..016"* e `/prumo-release-gate` *"aplica CTRL-W-R-001..018"* — a um agente sem acesso a definição nenhuma. As matrizes existiam, mas dentro de dois `SKILL.md` que os comandos não lêem. Um mandato impossível de cumprir, cujo incumprimento não aparecia no output.

@@ -53,6 +53,10 @@ Duas leituras possíveis, e não se pode escolher entre elas com o que está no 
 
 **A distinção importa e é a próxima pergunta a fazer**, porque a resposta muda se isto é um problema de documentação ou de controlo.
 
+**Uma terceira hipótese foi testada e eliminada a 2026-08-02: não há controlos de governança perdidos no histórico.** Uma versão anterior deste ficheiro (`aecabaf`, 2026-05-19, pré-rebranding) tinha a tabela ISO **preenchida** com identificadores `CTRL-W-C-*`, `CTRL-W-S-*`, `CTRL-W-O-*` e `CTRL-W-P-001` — 24 ao todo — cobrindo precisamente estas medidas. Eram inventados: davam `OK` a controlos sem matriz, com evidência fabricada (*"LMS completion >95% staff"* para formação, *"Background check pré-contratação"* para RH). Não sobreviveram ao rebranding, e não devem ser recuperados.
+
+Isto reforça a regra em vez de a atenuar. A tabela preenchida era **indistinguível de uma conforme** para quem a lesse sem verificar — e é o mesmo modo de falha que a coluna de cobertura vazia existe para evitar. Uma lacuna assumida é recuperável; uma declaração de conformidade sem lastro, entregue a auditor, não é.
+
 A medida (b), tratamento de incidentes, é um caso à parte: é a única bloqueada por uma família cuja **existência é conhecida** (`CTRL-W-IR-007` é citado) mas cuja matriz não está aqui.
 
 Legenda de cobertura: **Directa** · **Parcial** (com plano) · **Lacuna** (descrita, com plano e responsável) · **N/A** (com justificação escrita).
