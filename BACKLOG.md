@@ -53,9 +53,11 @@ Fases:
 
 ---
 
-## B3 · Inventário `CTRL-W-*` — fases 1–3 feitas, falta o que é externo
+## B3 · Inventário `CTRL-W-*` — as 4 fases feitas do lado do repositório; falta a resposta externa
 
-**Estado a 2026-08-02: fases 1, 2 e 3 concluídas.** O que resta depende do `WIRE.MTZ.SEC.006` e não pode ser feito a partir deste repositório.
+**Estado a 2026-08-02: fases 1–4 concluídas na parte executável aqui.** A fase 4 era *identificar* o que falta face ao `WIRE.MTZ.SEC.006` — está escrito, com formato e critério de aceitação, na secção **"O que pedir ao `WIRE.MTZ.SEC.006`"** do `secops/ctrl-w-inventario.md`. O que resta é obter a resposta, e essa não se produz aqui.
+
+**Acção pendente do utilizador:** levar os três pedidos a quem detém o documento. O nº 2 é o mais barato — sim/não seguido de lista — e é o que decide se as lacunas de governança são problema de documentação ou de conformidade.
 
 Feito:
 - **Fase 1** — `secops/ctrl-w-inventario.md`, com as famílias `T` (16) e `R` (18) transcritas das origens e verificadas char a char
@@ -85,7 +87,7 @@ Fases:
 1. Extrair as duas matrizes para uma reference partilhada
 2. Apontar os dois comandos para ela — deixam de correr no vazio
 3. Preencher a coluna de cobertura dos dois mappings do compliance
-4. Identificar o que falta face ao documento externo ← só o utilizador pode fechar
+4. Identificar o que falta face ao documento externo ← **feito**: pedido escrito no inventário, com formato exigido e o que não aceitar como resposta. Fechar depende da resposta externa.
 
 ---
 

@@ -2,6 +2,16 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.8.2 — 2026-08-02
+
+**A lacuna `CTRL-W-IR-*` estava declarada, mas não estava pedida.** Dizer *"não existe matriz IR"* identifica o buraco e deixa o trabalho por fazer no sítio errado: quem lê fica a saber que falta algo, não o que perguntar nem a quem. Nova secção **"O que pedir ao `WIRE.MTZ.SEC.006`"** no `ctrl-w-inventario.md`, com os três pedidos, o formato exigido e o critério de recusa.
+
+- **Pedido 1 — a matriz IR completa.** Por controlo: ID, enunciado, severidade/tipo, fonte de verificação. Inclui o `007`, cujo enunciado o repositório nunca viu — conhece-o pela capacidade que concede.
+- **Pedido 2 — existem famílias de governança?** Sim/não seguido de lista. É o mais barato e o que muda o diagnóstico: decide se as quatro medidas do Art. 21(2) sem candidato — (a), (f), (g), e RH/activos da (i) — são problema de documentação ou lacuna real de conformidade. A pergunta ficou concreta: *tem o documento famílias com prefixo `C`, `S`, `O` ou `P`?*
+- **Pedido 3 — ISO 27001 não é um pedido a este documento.** O bloqueio é de direitos de autor sobre os títulos do Anexo A, e o inventário já dá a coluna de controlos Wire. Quem tiver a norma licenciada preenche sem depender de mais nada.
+- **Critério de recusa explícito.** *"Os controlos de IR são os habituais de NIST 800-61"* não serve, nem uma lista derivada do que as skills fazem — um controlo inferido do comportamento do plugin valida o plugin contra si próprio.
+- **O precedente ficou registado no inventário**, com o exemplo literal. É a razão de a regra existir, e é mais persuasivo que a regra.
+
 ## v0.8.1 — 2026-08-02
 
 **A v0.8.0 corrigiu os corpos e deixou as descrições.** `/prumo-tenant-audit` e `/prumo-release-gate` passaram a apontar para o inventário no passo 4, mas o `description:` do frontmatter continuou a dizer *"aplica CTRL-W-T-001..016"* — e é o frontmatter que aparece na listagem de comandos e que alimenta o dispatch. Quem lê a listagem via exactamente a mesma superfície de antes, o que torna a correcção invisível onde mais se olha.
