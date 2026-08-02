@@ -16,7 +16,7 @@ Skill-trigger que delega para `/prumo-doctor`. Meta-doctor que audita o **setup 
 
 Invocar `/prumo-doctor`. O command:
 
-1. Detecta quais plugins prumo estão instalados (base/secops/devkit) e quais tools auxiliares existem (MemPalace).
+1. Detecta quais plugins prumo estão instalados (base/secops/devkit/design) e quais tools auxiliares existem (MemPalace). O `prumo-design` entra no inventário mas não tem doctor próprio para orquestrar — reportar como presente, não lançar nada.
 2. Lança em paralelo os doctors aplicáveis: `memory-doctor` (skill), `claude-deep-audit` (skill), `/vault-audit` (command), `/prumo-vault-doctor` (command, se secops instalado).
 3. Consolida num relatório único com status verde/amarelo/vermelho por componente e plano de acção priorizado.
 4. Recorda gaps de instalação se algum plugin recomendado estiver em falta.

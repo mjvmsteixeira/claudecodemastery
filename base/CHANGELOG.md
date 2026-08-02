@@ -2,6 +2,16 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.9.2 — 2026-08-02
+
+**O `/prumo-upgrade` nunca consultou o `prumo-design`** — reportava "tudo actualizado" sobre três dos quatro plugins do marketplace.
+
+- **4 sítios no command**: os três loops (versões locais, fetch remoto, diff) e a mensagem final de "os 3 plugins". Um plugin fora dos loops é invisível ao upgrade-check, e o silêncio lê-se como "em dia".
+- **Descrições de frontmatter** do command e da skill diziam `(base/secops/devkit)` — é o texto que o modelo lê para decidir invocar, e descrevia mal o que a ferramenta faz.
+- **Mesma omissão em mais dois sítios**, encontrados por sweep: o `prumo-doctor` enumerava três plugins na detecção (o design entra no inventário mas não tem doctor próprio — reportar presente, não lançar nada), e o `README` do base descrevia o `/prumo-onboard` como cobrindo três, o que ficou factualmente errado quando o onboard passou a cobrir quatro na v0.7.3.
+- Acrescentada nota no command a ligar a lista ao `marketplace.json`: um plugin novo que não seja acrescentado aos loops fica invisível.
+- É a terceira vez que o `prumo-design` fica de fora de uma enumeração escrita antes de ele existir — depois do `/prumo-onboard` (v0.7.3) e dos contadores `X/3`.
+
 ## v0.9.1 — 2026-08-01
 
 **Novo check 4b.1b — "daemon vivo mas surdo", o estado que nenhum mecanismo vigiava.** Encontrado a custar 6h42m de escrita parada, 724 jobs falhados e 0 sucessos, sem um único sinal.
