@@ -1,6 +1,6 @@
 ---
 name: prumo-upgrade
-description: Verifica se há versões mais recentes dos plugins prumo (base/secops/devkit) no marketplace remoto. Compara versão instalada (cache local) com a remota (raw GitHub). Read-only — não auto-instala, emite as linhas /plugin install para colar.
+description: Verifica se há versões mais recentes dos plugins prumo (base/secops/devkit/design) no marketplace remoto. Compara versão instalada (cache local) com a remota (raw GitHub). Read-only — não auto-instala, emite as linhas /plugin install para colar.
 allowed-tools: Bash, Read
 ---
 
@@ -13,7 +13,7 @@ Verifica se há updates dos plugins prumo instalados. Read-only — só reporta.
 ```bash
 echo "=== Versões instaladas localmente ==="
 declare -A LOCAL_VER
-for p in prumo-base prumo-secops prumo-devkit; do
+for p in prumo-base prumo-secops prumo-devkit prumo-design; do
   manifest=$(find ~/.claude/plugins/cache -path "*/${p}/*/.claude-plugin/plugin.json" 2>/dev/null \
              | sort -V | tail -1)
   if [ -n "$manifest" ]; then
@@ -37,7 +37,7 @@ echo "=== Versões remotas (raw GitHub · main) ==="
 declare -A REMOTE_VER
 RAW_BASE="https://raw.githubusercontent.com/mjvmsteixeira/claudecodemastery/main"
 
-for p in base secops devkit; do
+for p in base secops devkit design; do
   plugin_name="prumo-$p"
   url="$RAW_BASE/$p/.claude-plugin/plugin.json"
   remote_v=$(curl -fsSL --max-time 5 "$url" 2>/dev/null | jq -r .version 2>/dev/null)
@@ -51,7 +51,9 @@ for p in base secops devkit; do
 done
 ```
 
-Se nenhum dos três responder, é provável problema de rede (offline, VPN bloqueando github raw) — abortar com mensagem clara em vez de assumir tudo desactualizado.
+Se nenhum dos quatro responder, é provável problema de rede (offline, VPN bloqueando github raw) — abortar com mensagem clara em vez de assumir tudo desactualizado.
+
+**Manter esta lista alinhada com o `marketplace.json`.** O `prumo-design` esteve fora dos três loops desde que foi criado — o command reportava "tudo actualizado" sem nunca o ter consultado. Um plugin novo que não seja acrescentado aqui fica invisível ao upgrade-check, e o silêncio lê-se como "em dia".
 
 ## Passo 3 — Comparar e reportar
 
@@ -62,7 +64,7 @@ echo
 echo "=== Diff ==="
 UPDATES_AVAILABLE=()
 
-for p in prumo-base prumo-secops prumo-devkit; do
+for p in prumo-base prumo-secops prumo-devkit prumo-design; do
   local_v="${LOCAL_VER[$p]}"
   remote_v="${REMOTE_VER[$p]}"
 
@@ -112,7 +114,7 @@ Caso tudo esteja up to date:
 
 ```
 === Tudo actualizado ===
-Os 3 plugins prumo (base, secops, devkit) estão na versão mais recente do marketplace prumo.
+Os 4 plugins prumo (base, secops, devkit, design) estão na versão mais recente do marketplace prumo.
 Próxima sanity check: /prumo-doctor
 ```
 

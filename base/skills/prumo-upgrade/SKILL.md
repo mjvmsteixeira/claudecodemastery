@@ -1,6 +1,6 @@
 ---
 name: prumo-upgrade
-description: Verifica versões dos plugins prumo (base/secops/devkit) — compara versão instalada com a remota no marketplace prumo. Dispara em "há updates dos plugins prumo?", "actualiza os plugins", "prumo upgrade", "que versão tenho?", "preciso de actualizar?". Read-only — não auto-instala, emite linhas /plugin install para colar.
+description: Verifica versões dos plugins prumo (base/secops/devkit/design) — compara versão instalada com a remota no marketplace prumo. Dispara em "há updates dos plugins prumo?", "actualiza os plugins", "prumo upgrade", "que versão tenho?", "preciso de actualizar?". Read-only — não auto-instala, emite linhas /plugin install para colar.
 ---
 
 # prumo-upgrade
