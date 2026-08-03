@@ -8,7 +8,15 @@ Aberto a 2026-08-02.
 
 ---
 
-## B1 · Identidade do embedder do MemPalace — decisão pendente
+## B1 · Identidade do embedder do MemPalace — **FECHADO** (2026-08-03)
+
+**Resolvido com `mempalace palace set-embedder --model minilm`.** Identidade gravada em `palace/mempalace_embedder.json` (`minilm`, dim 384), coerente com o `embedding_model` do `config.json`. Verificado pelo comportamento: a operação que antes emitia o `EmbedderIdentityUnknownWarning` para as duas colecções — `repair --dry-run` — deixou de emitir qualquer aviso.
+
+**A premissa abaixo estava errada e é o que vale a pena reter.** O item dizia *"fixar é fácil de fazer e difícil de desfazer"* e tratava fixar e migrar como caminhos exclusivos. Não são: o `--help` do `set-embedder` é explícito em que **regista identidade, não converte vectores** (*"Records identity on the palace only; does not change the configured model"*). Registar é etiquetagem — não fecha a porta a migrar para `embeddinggemma`, porque o custo da migração é o re-embed, igual com ou sem etiqueta. A decisão cara continua disponível; o que se fechou por custo zero foi o risco de um upgrade trocar o modelo em silêncio.
+
+Lição: **ler o `--help` antes de classificar uma acção como irreversível.** Um item ficou meses em "decisão pendente" por uma premissa que um comando de dez segundos desmentia.
+
+### Contexto original (mantido para referência)
 
 **Estado:** decisão do utilizador, não tarefa. Bloqueado por escolha, não por esforço.
 
@@ -29,27 +37,42 @@ Dois caminhos, ambos legítimos:
 
 ---
 
-## B2 · Recuperação de jobs falhados na fila do daemon
+## B2 · A fila do daemon falha ~79 jobs por dia — causa, não recuperação
 
-**Estado:** viabilidade parcialmente verificada; a fase 3 pode invalidar o resto.
+**Reescrito a 2026-08-03. A versão anterior descrevia um incidente que não existe.**
 
-Após o daemon ficar encravado (ver `base/CHANGELOG.md` v0.9.1), ~694 jobs ficaram em `state='failed'`. A maioria são `diary_write` — conteúdo único por sessão que **ninguém re-submete**, ao contrário de um `mine`.
+Dizia *"após o daemon ficar encravado, ~694 jobs ficaram em `failed`"* — como se fosse um lote congelado de um evento único, e a tarefa fosse recuperá-lo. Medido contra a queue real (`~/.mempalace/daemon/<id>/queue.sqlite3`), são **710 falhados contra 55 bem-sucedidos**, distribuídos por **9 dias consecutivos**, de 26/07 a 03/08. Não é um lote: é uma sangria, e continua a correr.
 
-Verificado:
-- `payload_json` está **íntegro e legível** — os dados não se perderam
-- não existe verbo de recuperação na CLI: `mempalace daemon` tem apenas `jobs|start|status|stop|wait`, e `jobs` só aceita `--limit`
-- existe `UNIQUE INDEX ... WHERE state IN ('queued', …)` — repor para `queued` **pode colidir com o dedupe**
+**Falhas por dia:** 46 · 104 · 89 · 86 · 179 · 50 · 59 · 61 · 30. Nenhum dia a zero.
 
-Fases:
+### As três causas, medidas
 
-1. Exportar os payloads para ficheiro (read-only, serve de backup)
-2. Testar um job numa **cópia** da queue
-3. Perceber o comportamento do dedupe e se o daemon consome o job reposto ← **decide se o resto vale a pena**
-4. Aplicar em lotes, com o daemon a drenar
+| Falhas | % | Causa | Leitura |
+|---|---|---|---|
+| **542** | 76% | `palace is held by PID <n> (mempalace-mcp)` | **uma sessão Claude aberta bloqueia a escrita do daemon** |
+| 85 | 12% | `Failed to apply logs to the hnsw segment writer` · compaction | a divergência do índice, do lado da escrita |
+| 83 | 12% | `MaxAttemptsExceeded` | consequência das duas acima, não causa própria |
 
-**Risco: o mais alto dos itens deste backlog.** Escreve na base de dados interna do MemPalace, sem caminho suportado pela ferramenta.
+Por tipo: **620 `diary_write`** e 90 `mine`. Os `diary_write` são conteúdo único por sessão que ninguém re-submete; um `mine` perdido recupera-se na corrida seguinte.
 
-**Alternativa mais barata:** exportar os payloads e arquivá-los fora, sem re-ingerir. Perde-se a pesquisa sobre eles; ganha-se não mexer na fila.
+### O que isto significa
+
+**Três quartos das falhas são o desenho a colidir com o padrão de uso.** O daemon precisa do palace sem holders; o servidor MCP de cada sessão Claude aberta é um holder. Com sessões abertas quase todo o dia, a fila falha quase todo o dia. É a mesma guarda que bloqueou a consolidação dos wings e o `repair` a 02/08 — e a guarda está certa; o que falta é o daemon saber esperar em vez de falhar.
+
+**Recuperar os payloads trata o sintoma.** Mesmo que se re-enfileirassem os 710, amanhã há mais ~79. A tarefa útil é a causa, não a recuperação.
+
+### O que fazer, por ordem
+
+1. **Apurar se o `held by PID` devia ser falha ou espera.** Um job que falha porque o recurso está ocupado devia voltar à fila, não morrer — provavelmente é comportamento a reportar upstream, não a corrigir aqui. Confirmar contra o changelog da versão instalada (3.6.0) antes de assumir que é bug.
+2. **Reduzir a janela de bloqueio** — sessões Claude fechadas quando não estão em uso, ou o daemon a correr em janela onde não há sessões.
+3. **A divergência do HNSW** (12%) resolve-se com o `repair` já documentado; ver [[hnsw-diverge-com-mining-normal]] na memória — recorre com mining activo e o threshold de 4 é apertado de mais.
+4. **Só então** decidir se vale re-enfileirar os `diary_write` históricos. Continua sem verbo de CLI (`mempalace daemon` tem apenas `jobs|start|status|stop|wait`) e o `UNIQUE INDEX ... WHERE state IN ('queued', …)` pode colidir com o dedupe. Escrever na queue interna continua a ser o item de maior risco deste backlog.
+
+### Verificado e ainda válido
+
+- `payload_json` **íntegro e legível** — nada se perdeu, os dados estão lá
+- não existe verbo de recuperação na CLI
+- **alternativa mais barata**, se se decidir não mexer na fila: exportar os payloads e arquivá-los fora. Perde-se a pesquisa sobre eles; ganha-se não escrever na base de dados interna.
 
 ---
 
@@ -58,6 +81,8 @@ Fases:
 **Estado a 2026-08-02: fases 1–4 concluídas na parte executável aqui.** A fase 4 era *identificar* o que falta face ao `WIRE.MTZ.SEC.006` — está escrito, com formato e critério de aceitação, na secção **"O que pedir ao `WIRE.MTZ.SEC.006`"** do `secops/ctrl-w-inventario.md`. O que resta é obter a resposta, e essa não se produz aqui.
 
 **Acção pendente do utilizador:** levar os três pedidos a quem detém o documento. O nº 2 é o mais barato — sim/não seguido de lista — e é o que decide se as lacunas de governança são problema de documentação ou de conformidade.
+
+**Depende do B6.** O `WIRE.MTZ.SEC.006` e o prefixo `CTRL-W-` são identidade de uma organização concreta. Se o B6 parametrizar a organização, este item deixa de ser *"obter o documento da Wire"* e passa a ser *"cada instalação declara o seu registo de controlos"* — a lacuna `IR` continua a existir nesta instalação, mas deixa de ser um defeito do plugin e passa a ser configuração por preencher. **Fazer o B6 primeiro**, ou transcreve-se uma matriz para um sítio que vai mudar de forma.
 
 Feito:
 - **Fase 1** — `secops/ctrl-w-inventario.md`, com as famílias `T` (16) e `R` (18) transcritas das origens e verificadas char a char
@@ -127,3 +152,53 @@ Não repetir a investigação — está toda no `CHANGELOG.md`:
 - `--scope` do `memory-doctor` (`base` v0.9.0)
 - Check 4b.1b, daemon vivo mas surdo (`base` v0.9.1)
 - `prumo-design` no `/prumo-upgrade` (`base` v0.9.2)
+
+---
+
+## B6 · Genericizar o `prumo-secops` — a organização passa a ser configuração
+
+**Estado: pedido do dono a 2026-08-03. Âmbito medido, desenho por decidir.**
+
+O plugin foi escrito contra uma organização concreta e ficou com o nome dela na estrutura, não só nos exemplos. Isso impede aplicá-lo a outro cliente sem um find-and-replace, que é exactamente a operação que não se deve fazer a olho num plugin com hooks fail-closed.
+
+### Âmbito medido
+
+**876 ocorrências de `wire` em 70 ficheiros.** Não são todas a mesma coisa, e a distinção decide o desenho:
+
+| Ocorrências | O que é | Tratamento |
+|---|---|---|
+| 217 | AppRoles e policies `wire-*` | **parametrizar, nunca renomear** — ver a nota abaixo |
+| 222 | prefixo `CTRL-W-` nos identificadores de controlo | parametrizar o prefixo |
+| 119 | nomes de produto (`wirePAPER`, `wireDESK`, …) | inventário por configuração |
+| 32 | referências documentais `WIRE.XXX.YYY.NNN` | ponteiro configurável para o registo da organização |
+| 18 | hosts `*.wire.internal` | já há precedente: `PRUMO_WAZUH_HOST` |
+
+Distribuição: `secops` 715 · `base` 127 · `devkit` 26 · `design` 6 · `scripts` 2.
+
+### A distinção que não se pode perder
+
+**Os `wire-*` no Vault são objectos reais de produção.** Renomeá-los no plugin sem os renomear no Vault parte o deployment em silêncio: o hook pede um AppRole que não existe, e em `prod` isso é fail-closed. O objectivo não é apagar o nome — é **deixar de o ter escrito**.
+
+O desenho que satisfaz as duas coisas é parametrização, não substituição: um `PRUMO_ORG_PREFIX` (valor `wire` nesta instalação) e um inventário de produtos em configuração. O plugin fica genérico, a instalação actual continua a apontar para os mesmos objectos, e ninguém tem de tocar no Vault.
+
+Há precedente no próprio plugin: `PRUMO_RAILS_DEPLOY_BASE`, `PRUMO_WAZUH_HOST` e `FORTIGATE_HOST` já são infra parametrizada. Isto é estender o padrão à identidade da organização.
+
+### Conflito a resolver antes de começar
+
+O `CLAUDE.md` deste repositório diz hoje, na secção "Dois CLAUDE.md de runtime":
+
+> os tokens `wire*` aí são domínio real, **nunca** renomear para prumo
+
+Essa regra existe para impedir um rename cego — e continua certa nesse sentido. Mas como está escrita, proíbe também a parametrização. **Tem de ser reescrita como parte deste item**, para distinguir "não renomear objectos reais" de "não deixar o nome hardcoded". Enquanto não for, qualquer sessão futura vai ler a regra e travar o trabalho.
+
+### Fases propostas
+
+1. **Decidir o mecanismo** — variáveis de ambiente, um ficheiro `org.json` no plugin, ou ambos. Decide tudo o resto.
+2. **Reescrever a regra no `CLAUDE.md`** antes de mexer em código, ou o trabalho é revertido por quem o ler.
+3. **Parametrizar por camada**, do menos arriscado ao mais: docs → nomes de produto → prefixo `CTRL-W-` → hosts → **AppRoles e policies por último**, porque é onde um erro é fail-closed em produção.
+4. **Check no `validate.sh`** que impeça regressão — nenhum `wire` literal em conteúdo de plugin fora do ficheiro de configuração. Mesmo padrão do check `1b` do B5.
+5. **Verificar contra a instalação real** — os hooks têm de continuar a resolver os mesmos AppRoles depois da parametrização. Um `/prumo-vault-doctor` verde antes e depois.
+
+**Risco:** médio-alto e concentrado na fase 3. O `secops` tem 8 hooks, e os de Vault falham fechados: uma variável mal resolvida não degrada, bloqueia. Fazer com o modo em `dev` e só depois validar em `prod`.
+
+**Não fazer com sed sobre o repositório inteiro.** 876 ocorrências em 70 ficheiros, com quatro naturezas diferentes misturadas — um replace global acerta nos exemplos e parte os objectos reais.
