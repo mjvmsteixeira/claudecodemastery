@@ -73,7 +73,7 @@ VERDICT=$(curl -sf -m 15 "${OLLAMA_HOST}/api/generate" -d "$(jq -n --arg model "
 Produz painel ASCII compacto:
 
 ```
-== Wire · Ollama Doctor · 2026-05-13 22:55 ==
+== <ORG> · Ollama Doctor · 2026-05-13 22:55 ==
 
 Endpoint:           http://127.0.0.1:11434       [✓ HTTP 200]
 Modelo configurado: qwen3-coder:30b              [✓ pulled · 19.4 GB]

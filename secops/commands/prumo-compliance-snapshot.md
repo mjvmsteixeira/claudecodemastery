@@ -1,17 +1,17 @@
 ---
 name: prumo-compliance-snapshot
-description: Snapshot trimestral de conformidade Wire cross-framework (NIS2, RGPD, ISO 27001/27017/27018, ENS, AI Act). KPIs, lacunas, próximas auditorias.
+description: Snapshot trimestral de conformidade <ORG> cross-framework (NIS2, RGPD, ISO 27001/27017/27018, ENS, AI Act). KPIs, lacunas, próximas auditorias.
 ---
 
-Snapshot de conformidade Wire para o trimestre actual.
+Snapshot de conformidade <ORG> para o trimestre actual.
 
 Activa a skill `prumo-compliance-provider` e o subagent `prumo-compliance-01`.
 
 Sequência:
 1. Determina trimestre actual (YYYY-Qn).
 2. Para cada framework abaixo, calcula cobertura % com base em CTRL-W-* mapeados:
-   - NIS2 / DL 20/2025 (Wire fornecedor crítico)
-   - RGPD Art. 28 (Wire subcontratante)
+   - NIS2 / DL 20/2025 (<ORG> fornecedor crítico)
+   - RGPD Art. 28 (<ORG> subcontratante)
    - ISO/IEC 27001:2022
    - ISO/IEC 27017:2015
    - ISO/IEC 27018:2019

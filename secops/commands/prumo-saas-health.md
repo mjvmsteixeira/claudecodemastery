@@ -1,18 +1,18 @@
 ---
 name: prumo-saas-health
-description: Painel ASCII de saúde da plataforma Wire por produto wire*, com SLA 24h, p95, error rate, alertas P1, correlação Wazuh ↔ Fortigate, estado da monitorização Zabbix.
+description: Painel ASCII de saúde da a plataforma por produto, com SLA 24h, p95, error rate, alertas P1, correlação Wazuh ↔ Fortigate, estado da monitorização Zabbix.
 ---
 
-Produz o painel `/prumo-saas-health` actual da plataforma Wire.
+Produz o painel `/prumo-saas-health` actual da a plataforma.
 
-Usa o subagent `prumo-monitor-01` para puxar contexto de **Wazuh** (SIEM), **Fortigate** (perímetro) e **Zabbix** (monitorização activa) em modo read-only (AppRole `wire-monitor`).
+Usa o subagent `prumo-monitor-01` para puxar contexto de **Wazuh** (SIEM), **Fortigate** (perímetro) e **Zabbix** (monitorização activa) em modo read-only (AppRole `<prefixo>-monitor`).
 
 A skill `prumo-saas-monitoring` define o formato exacto do painel. Não improvises layout — segue o template.
 
 Estrutura obrigatória:
 
 1. Cabeçalho com timestamp.
-2. Tabela por produto wire* (wirePAPER, wireDESK, wireSTUDIO, wireCITYapp, wireVOICE, wireDOCS, wireMEET, wireFORMS): Up%(24h), p95 ms, Err%(24h), Alertas P1, Notas (versão Rails + pool).
+2. Tabela por produto (<produto>, <produto>, <produto>, <produto>, <produto>, <produto>, <produto>, <produto>): Up%(24h), p95 ms, Err%(24h), Alertas P1, Notas (versão Rails + pool).
 3. Linha de infra: CPU médio, mem, disco crítico.
 4. Linha **Fortigate**: estado HA (active/passive), hits IPS últimas 24h, WAF blocks.
 5. Linha **Vault**: estado HA, leader, lag audit.

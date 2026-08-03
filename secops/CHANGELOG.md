@@ -39,7 +39,19 @@ A transformação foi por camadas, do mais específico para o mais genérico: re
 
 O segundo é que **os templates já eram templates**: usavam `<ID>`, `<X>`, `<data>`. Só o prefixo é que estava literal, escondido dentro do placeholder — `wire-<ID>`, `wire<X>`, `[LISTA_WIRE_PRODUCTS]`. Passaram a `<prefixo>-<ID>` e `<produto>`, que é o que já deviam ser.
 
-Ratchet: **567 → 368**. O que resta concentra-se em comandos (91), skills (83), agents (56), `vault-policies.hcl` (33) e `base` (58) — e as policies são, por desenho, a última camada.
+Ratchet: **567 → 368**.
+
+### Fase 3d — agents, comandos e skills
+
+**Agents 56 → 0, skills 83 → 0, comandos 54 → 0** (excluído o bootstrap). O que aqui aparece são sobretudo instruções operacionais: AppRoles que o subagente usa, units systemd que reinicia, paths de log que lê.
+
+Duas classes precisaram de tratamento distinto do resto. As **units systemd e paths de servidor** — `puma-wirepaper.service`, `/var/log/wire-*/` — são objectos reais nas máquinas, mesma natureza dos AppRoles: passaram a `puma-<produto>.service` e `/var/log/<prefixo>-*/`. E os **exemplos de SQL** no `prumo-tenant-isolation` referiam uma base e uma tabela concretas (`wire_main`, `wirepaper_docs`), que num exemplo de query cross-tenant seriam copiadas tal e qual.
+
+A substituição automática deixou português desajeitado em três sítios que corrigi à mão: `Produto: <os produtos do inventário>` dentro de um placeholder de output, `canónico ainda em definição na <ORG> SaaS`, e `autorização DPO <ORG>`. Um replace global acerta no literal e falha na frase.
+
+**O `/prumo-secops-bootstrap` (37) continua por migrar, de propósito** — provisiona AppRoles e policies reais, e é a última camada por desenho.
+
+Ratchet: **368 → 161**. Restam o bootstrap (37), o `vault-policies.hcl` (33), o `base` (58) e resíduos.
 
 ## v0.8.2 — 2026-08-02
 

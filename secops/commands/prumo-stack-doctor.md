@@ -8,7 +8,7 @@ Doctor "umbrella" que corre os diagnósticos individuais em sequência e produz 
 ## Quando usar
 
 - **Manhã, antes de operar** — uma única invocação confirma que tudo está pronto.
-- **Após mudança de rede / VPN reconnect** — valida que endpoints internos Wire são alcançáveis.
+- **Após mudança de rede / VPN reconnect** — valida que endpoints internos <ORG> são alcançáveis.
 - **Antes de exercício IR ou release-gate** — preciso de garantir que Wazuh, Fortigate e Vault estão todos OK.
 - **Pós-update do plugin** (`/plugin marketplace update`) — verifica que ambiente não regrediu.
 
@@ -75,7 +75,7 @@ fi
 ### Output estruturado
 
 ```
-== Wire · STACK DOCTOR · 2026-05-13 23:05 ==
+== <ORG> · STACK DOCTOR · 2026-05-13 23:05 ==
 
 [1] Vault             HEALTHY    broker OK · token TTL 28m · 7 AppRoles
 [2] Ollama            HEALTHY    qwen3-coder · smoke 1.8s · fail-closed OK
@@ -88,7 +88,7 @@ Verdicto global: DEGRADED (1 WARN, 5 OK)
 
 [!] Fortigate inacessível → correlação Wazuh↔Fortigate fica cega.
     A skill 'prumo-saas-monitoring' opera mas só com 2 das 3 fontes.
-    Acção: verificar VPN Wire, firewall rules, ou variável FORTIGATE_HOST.
+    Acção: verificar VPN <ORG>, firewall rules, ou variável FORTIGATE_HOST.
 
 Critical path validation:
   - Operação read-only (saas-health, tenant-audit):     ✓ pode operar
@@ -109,7 +109,7 @@ Próximos passos:
 | **HEALTHY** | Todos OK ou só INFO | Operar livremente |
 | **DEGRADED** | 1+ WARN mas Vault+Ollama HEALTHY | Operar com cautela, evitar features afectadas |
 | **CRITICAL** | Vault BROKEN OR Ollama BROKEN | Não operar · Reparar primeiro |
-| **OFFLINE** | Sem rede Wire | Modo formação local · só comandos read-only que não dependem de SIEM |
+| **OFFLINE** | Sem rede <ORG> | Modo formação local · só comandos read-only que não dependem de SIEM |
 
 ## Decisão automática
 

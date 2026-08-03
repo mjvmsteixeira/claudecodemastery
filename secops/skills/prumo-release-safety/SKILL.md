@@ -1,11 +1,11 @@
 ---
 name: prumo-release-safety
-description: Gate de segurança e qualidade antes de qualquer deployment em produção dos produtos SaaS Wire (wirePAPER, wireDESK, wireSTUDIO, wireCITYapp, wireVOICE, wireDOCS, wireMEET, wireFORMS, wireRECRUIT, wireCONNECT). Usa esta skill sempre que se pede um "release gate", validação pré-deploy, checklist de release, decisão go/no-go, revisão de impacto multi-tenant de uma alteração, ou avaliação de risco de uma migração de DB/schema. Dispara em "/prumo-release-gate", "vamos fazer deploy", "release v2.3 está pronto?", "validar release", "go/no-go", "migration safety", "rollback plan", "canary".
+description: Gate de segurança e qualidade antes de qualquer deployment em produção dos produtos SaaS (<produto>, <produto>, <produto>, <produto>, <produto>, <produto>, <produto>, <produto>, <produto>, <produto>). Usa esta skill sempre que se pede um "release gate", validação pré-deploy, checklist de release, decisão go/no-go, revisão de impacto multi-tenant de uma alteração, ou avaliação de risco de uma migração de DB/schema. Dispara em "/prumo-release-gate", "vamos fazer deploy", "release v2.3 está pronto?", "validar release", "go/no-go", "migration safety", "rollback plan", "canary".
 ---
 
-# Wire · Release Safety Gate
+# Release Safety Gate
 
-A Wire hospeda dados de >170 municípios — um deployment defeituoso degrada simultaneamente todos. Esta skill formaliza o gate que antecede qualquer entrega em produção.
+A organização hospeda dados de >170 municípios — um deployment defeituoso degrada simultaneamente todos. Esta skill formaliza o gate que antecede qualquer entrega em produção.
 
 ## Quando aplicar
 
@@ -70,7 +70,7 @@ Bloqueante = se falha, NO-GO automático. Avaliativo = depende do contexto.
 
    ```
    Release: <id> @ <SHA>
-   Produto: <wire*>
+   Produto: <os produtos do inventário>
    Tipo: <feature | bugfix | hotfix | migration>
    
    Checklist: X/Y bloqueantes OK, X/Y avaliativos OK
@@ -109,4 +109,4 @@ A excepção é o `canary-plan-template.md`, que fixa **quais os tenants represe
 - `references/canary-plan-template.md` — template para definir tenants representativos.
 - `references/rollback-template.md` — template de plano de rollback.
 - `references/changelog-template.md` — formato de changelog para clientes.
-- WIRE.PRC.IRT.005 — entrada para incidentes pós-release.
+- <ORG>.PRC.IRT.005 — entrada para incidentes pós-release.
