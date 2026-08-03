@@ -1,6 +1,6 @@
 ---
 name: prumo-compliance-snapshot
-description: Snapshot trimestral de conformidade <ORG> cross-framework (NIS2, RGPD, ISO 27001/27017/27018, ENS, AI Act). KPIs, lacunas, próximas auditorias.
+description: Snapshot trimestral de conformidade cross-framework (NIS2, RGPD, ISO 27001/27017/27018, ENS, AI Act). KPIs, lacunas, próximas auditorias.
 ---
 
 Snapshot de conformidade <ORG> para o trimestre actual.

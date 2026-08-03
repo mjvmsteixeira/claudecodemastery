@@ -2,6 +2,15 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.9.3 — 2026-08-03
+
+**Segunda passagem às descrições, depois de as ler outra vez no reload.** A v0.9.2 corrigiu a gramática e deixou dois defeitos de sentido que só se vêem com o texto à frente:
+
+- `prumo-tenant-isolation` dizia *"(os produtos do inventário e restantes produtos do inventário)"* — a minha própria correcção anterior criou a redundância, ao substituir dois fragmentos diferentes pela mesma frase.
+- `<ORG>` deixado em prosa corrida — *"conformidade `<ORG>` cross-framework"*, *"municípios clientes `<ORG>`"*. Um placeholder que nunca é substituído por nada só acrescenta ruído; a frase lê-se melhor sem ele.
+
+**A lição operacional:** estas descrições passaram por `validate.sh` e por `smoke.sh` sem uma queixa nas três versões. Nenhum dos dois lê texto — validam estrutura e presença. A única verificação que as apanhou foi **ler a listagem depois do `/reload-plugins`**, que é o mesmo que o modelo lê.
+
 ## v0.9.2 — 2026-08-03
 
 **As substituições da fase 3 partiram frases, e as piores eram nas `description:`.** Só se viram depois do `/reload-plugins`, quando a listagem de skills as mostrou como o modelo as lê.
