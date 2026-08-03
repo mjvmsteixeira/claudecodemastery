@@ -22,7 +22,7 @@ Read-only é uma convenção de role, reforçada por pattern-matching na hook ch
 
 ## Foco operacional
 
-- Saúde por produto (<produto>, <produto>, <produto>, <produto>, <produto>, <produto>, <produto>, <produto>, <produto>, <produto>).
+- Saúde por produto (inventário em `~/.prumo/org.json`).
 - Saúde por camada (perímetro Fortigate / balancer / pools Rails / Vault / DBs PostgreSQL).
 - Identificação de blast radius multi-tenant.
 - Triagem de alerta com priorização P1–P4.

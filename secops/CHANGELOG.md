@@ -2,6 +2,16 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.9.2 — 2026-08-03
+
+**As substituições da fase 3 partiram frases, e as piores eram nas `description:`.** Só se viram depois do `/reload-plugins`, quando a listagem de skills as mostrou como o modelo as lê.
+
+- `da a plataforma` e `na a plataforma` — o replace de `da Wire` → `da organização` cruzou-se com `plataforma Wire` → `a plataforma`.
+- **Listas de dez `<produto>, <produto>, <produto>…`** no `prumo-release-safety` e no `/prumo-saas-health`. Um placeholder repetido dez vezes não é um inventário, é ruído que ocupa a descrição inteira sem dizer nada. Passaram a apontar o `~/.prumo/org.json`.
+- **`$(prumo_org domain)` dentro de uma `description:`** do `/prumo-vault-doctor`. Uma description é texto — não há shell a executá-la, portanto aquilo aparecia literalmente ao modelo. Ficou `<domínio>`.
+
+**Porque é que isto importa mais do que parece:** a `description` do frontmatter é a superfície de *dispatch*. Não é documentação — é o que decide se a skill certa é invocada. Uma descrição partida degrada a selecção sem que nada falhe, que é o modo de falha recorrente deste repositório.
+
 ## v0.9.1 — 2026-08-03
 
 **Cabeçalhos de hooks, campo CEF e referências documentais migrados.** Os cinco hooks diziam `# Wire SecOps ·` no cabeçalho e o `post-tool-cef-wazuh.sh` emitia `CEF:0|Wire|SecOps-Agents` como *vendor* — que é um campo que chega ao SIEM e identifica a origem do evento.

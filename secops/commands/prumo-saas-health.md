@@ -1,9 +1,9 @@
 ---
 name: prumo-saas-health
-description: Painel ASCII de saúde da a plataforma por produto, com SLA 24h, p95, error rate, alertas P1, correlação Wazuh ↔ Fortigate, estado da monitorização Zabbix.
+description: Painel ASCII de saúde da plataforma por produto, com SLA 24h, p95, error rate, alertas P1, correlação Wazuh ↔ Fortigate, estado da monitorização Zabbix.
 ---
 
-Produz o painel `/prumo-saas-health` actual da a plataforma.
+Produz o painel `/prumo-saas-health` actual da plataforma.
 
 Usa o subagent `prumo-monitor-01` para puxar contexto de **Wazuh** (SIEM), **Fortigate** (perímetro) e **Zabbix** (monitorização activa) em modo read-only (AppRole `<prefixo>-monitor`).
 
@@ -12,7 +12,7 @@ A skill `prumo-saas-monitoring` define o formato exacto do painel. Não improvis
 Estrutura obrigatória:
 
 1. Cabeçalho com timestamp.
-2. Tabela por produto (<produto>, <produto>, <produto>, <produto>, <produto>, <produto>, <produto>, <produto>): Up%(24h), p95 ms, Err%(24h), Alertas P1, Notas (versão Rails + pool).
+2. Tabela por produto (inventário em `~/.prumo/org.json`): Up%(24h), p95 ms, Err%(24h), Alertas P1, Notas (versão Rails + pool).
 3. Linha de infra: CPU médio, mem, disco crítico.
 4. Linha **Fortigate**: estado HA (active/passive), hits IPS últimas 24h, WAF blocks.
 5. Linha **Vault**: estado HA, leader, lag audit.
