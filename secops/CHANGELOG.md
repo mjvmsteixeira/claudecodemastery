@@ -19,6 +19,16 @@ Três cenários verificados: base antigo em cache (resolve na mesma), sem `org.j
 
 **Requer `prumo-base` >= 0.11.0** para o caminho nativo; abaixo disso corre em fallback com aviso.
 
+### Fase 3b — a prosa, começando pelo que o agente lê primeiro
+
+**`secops/CLAUDE.md` a zero ocorrências (eram 45).** É o contexto de runtime que toda a sessão secops carrega; enquanto enumerasse produtos, AppRoles e endpoints de uma organização concreta, tudo a jusante herdava. Passou a abrir com uma instrução explícita — *lê `~/.prumo/org.json` antes de nomear seja o que for* — e a descrever a **forma** do ambiente, com `<prefixo>` e `<domínio>` a resolver por `prumo_org`. A tabela de produtos com versões de Rails saiu por inteiro: são metadados operacionais que pertencem ao inventário Ansible e ficariam desactualizados à primeira migração.
+
+**`prumo-saas-monitoring/SKILL.md` a zero (eram 46).** Aqui o achado foi outro: metade das ocorrências estavam em **exemplos de output** — um painel de saúde com nomes de produto reais, hosts de amostra, nomes de template. É a forma mais insidiosa, porque o modelo aprende por imitação: um exemplo com `wirePAPER` produz `wirePAPER` em qualquer organização, independentemente do que a configuração diga. Passaram a `<produto-N>` e `<host-rails-XX>`, com o alinhamento das colunas refeito — um painel ASCII desalinhado ensina formatação errada com a mesma eficácia.
+
+**O `/prumo-secops-bootstrap` ficou deliberadamente por migrar.** Tem 31 ocorrências e é onde a parametrização teria mais consequência funcional — mas provisiona os AppRoles e policies reais no Vault, e é precisamente a camada que o B6 manda deixar para último. Migrá-la agora seria fazer o contrário do que o item diz.
+
+Ratchet: **661 → 567**.
+
 ## v0.8.2 — 2026-08-02
 
 **A lacuna `CTRL-W-IR-*` estava declarada, mas não estava pedida.** Dizer *"não existe matriz IR"* identifica o buraco e deixa o trabalho por fazer no sítio errado: quem lê fica a saber que falta algo, não o que perguntar nem a quem. Nova secção **"O que pedir ao `WIRE.MTZ.SEC.006`"** no `ctrl-w-inventario.md`, com os três pedidos, o formato exigido e o critério de recusa.

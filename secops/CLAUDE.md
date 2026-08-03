@@ -1,6 +1,22 @@
-# Wire · SecOps AI
+# SecOps AI · plataforma SaaS multi-tenant
 
-Plataforma SaaS multi-tenant para 170+ autarquias. Servidores nativos (VMs) com Ruby on Rails em várias versões. Vault broker. Operação 24x7. Zero secrets em ficheiros.
+Plataforma SaaS multi-tenant. Servidores nativos (VMs) com Ruby on Rails em várias versões. Vault broker. Operação 24x7. Zero secrets em ficheiros.
+
+## A identidade da organização é configuração
+
+**Lê `~/.prumo/org.json` antes de nomear seja o que for.** Este ficheiro descreve a *forma* do ambiente; os nomes concretos — prefixo dos AppRoles, produtos, domínio, referências documentais — são da instalação, não do plugin.
+
+```bash
+jq . ~/.prumo/org.json          # ou, em bash com a lib carregada:
+prumo_org prefix                 # prefixo dos AppRoles e policies
+prumo_org domain                 # domínio interno
+prumo_org products               # inventário de produtos, um por linha
+prumo_org control_registry       # referência do registo de controlos
+```
+
+Se o ficheiro não existir, **diz que falta em vez de inventar nomes** — um relatório que cite produtos ou AppRoles que não existem naquela organização é pior do que um que pare a pedir configuração. Template em `base/org.example.json`.
+
+Ao longo deste documento, `<prefixo>` significa `prumo_org prefix` e `<domínio>` significa `prumo_org domain`.
 
 ## Topologia
 - **Code** (CLI): operacional. 6 subagentes especializados. Hooks aplicam defense-in-depth e audit-logging sobre N1/N2/N3 (ver "Modelo de confiança / limitações" abaixo — não é um bloqueio técnico inquebrável).
@@ -9,14 +25,14 @@ Plataforma SaaS multi-tenant para 170+ autarquias. Servidores nativos (VMs) com 
 - **Wazuh**: SIEM mestre. Recebe CEF/syslog de Fortigate, logs lograge de Rails, audit Vault, OTel.
 - **Fortigate**: perímetro (anti-DDoS, IPS, WAF). Syslog para Wazuh.
 - **Zabbix**: monitorização activa (agentes, equipamentos, triggers, templates).
-- **OpenTelemetry**: traces/metrics dos serviços wire* Rails.
+- **OpenTelemetry**: traces/metrics dos serviços Rails do inventário (`prumo_org products`).
 
 ## Vault
 
 Este projecto usa HashiCorp Vault como **broker central de credenciais**. Toda a operação privilegiada passa pelo Vault — nunca por ficheiros locais, nunca por `.env`, nunca por chaves estáticas em disco.
 
-**Endpoint:**     `https://vault.wire.internal:8200` (produção) · `http://127.0.0.1:8200` (dev)
-**Auth:**         AppRole (`auth/approle/role/wire-<subagent>`)
+**Endpoint:**     `https://vault.<domínio>:8200` (produção) · `http://127.0.0.1:8200` (dev)
+**Auth:**         AppRole (`auth/approle/role/<prefixo>-<subagent>`)
 **Token TTL:**    15-30 min consoante subagent (ver `vault-policies.hcl`)
 **Audit:**        toda a operação Vault → Wazuh SIEM (socket file audit device)
 
@@ -29,23 +45,27 @@ Este projecto usa HashiCorp Vault como **broker central de credenciais**. Toda a
 - `secret/data/tenants/metadata/*` — metadados de tenants (sem payload)
 - `secret/data/compliance/*` — evidência regulatória
 - `secret/data/ir/*` — case files de Incident Response
-- `secret/data/db/schemas/*` — schemas e metadados para validation de RLS (acesso: wire-tenant)
-- `sys/policies/acl/*` — read-only para audit cross-policy (acesso: wire-tenant)
+- `secret/data/db/schemas/*` — schemas e metadados para validation de RLS (acesso: `<prefixo>-tenant`)
+- `sys/policies/acl/*` — read-only para audit cross-policy (acesso: `<prefixo>-tenant`)
 - `transit/encrypt/forensics` · `transit/decrypt/forensics` — cifra de evidência IR
-- `ssh/sign/wire-srv-role` — certificados SSH efémeros (TTL=15m) para servidores
-- `ssh/sign/wire-ir-role` — certificados SSH efémeros para IR
+- `ssh/sign/<prefixo>-srv-role` — certificados SSH efémeros (TTL=15m) para servidores
+- `ssh/sign/<prefixo>-ir-role` — certificados SSH efémeros para IR
 
 ### AppRoles activos
 
+Os nomes resolvem-se com `<prefixo>` = `prumo_org prefix`. **São objectos reais no Vault** — o nome aqui tem de bater com o que lá existe, e por isso vem da configuração e não de uma convenção.
+
 | AppRole | Subagent | TTL | Max TTL |
 |---------|----------|-----|---------|
-| `wire-monitor` | `prumo-monitor-01` | 30m | 1h |
-| `wire-ir` | `prumo-ir-saas-01` | 15m | 1h |
-| `wire-tenant` | `prumo-tenant-01` | 15m | 30m |
-| `wire-srv` | `prumo-srv-saas-01` | 15m | 30m |
-| `wire-deploy` | `prumo-deploy-01` | 15m | 30m |
-| `wire-compliance` | `prumo-compliance-01` | 30m | 1h |
-| `wire-cowork-reporting` | Cowork `ai-rep-01` *(externo — sem subagent neste plugin)* | 60m | 2h |
+| `<prefixo>-monitor` | `prumo-monitor-01` | 30m | 1h |
+| `<prefixo>-ir` | `prumo-ir-saas-01` | 15m | 1h |
+| `<prefixo>-tenant` | `prumo-tenant-01` | 15m | 30m |
+| `<prefixo>-srv` | `prumo-srv-saas-01` | 15m | 30m |
+| `<prefixo>-deploy` | `prumo-deploy-01` | 15m | 30m |
+| `<prefixo>-compliance` | `prumo-compliance-01` | 30m | 1h |
+| `<prefixo>-cowork-reporting` | Cowork `ai-rep-01` *(externo — sem subagent neste plugin)* | 60m | 2h |
+
+Confirmar os que existem de facto: `vault list auth/approle/role`.
 
 Policies HCL completas em `vault-policies.hcl`. Versionado em git, code review obrigatório.
 
@@ -69,24 +89,21 @@ vault secrets enable -path=ssh ssh
 vault write ssh/config/ca generate_signing_key=true
 
 # Aplicar todas as policies do ficheiro HCL
-for policy in $(grep -oE 'wire-[a-z]+' vault-policies.hcl | sort -u); do
+PREFIX=$(prumo_org prefix)
+for policy in $(grep -oE "${PREFIX}-[a-z]+" vault-policies.hcl | sort -u); do
   vault policy write "$policy" vault-policies.hcl
 done
 ```
 
-## Servidores wire* (pool nativo, sem orquestrador)
-| Produto | Versão Rails | Pool |
-|---------|--------------|------|
-| wirePAPER | Rails 6.1 | A |
-| wireDESK | Rails 7.1 | A |
-| wireSTUDIO | Rails 7.2 | A |
-| wireCITYapp | Rails 7.0 | A |
-| wireRECRUIT | Rails 7.2 | A |
-| wireDOCS | Rails 7.0 | B |
-| wireMEET | Rails 7.1 | B |
-| wireFORMS | Rails 6.1 | B |
-| wireVOICE | Rails 7.1 | B |
-| wireCONNECT | Rails 7.0 | B |
+## Servidores aplicacionais (pool nativo, sem orquestrador)
+
+**O inventário de produtos está em `~/.prumo/org.json`** (`prumo_org products`). Não o enumeres a partir daqui — cada instalação tem o seu, e um relatório que cite produtos inexistentes é pior do que um que diga que não tem inventário.
+
+```bash
+prumo_org products     # um por linha; vazio = dizer que falta, não adivinhar
+```
+
+Versão de Rails e pool por produto são metadados operacionais que vivem no inventário Ansible (`secret/data/srv/inventory/*`), não neste documento — a lista aqui ficaria desactualizada à primeira migração.
 
 Stack runtime: Puma + systemd + Capistrano. Sem orquestrador de containers.
 
@@ -111,7 +128,7 @@ Os controlos N1/N2/N3, second-opinion e pii-redact assentam em variáveis de amb
 
 ## Variáveis de ambiente do plugin
 
-Convenção `PRUMO_*` + alguns `OLLAMA_*`/`WAZUH_*` legacy aceites. Defaults sensatos para o stack Wire; override apenas onde necessário.
+Convenção `PRUMO_*` + alguns `OLLAMA_*`/`WAZUH_*` legacy aceites. Os defaults compõem-se a partir de `~/.prumo/org.json` onde faz sentido; override apenas onde necessário.
 
 | Var | Default | Propósito |
 |-----|---------|-----------|
@@ -121,7 +138,7 @@ Convenção `PRUMO_*` + alguns `OLLAMA_*`/`WAZUH_*` legacy aceites. Defaults sen
 | `PRUMO_FORENSICS_DIR` | `$HOME/forensics` | Case files de Incident Response (timeline, artefactos, queries) |
 | `PRUMO_EPHEMERAL_KEY_DIR` | `/dev/shm` (Linux) / `$(mktemp -d)` (macOS) | SSH cert temp storage; auto-fallback macOS |
 | `PRUMO_RAILS_DEPLOY_BASE` | `/var/www` | Capistrano `deploy_to` root. Path final: `${PRUMO_RAILS_DEPLOY_BASE}/<produto>/current/` |
-| `PRUMO_WAZUH_HOST` | `wazuh-manager.wire.internal` | Endpoint Wazuh manager (namespace canónico; legacy `WAZUH_HOST` ainda aceite) |
+| `PRUMO_WAZUH_HOST` | `wazuh-manager.$(prumo_org domain)` | Endpoint Wazuh manager (namespace canónico; legacy `WAZUH_HOST` ainda aceite) |
 | `PRUMO_PII_DISABLE` | (unset) | `=1` desactiva `pre-tool-pii-redact.sh` (telemetria regista `bypass`). NÃO recomendado em prod. Tem de vir do ambiente do Claude Code (`settings.json` → `env`) — um prefixo inline no comando não chega ao hook |
 | `PRUMO_SECOND_OPINION_BYPASS` | (unset) | `=1` salta `pre-tool-second-opinion.sh` se Ollama down. Audit-tracked |
 | `PRUMO_VAULT_AUTO_UP` | (unset) | Auto-up do Vault Docker em prod (override do default off) |
@@ -166,15 +183,22 @@ Total: **10 commands** (6 operação + 3 diagnóstico + 1 provisioning).
 ## Skills (em `skills/`)
 `prumo-tenant-isolation` · `prumo-saas-monitoring` (Wazuh+Fortigate+Zabbix) · `prumo-ir-multitenant` · `prumo-release-safety` · `prumo-compliance-provider` · `prumo-cliente-dossier`
 
-## Produtos wire* protegidos
-wirePAPER · wireDESK · wireSTUDIO · wireCITYapp · wireVOICE · wireDOCS · wireMEET · wireFORMS · wireRECRUIT · wireCONNECT
+## Produtos protegidos
+`prumo_org products` — o inventário da instalação. Sem ele, dizer que falta.
 
 ## Documentos de referência
-- `WIRE.POL.SEC.001` — Política SecOps
-- `WIRE.ARQ.SEC.002` — Arquitectura (servidores nativos Rails)
-- `WIRE.PRC.AUD.004` — Auditoria
-- `WIRE.PRC.IRT.005` — IR multi-tenant
-- `WIRE.MTZ.SEC.006` — RACI + CTRL-W-*
+
+São documentos **externos ao repositório**, mantidos pela organização. A referência canónica do registo de controlos vem de `prumo_org control_registry`; as restantes seguem o mesmo esquema de numeração e o mesmo prefixo.
+
+| Documento | Conteúdo |
+|---|---|
+| `<ORG>.POL.SEC.001` | Política SecOps |
+| `<ORG>.ARQ.SEC.002` | Arquitectura (servidores nativos Rails) |
+| `<ORG>.PRC.AUD.004` | Auditoria |
+| `<ORG>.PRC.IRT.005` | IR multi-tenant |
+| **`prumo_org control_registry`** | RACI + matrizes de controlo (`<prefixo de controlo>-*`) |
+
+**Nunca citar um destes documentos por um nome inventado.** Se `control_registry` não estiver configurado, os comandos de auditoria param — ver a regra de paragem em `ctrl-w-inventario.md`.
 
 ## Estilo
 - Português europeu, registo técnico-institucional.

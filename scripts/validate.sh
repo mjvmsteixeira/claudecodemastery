@@ -176,7 +176,7 @@ fi
 # baseline, confirmar qual dos dois desceu.
 section "identidade da organização (ratchet · B6)"
 
-ORG_BASELINE=658   # 2026-08-03 · 661 → 658: hooks executáveis migrados (B6 fase 3a)
+ORG_BASELINE=567   # 2026-08-03 · 661 → 567: CLAUDE.md + saas-monitoring (B6 fase 3b)
 
 if grep -rio 'wire' base secops devkit design scripts >/dev/null 2>&1; then
   ORG_NOW=$(grep -rio 'wire' base secops devkit design scripts 2>/dev/null \
