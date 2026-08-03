@@ -10,7 +10,7 @@ Gera um template HCL parametrizável para uma policy Vault. **Não aplica nada**
 
 ## Argumento obrigatório
 
-- `<nome>` — nome da policy (kebab-case, ex: `wire-monitor`, `cmcaminha-ro`). Recusa se conter espaços ou maiúsculas.
+- `<nome>` — nome da policy (kebab-case, ex: `<prefixo>-monitor`, `cmcaminha-ro`). Recusa se conter espaços ou maiúsculas.
 
 ## Flags opcionais
 
@@ -30,7 +30,7 @@ NAME="${1:-}"
 if [ -z "$NAME" ]; then
   echo "Uso: /prumo-vault-policy <nome> [--kv-read <path>] [--kv-write <path>] ..."
   echo "Exemplos:"
-  echo "  /prumo-vault-policy wire-monitor --kv-read observability --ssh-role wire-srv-role"
+  echo "  /prumo-vault-policy <prefixo>-monitor --kv-read observability --ssh-role <prefixo>-srv-role"
   echo "  /prumo-vault-policy cmcaminha-ro --kv-read projects/cmcaminha --kv-read ai"
   exit 1
 fi
@@ -137,8 +137,8 @@ echo "  vault policy read $NAME"
 
 | Caso | Invocação |
 |------|-----------|
-| AppRole "monitor" (read observability + sign SSH para servidores) | `--kv-read observability --ssh-role wire-srv-role` |
-| AppRole "ir" (transit forensics + KV write ir/* + SSH ir) | `--kv-full ir --transit-key forensics --ssh-role wire-ir-role` |
+| AppRole "monitor" (read observability + sign SSH para servidores) | `--kv-read observability --ssh-role <prefixo>-srv-role` |
+| AppRole "ir" (transit forensics + KV write ir/* + SSH ir) | `--kv-full ir --transit-key forensics --ssh-role <prefixo>-ir-role` |
 | Projecto read-only (acesso de leitura aos segredos partilhados) | `--kv-read ai --kv-read tokens --kv-read projects/<nome>` |
 | AppRole "deploy" (KV cicd + lookup) | `--kv-read cicd` |
 

@@ -157,7 +157,7 @@ path "secret/data/reports/output/*" {
 #     secret_id_ttl=10m secret_id_num_uses=1
 #
 # ============================================================================
-# SSH CA roles (criados nos paths ssh/sign/wire-*-role)
+# SSH CA roles (criados nos paths ssh/sign/`<prefixo>-*`-role)
 # ============================================================================
 #
 # vault write ssh/roles/{{PREFIX}}-srv-role \

@@ -168,22 +168,31 @@ fi
 # **ratchet**: o número só pode descer. Baixar o baseline faz parte do commit
 # que remove ocorrências; subir é regressão e falha aqui.
 #
-# LIMITAÇÃO CONHECIDA, e é importante: isto conta o literal, e o literal aparece
-# em duas coisas diferentes. A identidade da **organização** é o alvo. O path
-# legacy `~/.wire` na `prumo-common.sh` é a marca antiga do **próprio
-# ecossistema** (rebrand de 2026-07) e não é para migrar — some quando a
-# migração one-shot for removida. O check não os distingue; ao baixar o
-# baseline, confirmar qual dos dois desceu.
+# O check conta o literal, e o literal aparece em coisas que não são identidade
+# da organização — daí a lista de exclusões abaixo, cada uma com a sua razão.
+# A migração one-shot de `~/.wire` foi removida a 2026-08-03 (o rebrand foi em
+# Julho e o estado já lá não estava), por isso essa categoria deixou de existir.
 section "identidade da organização (ratchet · B6)"
 
-ORG_BASELINE=92   # 2026-08-03 · 661 → 92: policies e bootstrap (B6 fase 3e)
+ORG_BASELINE=12   # 2026-08-03 · B6 fase 3f: identidade da organização a 12
 
-if grep -rio 'wire' base secops devkit design scripts >/dev/null 2>&1; then
-  ORG_NOW=$(grep -rio 'wire' base secops devkit design scripts 2>/dev/null \
-            | grep -vE 'CHANGELOG\.md|BACKLOG\.md|org\.example\.json' | wc -l | tr -d ' ')
-else
-  ORG_NOW=0
-fi
+# Três categorias de exclusão, e cada uma tem uma razão distinta:
+#
+#   CHANGELOG/BACKLOG   — histórico. Reescrevê-lo apagaria o registo do porquê.
+#   org.example.json    — o template; é suposto conter valores de exemplo.
+#   wire-style          — marcador legacy do *ecossistema* (rebrand 2026-07). O
+#                         /prumo-style migra blocos antigos do CLAUDE.md do
+#                         utilizador; remover a detecção deixaria esses blocos
+#                         órfãos para sempre. Porta de sentido único: fica.
+#   docs/…-wire-…       — paths de directorias que existem. Genericizar o texto
+#                         tornaria o ponteiro falso.
+#   Wire format         — protocolo de rede no cdp.mjs do devkit. Homónimo, não
+#                         identidade. Foi o primeiro falso positivo desta regra.
+#   scripts/validate.sh — este ficheiro contém os padrões de busca.
+EXCLUDE_RE='CHANGELOG\.md|BACKLOG\.md|org\.example\.json|wire-style|docs/[^ ]*wire|Wire format|scripts/validate\.sh'
+
+ORG_NOW=$(grep -rion 'wire' base secops devkit design scripts 2>/dev/null \
+          | grep -vE "$EXCLUDE_RE" | wc -l | tr -d ' ')
 
 if [ "$ORG_NOW" -gt "$ORG_BASELINE" ]; then
   fail "identidade da organização hardcoded aumentou: $ORG_BASELINE → $ORG_NOW"

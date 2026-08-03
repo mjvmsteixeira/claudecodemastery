@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wire SecOps · pre-tool · Guardrail semântico via Ollama local (qwen3-coder).
+# prumo-secops · pre-tool · Guardrail semântico via Ollama local (qwen3-coder).
 # Dispara SÓ na zona-cinzenta (ofuscação que a regex dos outros hooks não apanha).
 # O comando entra como DADO não-confiável (anti-injeção). Veredicto estruturado
 # (JSON). Conservador: em dúvida bloqueia. Fail-closed se o modelo cair, respeitando

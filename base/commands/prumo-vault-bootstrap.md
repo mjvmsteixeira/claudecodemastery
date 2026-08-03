@@ -12,7 +12,7 @@ shell session — variáveis declaradas em Passos anteriores estão disponíveis
 em Passos seguintes (ACTIONS, REFUSE, CREATE, SECRET_TYPE, MODE). Mesmo padrão
 de `prumo-vault-policy.md`. -->
 
-Provisiona infraestrutura Vault genérica e idempotente. Audit device, kv-v2 em `secret/`, approle auth method, transit engine, ssh engine. Não toca em conteúdo wire-specific (esse é o `/prumo-secops-bootstrap`).
+Provisiona infraestrutura Vault genérica e idempotente. Audit device, kv-v2 em `secret/`, approle auth method, transit engine, ssh engine. Não toca em conteúdo específico da organização (esse é o `/prumo-secops-bootstrap`).
 
 ## Passo 1 — Parse flags
 
@@ -193,7 +193,7 @@ done
 
 echo
 echo "✓ /prumo-vault-bootstrap --apply completo."
-echo "Próximo: /prumo-secops-bootstrap --plan (para provisionar conteúdo wire-*)."
+echo "Próximo: /prumo-secops-bootstrap --plan (para provisionar conteúdo `<prefixo>-*`)."
 echo
 echo "Aviso: audit device 'file' é blocking — se /vault/audit/ encher, Vault para de aceitar operações."
 echo "Considera configurar logrotate no host sobre o volume vault-audit."

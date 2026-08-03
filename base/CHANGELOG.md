@@ -2,6 +2,18 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.12.0 — 2026-08-03
+
+**B6 fase 3f — o resto da identidade, e a distinção que faltava ao ratchet.** O `/prumo-onboard`, o `prumo-context-pack`, os comandos de Vault e os READMEs migraram para `prumo_org`.
+
+**Duas remoções de legacy, e só uma era segura.** A migração one-shot `~/.wire → ~/.prumo` saiu: o rebrand foi a 2026-07-06, e nesta máquina o directório já só tinha `backups/` e `log/` — nem `mode`, nem `scope`, que é o que ela copiava. Era código morto guardado por uma condição que nunca podia ser verdadeira. Saiu também a secção de migração `wire-*@jump2new` do `/prumo-onboard`, pela mesma razão.
+
+**O que ficou, e porquê:** o `/prumo-style` reconhece e migra blocos `<!-- wire-style -->` no `CLAUDE.md` do utilizador. Remover essa detecção é **porta de sentido único** — um bloco antigo ficaria órfão para sempre, sem forma de o gerir nem de o remover. Fica.
+
+**O ratchet passou a distinguir categorias.** Contava o literal e apanhava três coisas que não são identidade da organização: os marcadores `wire-style` (marca antiga do ecossistema), paths de directorias de docs que existem, e — o mais instrutivo — `// Wire format` no `cdp.mjs` do devkit, que é **protocolo de rede**. Homónimo puro, e o primeiro falso positivo desta regra. Cada exclusão ficou com a razão escrita ao lado.
+
+Contagem real de identidade da organização: **12**, todas em categorias que não migram.
+
 ## v0.11.0 — 2026-08-03
 
 **B6 fase 1 e 2 — a identidade da organização passa a ser configuração.** O `prumo-secops` foi escrito contra uma organização concreta e ficou com o nome dela na estrutura, não só nos exemplos: 876 ocorrências em 70 ficheiros. Impedia aplicá-lo a outro cliente sem um find-and-replace, que é a última operação a fazer num plugin cujos hooks de Vault falham fechados.

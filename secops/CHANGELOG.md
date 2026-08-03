@@ -2,6 +2,14 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.9.1 — 2026-08-03
+
+**Cabeçalhos de hooks, campo CEF e referências documentais migrados.** Os cinco hooks diziam `# Wire SecOps ·` no cabeçalho e o `post-tool-cef-wazuh.sh` emitia `CEF:0|Wire|SecOps-Agents` como *vendor* — que é um campo que chega ao SIEM e identifica a origem do evento.
+
+**Um bug meu, apanhado pelo próprio smoke.** A templatização do `vault-policies.hcl` na v0.9.0 partiu o check 11 do `smoke.sh`, que procurava headers `^# wire-`. Deu **verde** na mesma, porque o smoke corre contra a **cache** e a versão instalada ainda tinha o ficheiro literal. Mais uma verificação a dar veredicto confiante sobre o artefacto errado — desta vez de minha autoria.
+
+O check passou a aceitar **as duas formas**, de propósito: entre o merge e o `/plugin install` a versão instalada tem o prefixo literal, e falhar nessa janela seria reportar avaria sobre um skew previsível. Reporta qual das formas encontrou.
+
 ## v0.9.0 — 2026-08-03
 
 **B6 fase 3a — o bash executável deixa de nomear a organização.** Primeira camada da migração, escolhida por ser a única onde `prumo_org` é código a sério: das 661 ocorrências, apenas 12 estavam em hooks. As outras 649 são prosa em skills, references, comandos e agents, e migram com técnica diferente.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wire SecOps · post-tool · Envia evento CEF para o Wazuh com a tool call executada.
+# prumo-secops · post-tool · Envia evento CEF para o Wazuh com a tool call executada.
 # Configurável via env: WAZUH_HOST, WAZUH_PORT (default 514/udp).
 set -euo pipefail
 # shellcheck source=_lib.sh
@@ -39,7 +39,7 @@ SESSION_ESC=$(cef_escape "$SESSION")
 USER_ESC=$(cef_escape "$USER")
 HOSTNAME_ESC=$(cef_escape "${HOSTNAME:-unknown}")
 
-CEF="CEF:0|Wire|SecOps-Agents|1.0|toolcall|Claude Code tool call|3|src=$HOSTNAME_ESC suser=$USER_ESC cs1Label=Tool cs1=$TOOL_ESC cs2Label=Agent cs2=$AGENT_ESC cs3Label=Session cs3=$SESSION_ESC cs4Label=InputHash cs4=$INPUT_HASH cn1Label=ExitCode cn1=$EXIT_CODE"
+CEF="CEF:0|prumo|SecOps-Agents|1.0|toolcall|Claude Code tool call|3|src=$HOSTNAME_ESC suser=$USER_ESC cs1Label=Tool cs1=$TOOL_ESC cs2Label=Agent cs2=$AGENT_ESC cs3Label=Session cs3=$SESSION_ESC cs4Label=InputHash cs4=$INPUT_HASH cn1Label=ExitCode cn1=$EXIT_CODE"
 
 # Envia via nc UDP — fail-soft (não bloqueia operação)
 if command -v nc > /dev/null 2>&1; then

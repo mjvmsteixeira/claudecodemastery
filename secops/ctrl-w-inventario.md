@@ -4,7 +4,7 @@ Fonte única dos controlos citados pelos comandos, agents e skills deste plugin.
 
 **Porque existe.** Até 2026-08-02, os identificadores eram citados como intervalos — `/prumo-tenant-audit` dizia *"aplica CTRL-W-T-001..016"* e `/prumo-release-gate` *"aplica CTRL-W-R-001..018"* — a um agente que **não tinha acesso a nenhuma definição**. As matrizes existiam, mas dentro de dois `SKILL.md` que os comandos não lêem. O resultado era um mandato impossível de cumprir: o agente ou inventava os controlos ou ignorava a instrução, e nenhuma das duas coisas é visível no output.
 
-**Estatuto.** O registo canónico é o `WIRE.MTZ.SEC.006` (RACI + CTRL-W-*), externo a este repositório. Este ficheiro é a **cópia operacional** do que o plugin precisa de aplicar — não o substitui e não decide âmbito. Em divergência, manda o documento externo.
+**Estatuto.** O registo canónico é o `<ORG>.MTZ.SEC.006` (RACI + CTRL-W-*), externo a este repositório. Este ficheiro é a **cópia operacional** do que o plugin precisa de aplicar — não o substitui e não decide âmbito. Em divergência, manda o documento externo.
 
 **Proveniência de cada família está declarada abaixo.** Uma família sem matriz aparece como lacuna, nunca preenchida por inferência.
 
@@ -87,16 +87,16 @@ path "sys/audit-hash/*"   # CTRL-W-IR-007
 O que isto implica:
 
 - Existem presumivelmente `CTRL-W-IR-001` a `006` (e possivelmente mais) que **este repositório nunca viu**
-- O `007` é conhecido pelo *efeito* (dá ao `wire-ir` a capacidade de assinar evidência sem expor o input), não pelo enunciado
+- O `007` é conhecido pelo *efeito* (dá ao `<prefixo>-ir` a capacidade de assinar evidência sem expor o input), não pelo enunciado
 - Qualquer relatório de IR que afirme cobertura desta família está a afirmar o que não pode verificar
 
 **Não preenchi por inferência.** Deduzir os controlos de IR a partir do que a skill faz produziria uma matriz plausível e não-oficial — exactamente o modo de falha que os mappings do `prumo-compliance-provider` evitaram ao deixar a coluna de cobertura vazia.
 
-**Para fechar:** extrair a família IR do `WIRE.MTZ.SEC.006` e transcrevê-la aqui, com a mesma declaração de proveniência.
+**Para fechar:** extrair a família IR do `<ORG>.MTZ.SEC.006` e transcrevê-la aqui, com a mesma declaração de proveniência.
 
 ---
 
-## O que pedir ao `WIRE.MTZ.SEC.006`
+## O que pedir ao `<ORG>.MTZ.SEC.006`
 
 Três pedidos. Nenhum é resolúvel de dentro deste repositório — a tentativa já foi feita e falhou de forma instrutiva (ver "Precedente" no fim).
 
@@ -120,16 +120,16 @@ Duas leituras, indistinguíveis de dentro do repositório:
 
 | Se… | Então é |
 |---|---|
-| existem famílias de governança no `WIRE.MTZ.SEC.006` que nunca chegaram aqui | problema de **documentação** — transcreve-se e fecha |
+| existem famílias de governança no `<ORG>.MTZ.SEC.006` que nunca chegaram aqui | problema de **documentação** — transcreve-se e fecha |
 | não existem | **lacuna real de conformidade** — precisa de plano, responsável e prazo |
 
-Pergunta concreta a fazer a quem detém o documento: **o `WIRE.MTZ.SEC.006` tem famílias com os prefixos `C`, `S`, `O` ou `P`?** Estes quatro prefixos apareceram numa proposta de taxonomia interna (`docs/wire-defaults-aprovacao/01-catalogo-controlos.md`, 2026-05-20) que **nunca foi confirmada contra o documento externo** — podem ser reais, podem ter sido inventados aqui. Ver o precedente abaixo antes de assumir qualquer das hipóteses.
+Pergunta concreta a fazer a quem detém o documento: **o `<ORG>.MTZ.SEC.006` tem famílias com os prefixos `C`, `S`, `O` ou `P`?** Estes quatro prefixos apareceram numa proposta de taxonomia interna (`docs/wire-defaults-aprovacao/01-catalogo-controlos.md`, 2026-05-20) que **nunca foi confirmada contra o documento externo** — podem ser reais, podem ter sido inventados aqui. Ver o precedente abaixo antes de assumir qualquer das hipóteses.
 
 ### 3 · ISO 27001 — bloqueio diferente, não depende deste inventário
 
 O `mapping-iso27001.md` continua por preencher **por direitos de autor**, não por falta de controlos: os títulos dos 93 controlos do Anexo A:2022 são texto protegido e não podem ser reproduzidos neste repositório.
 
-Não é um pedido ao `WIRE.MTZ.SEC.006`. Quem tiver o exemplar licenciado da norma preenche a tabela de trabalho sem depender de mais nada — o inventário já dá a coluna de controlos Wire.
+Não é um pedido ao `<ORG>.MTZ.SEC.006`. Quem tiver o exemplar licenciado da norma preenche a tabela de trabalho sem depender de mais nada — o inventário já dá a coluna de controlos da organização.
 
 ### O formato em que a resposta é utilizável
 

@@ -21,7 +21,7 @@ Inferir os parâmetros da intenção do utilizador e invocar `/prumo-vault-polic
 | Intenção | Invocação |
 |----------|-----------|
 | "Policy de leitura para o projecto X" | `/prumo-vault-policy <x>-ro --kv-read projects/<x> --kv-read ai --kv-read tokens` |
-| "AppRole nova para monitor de Wazuh" | `/prumo-vault-policy wire-monitor --kv-read observability --ssh-role wire-srv-role` |
+| "AppRole nova para monitor de Wazuh" | `/prumo-vault-policy <prefixo>-monitor --kv-read observability --ssh-role <prefixo>-srv-role` |
 | "Role para deploy" | `/prumo-vault-policy <projecto>-deploy --kv-read cicd` |
 | "Cifra/decifra de evidência IR" | `/prumo-vault-policy <projecto>-ir --transit-key forensics --kv-full ir/<projecto>` |
 

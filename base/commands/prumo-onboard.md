@@ -1,6 +1,6 @@
 ---
 name: prumo-onboard
-description: Setup wizard end-to-end do ecossistema prumo — detecta plugins instalados (base/secops/devkit/design), guia a instalação dos que faltam, distingue o Vault broker-pessoal do parque Wire antes de sugerir provisionamento, pergunta pelo estilo de output e sugere smoke tests por plugin. Idempotente.
+description: Setup wizard end-to-end do ecossistema prumo — detecta plugins instalados (base/secops/devkit/design), guia a instalação dos que faltam, distingue o Vault broker-pessoal do parque da organização antes de sugerir provisionamento, pergunta pelo estilo de output e sugere smoke tests por plugin. Idempotente.
 allowed-tools: Bash, Read
 ---
 
@@ -9,19 +9,6 @@ allowed-tools: Bash, Read
 Setup wizard do ecossistema prumo. Detecta o estado actual, guia a instalação dos plugins em falta e propõe um smoke test por plugin. Não executa `/plugin install` directamente (Claude Code não permite a partir de um command) — emite as linhas exactas para o utilizador colar.
 
 ## Passo 1 — Detectar plugins instalados
-
-### Migração wire → prumo
-
-Se o cache tiver plugins da era wire (`ls ~/.claude/plugins/cache | grep -E "wire-(base|secops|devkit|craft)"` devolve resultados), emitir antes de tudo:
-
-    Instalações antigas detectadas — migrar primeiro:
-    /plugin uninstall wire-base@jump2new
-    /plugin uninstall wire-secops@jump2new
-    /plugin uninstall wire-devkit@jump2new
-    /plugin uninstall wire-craft@jump2new
-    (depois instalar os equivalentes prumo-*@prumo)
-
-Só listar as linhas de uninstall dos que existirem de facto no cache.
 
 ```bash
 echo "=== Detectando plugins prumo instalados ==="
@@ -102,16 +89,16 @@ Se a marketplace `mjvmsteixeira/claudecodemastery` ainda não estiver adicionada
 
 **Há dois Vaults no ecossistema prumo, com propósitos diferentes. Confundi-los é o erro que este passo existe para evitar.**
 
-| | **Broker pessoal** | **Parque Wire** |
+| | **Broker pessoal** | **Parque da organização** |
 |---|---|---|
-| Endereço típico | `https://127.0.0.1:8200` | `https://vault.wire.internal:8200` |
+| Endereço típico | `https://127.0.0.1:8200` | `https://vault.<domínio>:8200` |
 | Para que serve | Credenciais do próprio utilizador, por projecto | Infraestrutura SaaS multi-tenant em produção |
 | Árvore típica | `secret/ai/`, `tokens/`, `credentials/`, `projects/`, `infrastructure/` | `secret/observability/`, `tenants/`, `ir/`, `cicd/`, `compliance/` |
-| AppRoles | um por projecto do utilizador | os 7 `wire-*` |
+| AppRoles | um por projecto do utilizador | os 7 `<prefixo>-*` |
 | Engines necessários | `kv-v2` + `approle` | acrescenta `transit/` e `ssh/` |
 | Quem provisiona | `/prumo-vault-bootstrap` | acrescenta `/prumo-secops-bootstrap` |
 
-O broker pessoal **não precisa** de `transit/` nem de `ssh/`, e **nunca** deve receber policies `wire-*`. Reportar essas ausências como lacunas num broker pessoal é ruído — o Vault está completo para o que faz.
+O broker pessoal **não precisa** de `transit/` nem de `ssh/`, e **nunca** deve receber policies `<prefixo>-*`. Reportar essas ausências como lacunas num broker pessoal é ruído — o Vault está completo para o que faz.
 
 Muitos utilizadores têm o broker pessoal há muito mais tempo do que os plugins prumo. Não assumir que um Vault local existe *por causa* do ecossistema.
 
@@ -125,7 +112,7 @@ echo "  VAULT_ADDR: $ADDR"
 KIND="indeterminado"
 case "$ADDR" in
   *127.0.0.1*|*localhost*) KIND="broker pessoal (local)" ;;
-  *wire.internal*)         KIND="parque Wire (produção)" ;;
+  *"$(prumo_org domain)"*)         KIND="parque da organização (produção)" ;;
 esac
 echo "  Tipo inferido: $KIND"
 
@@ -149,21 +136,21 @@ Só o bootstrap genérico, e só se faltar alguma coisa:
 /prumo-vault-bootstrap --apply    # audit device, kv-v2, approle
 ```
 
-**Não sugerir o `/prumo-secops-bootstrap` aqui.** As policies `wire-*` descrevem um parque de produção que não existe nesta máquina; criá-las localmente não habilita nada e deixa objectos órfãos.
+**Não sugerir o `/prumo-secops-bootstrap` aqui.** As policies `<prefixo>-*` descrevem um parque de produção que não existe nesta máquina; criá-las localmente não habilita nada e deixa objectos órfãos.
 
 Se o `--plan` assinalar `transit/` ou `ssh/` em falta, **dizer que são opcionais neste contexto**: só interessam a quem use cifra-como-serviço ou SSH CA. Um broker que guarda chaves estáticas em `secret/infrastructure/<host>` não precisa de nenhum dos dois.
 
-### Provisionamento — parque Wire
+### Provisionamento — parque da organização
 
 Requer `prumo-secops` instalado e um token com policy `root` **nesse** Vault. Ordem obrigatória — o segundo depende dos engines que o primeiro monta:
 
 ```
 1. /prumo-vault-bootstrap --plan   →  2. --apply    # + transit/ e ssh/
-3. /prumo-secops-bootstrap --plan  →  4. --apply    # 7 policies wire-*, 7 AppRoles,
+3. /prumo-secops-bootstrap --plan  →  4. --apply    # 7 policies `<prefixo>-*`, 7 AppRoles,
                                                      # transit/keys/forensics, ssh CA + roles
 ```
 
-Os nomes `wire-*` são objectos reais do Vault de produção, não branding — não renomear (ver `secops/CLAUDE.md`).
+Os nomes `<prefixo>-*` são objectos reais do Vault de produção, não branding — não renomear (ver `secops/CLAUDE.md`).
 
 ### Consequência para o Passo 3
 
@@ -186,7 +173,7 @@ Exit codes:
 
 Smoke tests operacionais (mais pesados) ficam como sugestões secundárias por plugin instalado:
 
-- **`prumo-base`** · `/vault-list` (segredos do projecto actual) · esperado: lista de paths em `secret/projects/<projecto>/*` mais partilhados (`secret/ai`, `secret/tokens`). **Só sugerir se o Passo 2b identificou um broker pessoal provisionado** — contra o parque Wire esses paths não existem, e sem provisionamento falha por falta de setup, não por avaria.
+- **`prumo-base`** · `/vault-list` (segredos do projecto actual) · esperado: lista de paths em `secret/projects/<projecto>/*` mais partilhados (`secret/ai`, `secret/tokens`). **Só sugerir se o Passo 2b identificou um broker pessoal provisionado** — contra o parque da organização esses paths não existem, e sem provisionamento falha por falta de setup, não por avaria.
 - **`prumo-secops`** · `/prumo-stack-doctor` · esperado: verde/amarelo/vermelho por componente (Vault, Wazuh, Fortigate, Zabbix). Pode falhar fora da VPN — é normal.
 - **`prumo-devkit`** · `/full-audit --ci` num projecto qualquer · esperado: JSON consolidado com counts e exit code 0/1/2.
 - **`prumo-design`** · `/product-design` em modo mockup · esperado: um Artifact renderizado. Não tem smoke automatizado (depende da stack nativa de design).
@@ -260,7 +247,7 @@ Imprimir resumo: quantos plugins instalados (X/4), próximas acções pendentes 
 ```
 === RESUMO ===
 Plugins prumo instalados: X/4  (versões actualizadas: sim/não/não verificado)
-Vault alvo: <broker pessoal | parque Wire | indeterminado> · <VAULT_ADDR>
+Vault alvo: <broker pessoal | parque da organização | indeterminado> · <VAULT_ADDR>
   provisionado: <sim/não/sem ~/vault>
   secops bootstrap: <n.a. — broker pessoal | sim | não>   ← n.a. não é lacuna
 Modo operacional: <prod/dev/lab> (fonte: env/ficheiro/default)

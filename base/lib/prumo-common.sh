@@ -4,8 +4,7 @@
 # Helpers partilhados para hooks e scripts dos plugins prumo.
 # Plugins downstream fazem:  source "${CLAUDE_PLUGIN_ROOT}/../prumo-base/lib/prumo-common.sh"
 #
-# Não tem efeitos colaterais ao ser sourced, além da migração one-shot
-# ~/.wire → ~/.prumo abaixo (idempotente, guardada por existência de ficheiro).
+# Não tem efeitos colaterais ao ser sourced.
 
 # ────────────────────────────────────────────────────────────────────────────
 # Constantes · paths canónicos
@@ -17,15 +16,6 @@ PRUMO_SCOPE_FILE="${PRUMO_HOME}/scope"
 PRUMO_MODE_FILE="${PRUMO_HOME}/mode"
 PRUMO_LAB_MARKER="${PRUMO_HOME}/lab-mode"
 PRUMO_ORG_FILE="${PRUMO_HOME}/org.json"
-
-# --- migração one-shot do estado wire → prumo (rebrand 2026-07) ---
-if [ ! -e "$PRUMO_MODE_FILE" ] && [ -f "${HOME}/.wire/mode" ]; then
-  mkdir -p "$PRUMO_HOME" || true
-  cp "${HOME}/.wire/mode" "$PRUMO_MODE_FILE" || true
-  [ -f "${HOME}/.wire/lab-mode" ] && { cp "${HOME}/.wire/lab-mode" "$PRUMO_LAB_MARKER" || true; }
-  [ -f "${HOME}/.wire/scope" ] && { cp "${HOME}/.wire/scope" "$PRUMO_SCOPE_FILE" || true; }
-  echo "[prumo] estado migrado de ~/.wire para ~/.prumo (o antigo não foi apagado)" >&2
-fi
 
 CLAUDE_GLOBAL_DIR="${HOME}/.claude"
 # Constantes da API da lib — consumidas por scripts downstream, não dentro desta lib.

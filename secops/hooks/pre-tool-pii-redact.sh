@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wire SecOps · pre-tool · PII fail-closed gate
+# prumo-secops · pre-tool · PII fail-closed gate
 
 set -euo pipefail
 # shellcheck source=_lib.sh

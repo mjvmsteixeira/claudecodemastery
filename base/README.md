@@ -21,7 +21,7 @@ Plugin foundacional. 15 commands e 11 skills que assentam em convenções partil
 | **vault-toolkit** | 5 commands + skill + hook | `/vault-list`, `/vault-set`, `/vault-audit`, `/vault-backup`, `/vault-integrate` · skill thin que roteia intenções "segredos"→command · auto-unseal no SessionStart |
 | **prumo-vault-bootstrap** | command | `/prumo-vault-bootstrap [--plan\|--apply]` · provisiona infra Vault genérica idempotente (audit em `/vault/audit/audit.log`, kv-v2 em `secret/`, approle auth, transit, ssh engines). Refuse-and-redirect para `prumo-vault-kv-migrate` se detectar kv-v1 com dados. Valida `policies includes "root"` antes de qualquer escrita. **Novidade v0.3.0.** |
 | **prumo-vault-kv-migrate** | command | `/prumo-vault-kv-migrate [--plan\|--backup\|--apply]` · migra `secret/` de kv-v1 para kv-v2 destrutivo em 3 etapas (walk recursivo → backup JSONL chmod 600 → re-import via HTTP API). `--apply` exige backup <24h e env `PRUMO_VAULT_MIGRATE_CONFIRM=migrate-now` (gate explícito anti-acidente). **Novidade v0.3.0.** |
-| **prumo-onboard** | command + skill | `/prumo-onboard` · setup wizard end-to-end do ecossistema prumo (base/secops/devkit/design) · detecta gaps, distingue o Vault broker-pessoal do parque Wire, pergunta pelo estilo de output, sugere smoke tests · idempotente |
+| **prumo-onboard** | command + skill | `/prumo-onboard` · setup wizard end-to-end do ecossistema prumo (base/secops/devkit/design) · detecta gaps, distingue o Vault broker-pessoal do parque da organização, pergunta pelo estilo de output, sugere smoke tests · idempotente |
 | **prumo-doctor** | command + skill | `/prumo-doctor` · meta-doctor read-only · orquestra memory-doctor + claude-deep-audit + /vault-audit + /prumo-vault-doctor em paralelo, consolida num relatório de saúde do setup local |
 | **prumo-mode** | command + skill | `/prumo-mode [prod\|dev\|lab\|status]` · lê/escreve `~/.prumo/mode` e gere marker `~/.prumo/lab-mode` · controla fail-closed vs warn-only vs bypass nos hooks downstream |
 | **prumo-style** | command + skill | `/prumo-style [on\|off\|status] [--user]` · injecta/remove um bloco de output conciso ("talk-normal", MIT) num `CLAUDE.md`, delimitado por marcadores, idempotente e versionado · scope projecto por default, `--user` para o global · backup automático antes de escrever. **Novidade v0.4.0.** |
@@ -194,7 +194,7 @@ base/
 | TTL gating de tool calls | — | ✓ (PreToolUse) |
 | Integração segredos por projecto | ✓ (`/vault-*`) | — |
 | Diagnóstico do servidor Vault | — | ✓ (`/prumo-vault-doctor`) |
-| Health da plataforma SaaS Wire | — | ✓ (`/prumo-saas-health`) |
+| Health da plataforma SaaS multi-tenant | — | ✓ (`/prumo-saas-health`) |
 | IR multi-tenant | — | ✓ (`/prumo-incident-spread`) |
 | Audit Claude Code | ✓ (`claude-deep-audit`) | — |
 | Audit MemPalace | ✓ (`memory-doctor`) | — |
