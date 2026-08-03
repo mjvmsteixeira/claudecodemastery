@@ -155,9 +155,15 @@ Não repetir a investigação — está toda no `CHANGELOG.md`:
 
 ---
 
-## B6 · Genericizar o `prumo-secops` — a organização passa a ser configuração
+## B6 · Genericizar o `prumo-secops` — **FECHADO** (`base` 0.12.0 · `secops` 0.9.1)
 
-**Estado: pedido do dono a 2026-08-03. Âmbito medido, desenho por decidir.**
+**Estado a 2026-08-03: 661 → 12 ocorrências, e as 12 não migram.** A identidade da organização é configuração (`~/.prumo/org.json`, acesso por `prumo_org`), com fallback no `_lib.sh` para instalações com `prumo-base` anterior à 0.11.0, e ratchet no `validate.sh` que impede regressão.
+
+O que resta são três categorias com razão escrita: marcadores `wire-style` que o `/prumo-style` migra (removê-los deixaria blocos órfãos no `CLAUDE.md` do utilizador — porta de sentido único), paths de directorias de docs que existem, e `// Wire format` no `cdp.mjs`, que é protocolo de rede e homónimo puro.
+
+**A verificação da fase 5 não foi possível e foi substituída.** Exigia `/prumo-vault-doctor` verde antes e depois; o Vault de produção está fora da VPN e o broker local não tem policies `wire-*`. Em vez disso, provou-se que as **7 policies geradas pelo split são byte-idênticas** às que o ficheiro literal produzia — parametrização demonstravelmente preservadora de nomes, sem precisar de Vault nenhum.
+
+### Contexto original
 
 O plugin foi escrito contra uma organização concreta e ficou com o nome dela na estrutura, não só nos exemplos. Isso impede aplicá-lo a outro cliente sem um find-and-replace, que é exactamente a operação que não se deve fazer a olho num plugin com hooks fail-closed.
 

@@ -169,11 +169,11 @@ Total: **10 commands** (6 operação · 3 diagnóstico · 1 provisioning).
 
 ## Documentos de referência
 
-- `WIRE.POL.SEC.001` — Política SecOps <ORG> (a redigir, baseada em GIN.POL.SEC.001 adaptada)
-- `WIRE.ARQ.SEC.002` — Arquitectura técnica multi-tenant
-- `WIRE.PRC.AUD.004` — Procedimento de auditoria e conformidade
-- `WIRE.PRC.IRT.005` — Procedimento IR multi-tenant
-- `WIRE.MTZ.SEC.006` — Matriz RACI + controlos numerados CTRL-W-001..080
+- `<ORG>.POL.SEC.001` — Política SecOps <ORG> (a redigir, baseada em GIN.POL.SEC.001 adaptada)
+- `<ORG>.ARQ.SEC.002` — Arquitectura técnica multi-tenant
+- `<ORG>.PRC.AUD.004` — Procedimento de auditoria e conformidade
+- `<ORG>.PRC.IRT.005` — Procedimento IR multi-tenant
+- `<ORG>.MTZ.SEC.006` — Matriz RACI + controlos numerados CTRL-W-001..080
 
 ---
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wire SecOps · pre-tool · Approval gate (N1/N2/N3)
+# prumo-secops · pre-tool · Approval gate (N1/N2/N3)
 #
 # Env-var-based — NÃO interactivo. A aprovação lê-se do ambiente do próprio hook
 # (settings.json → env.PRUMO_APPROVE), nunca de um prefixo inline no comando:
@@ -176,7 +176,7 @@ registados em approvals.log com via=lab-bypass; em prod e dev o gate é
 fail-closed e só o env autoriza.
 Retirar do settings.json quando a operação terminar.
 
-Níveis (Wire SecOps):
+Níveis (prumo-secops):
   N1 = destrutivo local
   N2 = cross-tenant ou prod data
   N3 = catastrophic

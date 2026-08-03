@@ -25,7 +25,7 @@ Invocar `/prumo-onboard`. O command:
 6. Pergunta pelo estilo de output (`/prumo-style`), sem nunca o aplicar.
 7. Imprime relatório final com pendentes.
 
-**Dois Vaults, não um.** O ecossistema toca num *broker pessoal* (credenciais do utilizador por projecto, tipicamente `127.0.0.1:8200`) e no *parque Wire* (infraestrutura SaaS de produção). O broker pessoal não precisa dos engines `transit/` e `ssh/` e **nunca** deve receber policies `wire-*`. Se a natureza do Vault não for inequívoca pelo `VAULT_ADDR`, o command **pergunta** antes de sugerir qualquer `--apply`: um bootstrap contra o Vault errado escreve objectos onde não pertencem.
+**Dois Vaults, não um.** O ecossistema toca num *broker pessoal* (credenciais do utilizador por projecto, tipicamente `127.0.0.1:8200`) e no *parque da organização* (infraestrutura SaaS de produção). O broker pessoal não precisa dos engines `transit/` e `ssh/` e **nunca** deve receber policies ``<prefixo>-*``. Se a natureza do Vault não for inequívoca pelo `VAULT_ADDR`, o command **pergunta** antes de sugerir qualquer `--apply`: um bootstrap contra o Vault errado escreve objectos onde não pertencem.
 
 Nada é instalado automaticamente — Claude Code não permite a um slash command executar `/plugin install`. O command emite as linhas exactas para o utilizador colar.
 

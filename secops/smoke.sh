@@ -133,11 +133,19 @@ fi
 # 11. vault-policies.hcl existe + tem 7 policies
 hcl_file="$plugin_root/vault-policies.hcl"
 if [ -f "$hcl_file" ]; then
-  if grep -qE '^# wire-[a-z-]+ —' "$hcl_file"; then
-    n_policies=$(grep -cE '^# wire-[a-z-]+ —' "$hcl_file")
-    [ "$n_policies" -eq 7 ] && ok "vault-policies.hcl tem 7 policies" || warn "vault-policies.hcl tem $n_policies policies (esperado 7 em v0.4.0)"
+  # Desde a v0.9.1 o HCL é um TEMPLATE, com headers '# {{PREFIX}}-<nome> —'.
+  # O check aceita as duas formas de propósito: o smoke corre contra a **cache**,
+  # e entre o merge e o `/plugin install` a versão instalada ainda tem o prefixo
+  # literal. Falhar nessa janela seria reportar avaria sobre um skew previsível.
+  hdr_re='^# (\{\{PREFIX\}\}|[a-z]+)-[a-z-]+ —'
+  if grep -qE "$hdr_re" "$hcl_file"; then
+    n_policies=$(grep -cE "$hdr_re" "$hcl_file")
+    if grep -q '{{PREFIX}}' "$hcl_file"; then form="template"; else form="literal (pré-0.9.1)"; fi
+    [ "$n_policies" -eq 7 ] \
+      && ok "vault-policies.hcl tem 7 policies · $form" \
+      || warn "vault-policies.hcl tem $n_policies policies (esperado 7) · $form"
   else
-    fail "vault-policies.hcl sem headers '# wire-X —'"
+    fail "vault-policies.hcl sem headers de policy reconhecíveis"
   fi
 fi
 

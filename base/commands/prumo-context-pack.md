@@ -47,21 +47,21 @@ Agents (em .claude/agents/ do secops):
   · prumo-monitor-01    — correlação Wazuh+Fortigate+Zabbix
 
 Vault — paths e AppRole:
-  · AppRole:  wire-ir          (TTL 15m · max 1h)
-  · SSH role: wire-ir-role     (cert efémero, TTL 15m)
+  · AppRole:  <prefixo>-ir          (TTL 15m · max 1h)
+  · SSH role: <prefixo>-ir-role     (cert efémero, TTL 15m)
   · KV: secret/data/ir/<case-id>/*
   · Transit: transit/encrypt/forensics · transit/decrypt/forensics
 
 Logs e telemetria:
-  · CEF local: /var/log/wire-secops-cef.log
+  · CEF local: /var/log/<prefixo>-secops-cef.log
   · SIEM: Wazuh manager (recebe audit Vault, syslog Fortigate, lograge Rails)
   · Perímetro: Fortigate syslog (anti-DDoS, IPS, WAF)
   · Monitorização activa: Zabbix (agentes, triggers, templates)
 
 One-liners úteis:
-  tail -f /var/log/wire-secops-cef.log | grep -i incident
+  tail -f /var/log/<prefixo>-secops-cef.log | grep -i incident
   vault token lookup -format=json | jq '.data.{policies,ttl,expire_time}'
-  vault list ssh/roles/wire-ir-role
+  vault list ssh/roles/<prefixo>-ir-role
 
 Princípios:
   · N2 obrigatório para queries cross-tenant
@@ -87,7 +87,7 @@ Agent:
   · prumo-deploy-01    — deploy/rollout coordinator (Capistrano)
 
 Vault — paths e AppRole:
-  · AppRole:  wire-deploy   (TTL 15m · max 30m)
+  · AppRole:  <prefixo>-deploy   (TTL 15m · max 30m)
   · KV: secret/data/cicd/<projecto>/*  (GitLab/GitHub tokens, cosign, SBOM)
 
 Tooling:
@@ -98,7 +98,7 @@ Tooling:
 Gates obrigatórios (codificados em hooks/skills):
   · /prumo-release-gate deve aprovar antes de `cap production deploy`
   · N1 para cap staging deploy · N2 para cap production deploy
-  · N3 para cap production deploy:rollback ou systemctl stop puma-wire*
+  · N3 para cap production deploy:rollback ou systemctl stop puma-produtos do inventário
   · Second-opinion em ops destrutivas (DROP/TRUNCATE/rollback)
 
 One-liners úteis:
