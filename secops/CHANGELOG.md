@@ -51,7 +51,19 @@ A substituição automática deixou português desajeitado em três sítios que 
 
 **O `/prumo-secops-bootstrap` (37) continua por migrar, de propósito** — provisiona AppRoles e policies reais, e é a última camada por desenho.
 
-Ratchet: **368 → 161**. Restam o bootstrap (37), o `vault-policies.hcl` (33), o `base` (58) e resíduos.
+Ratchet: **368 → 161**.
+
+### Fase 3e — a camada dos objectos reais
+
+A última e a mais delicada: `vault-policies.hcl` (33) e `/prumo-secops-bootstrap` (37) — os artefactos que **criam** os AppRoles e policies no Vault. Um nome errado aqui não produz um relatório feio, produz um provisionamento em cima de objectos que não existem.
+
+**A verificação que o B6 previa não era possível.** A fase 5 exige `/prumo-vault-doctor` verde antes e depois; o Vault de produção está fora da VPN (NXDOMAIN) e o broker local tem **zero** policies `wire-*`. Não há instalação contra a qual verificar a partir desta máquina.
+
+Foi substituída por uma prova estática mais forte, e que não precisa de Vault nenhum: **o `vault-policies.hcl` passou a template com `{{PREFIX}}`**, o bootstrap renderiza-o uma vez antes do split, e comparou-se o resultado. Os 32 nomes de objecto renderizam idênticos, os paths e capabilities não mudam uma linha, e as **7 policies geradas pelo split são byte-idênticas** às que o ficheiro literal produzia. A parametrização é demonstravelmente preservadora de nomes.
+
+O bootstrap ganhou também uma paragem: sem prefixo configurado, **aborta com exit 2** em vez de criar AppRoles com nomes errados. É a única operação de todo o plugin que escreve objectos novos no Vault, e um default silencioso aqui seria pior do que em qualquer outro sítio.
+
+Ratchet: **161 → 92**. O que resta é `base` (58, dos quais 8 são o path legacy `~/.wire` que não é para migrar), `secops` (28) e resíduos.
 
 ## v0.8.2 — 2026-08-02
 

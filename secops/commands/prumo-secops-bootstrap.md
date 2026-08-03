@@ -1,13 +1,13 @@
 ---
 name: prumo-secops-bootstrap
-description: Provisiona conteúdo Wire-specific no Vault — 7 policies wire-*, 7 AppRoles com TTLs do HCL, transit/keys/forensics, ssh/config/ca + 2 ssh roles. Popula macOS Keychain + ~/vault/approle-credentials.json. Idempotente. --plan default; --apply executa. Requer policy 'root' e infra base previamente bootstrapped.
+description: Provisiona conteúdo específico da organização no Vault — 7 policies `<prefixo>-*`, 7 AppRoles com TTLs do HCL, transit/keys/forensics, ssh/config/ca + 2 ssh roles. Popula macOS Keychain + ~/vault/approle-credentials.json. Idempotente. --plan default; --apply executa. Requer policy 'root' e infra base previamente bootstrapped.
 allowed-tools: Bash, Read
 argument-hint: "[--plan | --apply]"
 ---
 
 # /prumo-secops-bootstrap [--plan | --apply]
 
-Provisiona o conteúdo Wire-specific no Vault assumindo que a infra genérica já existe (`/prumo-vault-bootstrap` correu antes).
+Provisiona o conteúdo específico da organização no Vault assumindo que a infra genérica já existe (`/prumo-vault-bootstrap` correu antes).
 
 ## Passo 1 — Parse flags
 
@@ -88,8 +88,21 @@ fi
 ## Passo 5 — Split HCL em 7 ficheiros temporários por policy
 
 ```bash
-TMPDIR=$(mktemp -d -t wire-secops-policies.XXXXXX)
+ORG_PREFIX="$(prumo_org prefix)"
+if [ -z "$ORG_PREFIX" ]; then
+  echo "✗ prefixo da organização não configurado — define em ~/.prumo/org.json." >&2
+  echo "  Sem ele os AppRoles seriam criados com nomes errados. Abortar." >&2
+  exit 2
+fi
+
+TMPDIR=$(mktemp -d -t prumo-secops-policies.XXXXXX)
 trap "rm -rf '$TMPDIR'" EXIT
+
+# O vault-policies.hcl é um TEMPLATE: {{PREFIX}} resolve aqui, uma vez, antes do
+# split. Renderizar em vez de gerar nomes à mão garante que o ficheiro versionado
+# continua a ser a fonte única dos paths e capabilities.
+HCL="$TMPDIR/vault-policies.rendered.hcl"
+sed "s/{{PREFIX}}/${ORG_PREFIX}/g" "${CLAUDE_PLUGIN_ROOT}/vault-policies.hcl" > "$HCL"
 
 # NÃO usar awk com campos posicionais nus aqui. Num slash command, o harness
 # substitui as variáveis posicionais nuas (cifrão seguido de dígito) pelos
@@ -100,8 +113,8 @@ trap "rm -rf '$TMPDIR'" EXIT
 f=""
 while IFS= read -r line; do
   case "$line" in
-    '# wire-'*)
-      # cabeçalho de policy: "# wire-<nome> — <agente> (<descrição>)"
+    "# ${ORG_PREFIX}-"*)
+      # cabeçalho de policy: "# <prefixo>-<nome> — <agente> (<descrição>)"
       name="${line#\# }"; name="${name%% *}"
       f="$TMPDIR/policy-${name}.hcl"; : > "$f"; continue ;;
     '# ='*)
@@ -126,13 +139,13 @@ fi
 ```bash
 # Formato: name|token_ttl|token_max_ttl|secret_id_ttl|secret_id_num_uses
 APPROLE_CONFIGS=(
-  "wire-monitor|30m|1h|5m|1"
-  "wire-ir|15m|1h|5m|1"
-  "wire-tenant|15m|30m|5m|1"
-  "wire-srv|15m|30m|5m|1"
-  "wire-deploy|15m|30m|5m|1"
-  "wire-compliance|30m|1h|5m|1"
-  "wire-cowork-reporting|60m|2h|10m|1"
+  "${ORG_PREFIX}-monitor|30m|1h|5m|1"
+  "${ORG_PREFIX}-ir|15m|1h|5m|1"
+  "${ORG_PREFIX}-tenant|15m|30m|5m|1"
+  "${ORG_PREFIX}-srv|15m|30m|5m|1"
+  "${ORG_PREFIX}-deploy|15m|30m|5m|1"
+  "${ORG_PREFIX}-compliance|30m|1h|5m|1"
+  "${ORG_PREFIX}-cowork-reporting|60m|2h|10m|1"
 )
 ```
 
@@ -185,8 +198,8 @@ else
   ACTIONS+=("+|ssh-ca|ssh/config/ca|generate signing key")
 fi
 
-# Action 5: ssh roles (wire-srv-role + wire-ir-role)
-for role in wire-srv-role wire-ir-role; do
+# Action 5: ssh roles (${ORG_PREFIX}-srv-role + ${ORG_PREFIX}-ir-role)
+for role in "${ORG_PREFIX}-srv-role" "${ORG_PREFIX}-ir-role"; do
   if V read "ssh/roles/$role" >/dev/null 2>&1; then
     ACTIONS+=("✓|ssh-role|$role|skip:já existe")
   else
@@ -198,8 +211,8 @@ done
 KEYCHAIN_FILE="${VAULT_HOME:-$HOME/vault}/approle-credentials.json"
 for conf in "${APPROLE_CONFIGS[@]}"; do
   IFS="|" read -r rname _ <<< "$conf"
-  HAS_RID=$(security find-generic-password -a wire-secops -s "vault-role-id-$rname" -w 2>/dev/null || true)
-  HAS_SID=$(security find-generic-password -a wire-secops -s "vault-secret-id-$rname" -w 2>/dev/null || true)
+  HAS_RID=$(security find-generic-password -a "${ORG_PREFIX}-secops" -s "vault-role-id-$rname" -w 2>/dev/null || true)
+  HAS_SID=$(security find-generic-password -a "${ORG_PREFIX}-secops" -s "vault-secret-id-$rname" -w 2>/dev/null || true)
   if [ -n "$HAS_RID" ] && [ -n "$HAS_SID" ]; then
     ACTIONS+=("⟳|credentials|$rname|rotate secret-id (invalida o anterior)")
   else
@@ -314,23 +327,23 @@ for entry in "${ACTIONS[@]}"; do
       ;;
     "ssh-role")
       case "$name" in
-        wire-srv-role)
-          echo "→ ssh/roles/wire-srv-role"
-          V write ssh/roles/wire-srv-role \
+        ${ORG_PREFIX}-srv-role)
+          echo "→ ssh/roles/${ORG_PREFIX}-srv-role"
+          V write ssh/roles/${ORG_PREFIX}-srv-role \
             key_type=ca \
             algorithm_signer=rsa-sha2-256 \
-            allowed_users="wire-srv,wire-deploy" \
-            default_user="wire-srv" \
+            allowed_users="${ORG_PREFIX}-srv,${ORG_PREFIX}-deploy" \
+            default_user="${ORG_PREFIX}-srv" \
             ttl=15m max_ttl=15m \
             || { echo "ERRO" >&2; exit 1; }
           ;;
-        wire-ir-role)
-          echo "→ ssh/roles/wire-ir-role"
-          V write ssh/roles/wire-ir-role \
+        ${ORG_PREFIX}-ir-role)
+          echo "→ ssh/roles/${ORG_PREFIX}-ir-role"
+          V write ssh/roles/${ORG_PREFIX}-ir-role \
             key_type=ca \
             algorithm_signer=rsa-sha2-256 \
-            allowed_users="wire-ir" \
-            default_user="wire-ir" \
+            allowed_users="${ORG_PREFIX}-ir" \
+            default_user="${ORG_PREFIX}-ir" \
             ttl=15m max_ttl=15m \
             || { echo "ERRO" >&2; exit 1; }
           ;;
@@ -342,8 +355,8 @@ for entry in "${ACTIONS[@]}"; do
       SID=$(V write -force -field=secret_id "auth/approle/role/$name/secret-id") || { echo "ERRO ao gerar secret-id" >&2; exit 1; }
 
       # Keychain (substitui -U se já existe)
-      security add-generic-password -a wire-secops -s "vault-role-id-$name"   -w "$RID" -U >/dev/null
-      security add-generic-password -a wire-secops -s "vault-secret-id-$name" -w "$SID" -U >/dev/null
+      security add-generic-password -a "${ORG_PREFIX}-secops" -s "vault-role-id-$name"   -w "$RID" -U >/dev/null
+      security add-generic-password -a "${ORG_PREFIX}-secops" -s "vault-secret-id-$name" -w "$SID" -U >/dev/null
 
       # File (chmod 600 idempotente)
       mkdir -p "$(dirname "$KEYCHAIN_FILE")"
@@ -367,8 +380,8 @@ echo
 echo "Próximos passos:"
 echo "  /prumo-vault-doctor      # validar findings resolvidos"
 echo "  vault write auth/approle/login \\"
-echo "    role_id=\$(security find-generic-password -a wire-secops -s vault-role-id-wire-monitor -w) \\"
-echo "    secret_id=\$(security find-generic-password -a wire-secops -s vault-secret-id-wire-monitor -w)"
+echo "    role_id=\$(security find-generic-password -a "${ORG_PREFIX}-secops" -s vault-role-id-${ORG_PREFIX}-monitor -w) \\"
+echo "    secret_id=\$(security find-generic-password -a "${ORG_PREFIX}-secops" -s vault-secret-id-${ORG_PREFIX}-monitor -w)"
 ```
 
 ## Notas
@@ -378,4 +391,4 @@ echo "    secret_id=\$(security find-generic-password -a wire-secops -s vault-se
 - **Sem rollback**: cada operação atómica em Vault; o conjunto não é. Em erro mid-apply, log diz onde parou; re-correr `--apply` é seguro (idempotente).
 - **Keychain + file**: dual storage. Keychain primário (hook espera-o); ficheiro `~/vault/approle-credentials.json` (chmod 600) é audit trail + recovery.
 - **Token requirement**: policy "root". Defesa em profundidade.
-- **HCL como source-of-truth**: split via `awk` por header `# wire-<nome> —`. Se editares o HCL para adicionar uma policy nova, lembra-te de adicionar à `APPROLE_CONFIGS` se também for AppRole.
+- **HCL como source-of-truth**: split por header `# <prefixo>-<nome> —` no template renderizado. Se editares o HCL para adicionar uma policy nova, lembra-te de adicionar à `APPROLE_CONFIGS` se também for AppRole.
