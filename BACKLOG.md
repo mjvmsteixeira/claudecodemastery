@@ -82,6 +82,8 @@ Por tipo: **620 `diary_write`** e 90 `mine`. Os `diary_write` são conteúdo ún
 
 **Acção pendente do utilizador:** levar os três pedidos a quem detém o documento. O nº 2 é o mais barato — sim/não seguido de lista — e é o que decide se as lacunas de governança são problema de documentação ou de conformidade.
 
+**Depende do B6.** O `WIRE.MTZ.SEC.006` e o prefixo `CTRL-W-` são identidade de uma organização concreta. Se o B6 parametrizar a organização, este item deixa de ser *"obter o documento da Wire"* e passa a ser *"cada instalação declara o seu registo de controlos"* — a lacuna `IR` continua a existir nesta instalação, mas deixa de ser um defeito do plugin e passa a ser configuração por preencher. **Fazer o B6 primeiro**, ou transcreve-se uma matriz para um sítio que vai mudar de forma.
+
 Feito:
 - **Fase 1** — `secops/ctrl-w-inventario.md`, com as famílias `T` (16) e `R` (18) transcritas das origens e verificadas char a char
 - **Fase 2** — `/prumo-tenant-audit` e `/prumo-release-gate` apontam para o inventário; ambos param se não o conseguirem ler, em vez de inferir controlos pelo número
@@ -150,3 +152,53 @@ Não repetir a investigação — está toda no `CHANGELOG.md`:
 - `--scope` do `memory-doctor` (`base` v0.9.0)
 - Check 4b.1b, daemon vivo mas surdo (`base` v0.9.1)
 - `prumo-design` no `/prumo-upgrade` (`base` v0.9.2)
+
+---
+
+## B6 · Genericizar o `prumo-secops` — a organização passa a ser configuração
+
+**Estado: pedido do dono a 2026-08-03. Âmbito medido, desenho por decidir.**
+
+O plugin foi escrito contra uma organização concreta e ficou com o nome dela na estrutura, não só nos exemplos. Isso impede aplicá-lo a outro cliente sem um find-and-replace, que é exactamente a operação que não se deve fazer a olho num plugin com hooks fail-closed.
+
+### Âmbito medido
+
+**876 ocorrências de `wire` em 70 ficheiros.** Não são todas a mesma coisa, e a distinção decide o desenho:
+
+| Ocorrências | O que é | Tratamento |
+|---|---|---|
+| 217 | AppRoles e policies `wire-*` | **parametrizar, nunca renomear** — ver a nota abaixo |
+| 222 | prefixo `CTRL-W-` nos identificadores de controlo | parametrizar o prefixo |
+| 119 | nomes de produto (`wirePAPER`, `wireDESK`, …) | inventário por configuração |
+| 32 | referências documentais `WIRE.XXX.YYY.NNN` | ponteiro configurável para o registo da organização |
+| 18 | hosts `*.wire.internal` | já há precedente: `PRUMO_WAZUH_HOST` |
+
+Distribuição: `secops` 715 · `base` 127 · `devkit` 26 · `design` 6 · `scripts` 2.
+
+### A distinção que não se pode perder
+
+**Os `wire-*` no Vault são objectos reais de produção.** Renomeá-los no plugin sem os renomear no Vault parte o deployment em silêncio: o hook pede um AppRole que não existe, e em `prod` isso é fail-closed. O objectivo não é apagar o nome — é **deixar de o ter escrito**.
+
+O desenho que satisfaz as duas coisas é parametrização, não substituição: um `PRUMO_ORG_PREFIX` (valor `wire` nesta instalação) e um inventário de produtos em configuração. O plugin fica genérico, a instalação actual continua a apontar para os mesmos objectos, e ninguém tem de tocar no Vault.
+
+Há precedente no próprio plugin: `PRUMO_RAILS_DEPLOY_BASE`, `PRUMO_WAZUH_HOST` e `FORTIGATE_HOST` já são infra parametrizada. Isto é estender o padrão à identidade da organização.
+
+### Conflito a resolver antes de começar
+
+O `CLAUDE.md` deste repositório diz hoje, na secção "Dois CLAUDE.md de runtime":
+
+> os tokens `wire*` aí são domínio real, **nunca** renomear para prumo
+
+Essa regra existe para impedir um rename cego — e continua certa nesse sentido. Mas como está escrita, proíbe também a parametrização. **Tem de ser reescrita como parte deste item**, para distinguir "não renomear objectos reais" de "não deixar o nome hardcoded". Enquanto não for, qualquer sessão futura vai ler a regra e travar o trabalho.
+
+### Fases propostas
+
+1. **Decidir o mecanismo** — variáveis de ambiente, um ficheiro `org.json` no plugin, ou ambos. Decide tudo o resto.
+2. **Reescrever a regra no `CLAUDE.md`** antes de mexer em código, ou o trabalho é revertido por quem o ler.
+3. **Parametrizar por camada**, do menos arriscado ao mais: docs → nomes de produto → prefixo `CTRL-W-` → hosts → **AppRoles e policies por último**, porque é onde um erro é fail-closed em produção.
+4. **Check no `validate.sh`** que impeça regressão — nenhum `wire` literal em conteúdo de plugin fora do ficheiro de configuração. Mesmo padrão do check `1b` do B5.
+5. **Verificar contra a instalação real** — os hooks têm de continuar a resolver os mesmos AppRoles depois da parametrização. Um `/prumo-vault-doctor` verde antes e depois.
+
+**Risco:** médio-alto e concentrado na fase 3. O `secops` tem 8 hooks, e os de Vault falham fechados: uma variável mal resolvida não degrada, bloqueia. Fazer com o modo em `dev` e só depois validar em `prod`.
+
+**Não fazer com sed sobre o repositório inteiro.** 876 ocorrências em 70 ficheiros, com quatro naturezas diferentes misturadas — um replace global acerta nos exemplos e parte os objectos reais.
