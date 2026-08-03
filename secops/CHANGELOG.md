@@ -2,6 +2,23 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.9.0 — 2026-08-03
+
+**B6 fase 3a — o bash executável deixa de nomear a organização.** Primeira camada da migração, escolhida por ser a única onde `prumo_org` é código a sério: das 661 ocorrências, apenas 12 estavam em hooks. As outras 649 são prosa em skills, references, comandos e agents, e migram com técnica diferente.
+
+- **`pre-tool-vault-ttl.sh`** — a conta do Keychain (`<prefixo>-secops`) passa a vir de `prumo_org prefix`. O heredoc de ajuda deixou de ser *quoted* para a interpolar, com todos os outros `$` escapados: o texto é para o utilizador copiar, e o `$(security …)` e o `$VAULT_ROLE_ID` têm de sair literais. Verificado pelo texto renderizado, não pelo código.
+- **`post-tool-cef-wazuh.sh`** — o default do host Wazuh compõe-se de `prumo_org domain`. `PRUMO_WAZUH_HOST` e o legacy `WAZUH_HOST` mantêm precedência.
+
+**O fallback é a parte que interessa, e quase ficou por fazer.** Os hooks do secops carregam a `prumo-common.sh` da **cache**, e `prumo_org` só existe no `prumo-base` v0.11.0 — nenhuma das 11 versões em cache a tinha. Sem rede de segurança, estes hooks partiriam em qualquer máquina até o base ser actualizado, e partiriam por uma razão que nada tem a ver com segurança.
+
+O `_lib.sh` já tinha o padrão certo para isto no `hook_tool_payload`: **guarda própria**, não a do bloco geral de stubs. O bloco geral está atrás de um único sentinela (`prumo_fail_or_warn`) que um `prumo-base` **antigo** também define — o que faz o bloco inteiro ser saltado e deixa uma função nova por definir. `prumo_org` ganhou guarda independente, e o fallback avisa uma vez por processo a pedir o upgrade.
+
+Três cenários verificados: base antigo em cache (resolve na mesma), sem `org.json` nenhum (devolve o default e avisa), e o texto de ajuda renderizado (conta interpolada, resto literal).
+
+**Uma ocorrência fica por migrar, de propósito:** o comentário em `pre-tool-vault-ttl.sh:61` aponta para `docs/superpowers/plans/2026-05-19-wire-vault-bootstraps/`, que é um directório que existe. Genericizar o texto tornaria o ponteiro falso.
+
+**Requer `prumo-base` >= 0.11.0** para o caminho nativo; abaixo disso corre em fallback com aviso.
+
 ## v0.8.2 — 2026-08-02
 
 **A lacuna `CTRL-W-IR-*` estava declarada, mas não estava pedida.** Dizer *"não existe matriz IR"* identifica o buraco e deixa o trabalho por fazer no sítio errado: quem lê fica a saber que falta algo, não o que perguntar nem a quem. Nova secção **"O que pedir ao `WIRE.MTZ.SEC.006`"** no `ctrl-w-inventario.md`, com os três pedidos, o formato exigido e o critério de recusa.

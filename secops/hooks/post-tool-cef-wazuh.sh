@@ -12,7 +12,9 @@ source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 EVENT=$(cat 2>/dev/null || echo '{}')
 get_field() { printf '%s' "$EVENT" | jq -r "$1 // empty" 2>/dev/null; }
 
-WAZUH_HOST="${PRUMO_WAZUH_HOST:-${WAZUH_HOST:-wazuh-manager.wire.internal}}"
+# Default composto a partir do domínio da organização (B6); `PRUMO_WAZUH_HOST`
+# e o legacy `WAZUH_HOST` continuam a ter precedência.
+WAZUH_HOST="${PRUMO_WAZUH_HOST:-${WAZUH_HOST:-wazuh-manager.$(prumo_org domain internal)}}"
 WAZUH_PORT="${WAZUH_PORT:-514}"
 TOOL="$(get_field '.tool_name')"; TOOL="${TOOL:-unknown}"
 SESSION="$(get_field '.session_id')"; SESSION="${SESSION:-${CLAUDE_SESSION_ID:-unknown}}"

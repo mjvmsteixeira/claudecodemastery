@@ -195,7 +195,11 @@ fi
 # Para tudo o resto · exige VAULT_TOKEN
 # ────────────────────────────────────────────────────────────────────────────
 if [ -z "${VAULT_TOKEN:-}" ]; then
-  cat >&2 <<'EOF'
+  # A conta do Keychain leva o prefixo da organização (B6). O heredoc deixa de
+  # ser quoted para o interpolar — todos os outros `$` são escapados, porque
+  # este texto é para o utilizador copiar e tem de sair literal.
+  _kc_account="$(prumo_org prefix org)-secops"
+  cat >&2 <<EOF
 [prumo-secops/vault-ttl] VAULT_TOKEN ausente — bloqueia (fail-closed).
 
 Diagnóstico (não exige token, está em allowlist):
@@ -205,18 +209,19 @@ Diagnóstico (não exige token, está em allowlist):
 Destrancar via AppRole (preferível, TTL curto):
   export VAULT_ADDR=https://127.0.0.1:8200
   export VAULT_CACERT=~/.prumo/vault-ca.pem
-  export VAULT_ROLE_ID=$(security find-generic-password \
-    -a wire-secops -s vault-role-id -w)
-  export VAULT_SECRET_ID=$(security find-generic-password \
-    -a wire-secops -s vault-secret-id -w)
-  export VAULT_TOKEN=$(vault write -field=token \
-    auth/approle/login \
-    role_id="$VAULT_ROLE_ID" secret_id="$VAULT_SECRET_ID")
+  export VAULT_ROLE_ID=\$(security find-generic-password \\
+    -a ${_kc_account} -s vault-role-id -w)
+  export VAULT_SECRET_ID=\$(security find-generic-password \\
+    -a ${_kc_account} -s vault-secret-id -w)
+  export VAULT_TOKEN=\$(vault write -field=token \\
+    auth/approle/login \\
+    role_id="\$VAULT_ROLE_ID" secret_id="\$VAULT_SECRET_ID")
 
 Modo dev (formação, Vault em Docker):
   export VAULT_ADDR=http://127.0.0.1:8200
   export VAULT_TOKEN=dev-only-root
 EOF
+  unset _kc_account
   prumo_fail_or_warn "prumo-secops" "vault-ttl" "VAULT_TOKEN ausente"
 fi
 
