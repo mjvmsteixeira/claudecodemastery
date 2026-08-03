@@ -1,6 +1,6 @@
 ---
 name: prumo-incident-spread
-description: Analisa propagação de incidente entre municípios clientes <ORG>, identifica blast radius, prepara comunicação coordenada.
+description: Analisa propagação de incidente entre municípios clientes, identifica blast radius, prepara comunicação coordenada.
 argument-hint: <incident-id>
 ---
 

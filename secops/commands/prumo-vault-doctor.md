@@ -1,6 +1,6 @@
 ---
 name: prumo-vault-doctor
-description: Diagnóstico do Vault de PRODUÇÃO do SaaS <ORG> (`vault.<domínio>`) — endpoint, token TTL, seal status, HA Raft leader, audit device, AppRoles `<prefixo>-*`, backends transit/ssh/kv. Reporta verde/amarelo/vermelho com acções concretas. NÃO confundir com /vault-audit (que valida o Vault LOCAL de desenvolvimento do projecto).
+description: Diagnóstico do Vault de PRODUÇÃO do SaaS (`vault.<domínio>`) — endpoint, token TTL, seal status, HA Raft leader, audit device, AppRoles `<prefixo>-*`, backends transit/ssh/kv. Reporta verde/amarelo/vermelho com acções concretas. NÃO confundir com /vault-audit (que valida o Vault LOCAL de desenvolvimento do projecto).
 ---
 
 Executa diagnóstico completo do Vault que sustenta o broker de credenciais do plugin prumo SecOps.
