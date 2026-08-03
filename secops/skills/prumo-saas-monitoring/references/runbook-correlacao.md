@@ -18,7 +18,7 @@ Todas as janelas deste runbook são em **UTC**.
 
 ```bash
 WAZUH_TOKEN=$(V kv get -field=api_token secret/data/observability/wazuh)
-WAZUH="${PRUMO_WAZUH_HOST:-${WAZUH_HOST:-wazuh-manager.wire.internal}}"
+WAZUH="${PRUMO_WAZUH_HOST:-${WAZUH_HOST:-wazuh-manager.$(prumo_org domain)}}"
 
 curl -s -k -H "Authorization: Bearer $WAZUH_TOKEN" \
   "${WAZUH}/security/alerts?rule_id=<ID>&since_minutes=60" \
@@ -53,7 +53,7 @@ Consultar `wazuh-fortigate-pairs.md` para saber **qual o par esperado**. Sem iss
 
 ```bash
 FG_TOKEN=$(V kv get -field=api_token secret/data/observability/fortigate)
-FG="${PRUMO_FORTIGATE_HOST:-fortigate.wire.internal}"
+FG="${PRUMO_FORTIGATE_HOST:-fortigate.$(prumo_org domain)}"
 
 curl -s -k -H "Authorization: Bearer $FG_TOKEN" \
   "https://${FG}/api/v2/log/memory/ips?filter=srcip==<IP>&start=<epoch-900>&end=<epoch+900>" \
@@ -69,7 +69,7 @@ Se o IP de origem for o de um proxy ou CDN, correlacionar pelo `X-Forwarded-For`
 Responde a "isto é ataque ou avaria?". Um pico de 5xx com CPU saturado e sem tráfego anómalo raramente é ataque.
 
 ```bash
-ZBX="${ZABBIX_URL:-https://zabbix.wire.internal/api_jsonrpc.php}"
+ZBX="${ZABBIX_URL:-https://zabbix.$(prumo_org domain)/api_jsonrpc.php}"
 ZBX_TOKEN=$(V kv get -field=api_token secret/data/observability/zabbix)
 
 curl -s -H "Content-Type: application/json-rpc" -d '{

@@ -1,14 +1,14 @@
-# Cálculo de SLA — Fórmulas e Exclusões Wire
+# Cálculo de SLA — Fórmulas e Exclusões <ORG>
 
 **Skill:** `prumo-cliente-dossier` · **Versão:** v0.4.0 · **Última actualização:** 2026-05-19
 
-> Template referenciado pela skill `prumo-cliente-dossier`. Define como Wire calcula uptime,
+> Template referenciado pela skill `prumo-cliente-dossier`. Define como <ORG> calcula uptime,
 > MTTR, MTTD e exclusões contratuais. Baseado em práticas SRE (SLI/SLO/SLA) e ITIL 4 service
-> management. Marca `[CONFIRMAR]` campos Wire-specific.
+> management. Marca `[CONFIRMAR]` campos <ORG>-specific.
 
 A medição de SLA é fonte de penalizações contratuais e de confiança — tem de ser **defensável,
 auditável e reproduzível**. As fórmulas abaixo são as canónicas; os dados vêm do Zabbix
-(disponibilidade activa) cruzado com Wazuh (eventos) e timeline de incidentes (`wire-ir-*`).
+(disponibilidade activa) cruzado com Wazuh (eventos) e timeline de incidentes (`<prefixo>-ir-*`).
 
 ## Definições base
 
@@ -21,7 +21,7 @@ auditável e reproduzível**. As fórmulas abaixo são as canónicas; os dados v
 | **MTTR** | Mean Time To Recover — tempo médio entre detecção e restauro completo. |
 | **Downtime** | Período em que o serviço está indisponível ou degradado abaixo do limiar contratado. |
 
-Convenção Wire: SLO é sempre **mais apertado** que SLA (margem de segurança). Reportamos SLI
+Convenção <ORG>: SLO é sempre **mais apertado** que SLA (margem de segurança). Reportamos SLI
 real ao cliente; alertamos internamente quando SLI se aproxima do SLO.
 
 ## Uptime
@@ -54,7 +54,7 @@ uptime = (44640 - 27) / 44640 × 100 = 99.9395% ≈ 99.94%
 | 99.95% | 22.3 min | 4.38h |
 | 99.99% | 4.46 min | 52.6 min |
 
-Wire SLA típico: 99.9% para produtos standard, 99.5% para produtos low-criticality (ex: wireMEET)
+<ORG> SLA típico: 99.9% para produtos standard, 99.5% para produtos low-criticality (ex: <produto>)
 `[CONFIRMAR — alvos contratuais reais por produto]`.
 
 ## MTTD — Mean Time To Detect
@@ -80,7 +80,7 @@ MTTD P50 = 6 min
 MTTD P95 = ~20 min (interpolado)
 ```
 
-Alvo Wire: MTTD P95 ≤ 15 min para S1/S2 `[CONFIRMAR]`.
+Alvo <ORG>: MTTD P95 ≤ 15 min para S1/S2 `[CONFIRMAR]`.
 
 ## MTTR — Mean Time To Recover
 
@@ -106,7 +106,7 @@ MTTR P50 = 60 min
 MTTR P95 = ~210 min
 ```
 
-Alvo Wire SLA: MTTR ≤ 4h (240 min) para produtos standard.
+Alvo <ORG> SLA: MTTR ≤ 4h (240 min) para produtos standard.
 
 ## Exclusões do downtime contável
 
@@ -121,7 +121,7 @@ Nem todo o downtime conta para o SLA. Exclusões (têm de estar no contrato):
 
 ### 2. Força maior
 
-- Falha de infraestrutura de terceiros fora do controlo Wire (ex: outage AWS region-wide
+- Falha de infraestrutura de terceiros fora do controlo <ORG> (ex: outage AWS region-wide
   documentado, falha de telecom nacional).
 - Ataques DDoS de escala excepcional além da capacidade de mitigação contratada `[CONFIRMAR —
   threshold]`.
@@ -134,7 +134,7 @@ Nem todo o downtime conta para o SLA. Exclusões (têm de estar no contrato):
 
 ### 4. Degradação parcial vs indisponibilidade total
 
-Política Wire: degradação que mantém o serviço **funcional mas lento** (ex: P95 latency 2x
+Política <ORG>: degradação que mantém o serviço **funcional mas lento** (ex: P95 latency 2x
 baseline) conta como **downtime parcial** com peso `[CONFIRMAR — fórmula de weighting, ex:
 0.5× minutos]`. Indisponibilidade total (5xx, timeout) conta a 1.0×.
 
@@ -171,7 +171,7 @@ Exemplo de tabela típica `[CONFIRMAR — valores contratuais reais]`:
 
 | Métrica | Fonte primária | Fonte de validação |
 |---------|----------------|---------------------|
-| Uptime | Zabbix synthetic checks + `wire.puma.workers.total` | Wazuh availability events |
+| Uptime | Zabbix synthetic checks + `<prefixo>.puma.workers.total` | Wazuh availability events |
 | Início de falha | Zabbix trigger timestamp | Wazuh first alert |
 | Detecção | Wazuh rule ≥10 OR Zabbix High+ | timeline `investigating` |
 | Recuperação | timeline `closed` + Zabbix OK | Wazuh recovery confirmation |
@@ -183,7 +183,7 @@ com os dados-fonte para auditoria.
 ## Reconciliação
 
 Discrepâncias entre fontes resolvem-se por hierarquia:
-1. Timeline de incidente (`wire-ir-*`) — fonte de verdade para início/fim de incidentes manuais.
+1. Timeline de incidente (`<prefixo>-ir-*`) — fonte de verdade para início/fim de incidentes manuais.
 2. Zabbix — fonte para disponibilidade contínua automatizada.
 3. Wazuh — fonte para detecção.
 
@@ -192,7 +192,7 @@ ou falso positivo). Esta reconciliação é parte do report SLA mensal.
 
 ## Anti-patterns
 
-- **Calcular uptime sem excluir manutenção** — penaliza Wire por janelas legítimas.
+- **Calcular uptime sem excluir manutenção** — penaliza <ORG> por janelas legítimas.
 - **Usar tempo de reclamação como início de falha** — infla MTTD; usar primeiro evento Zabbix/Wazuh.
 - **Reportar só média de MTTR** — esconde caudas; reportar P50 + P95.
 - **Excluir downtime sem documentação** — quebra confiança e auditabilidade.
@@ -205,7 +205,7 @@ ou falso positivo). Esta reconciliação é parte do report SLA mensal.
 - **Google SRE Book** — Service Level Objectives chapter (SLI/SLO/SLA, error budgets).
 - **ITIL 4** — Service Level Management practice.
 - **ISO/IEC 20000-1:2018** — Service management system requirements.
-- WIRE.MTZ.SEC.006, contratos-tipo Wire `[CONFIRMAR — referência]`.
+- <ORG>.MTZ.SEC.006, contratos-tipo <ORG> `[CONFIRMAR — referência]`.
 
 ## Como usar este template em sessão Claude Code
 

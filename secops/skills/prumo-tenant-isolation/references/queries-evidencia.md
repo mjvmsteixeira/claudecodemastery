@@ -9,7 +9,7 @@
 ## Regras de execução
 
 1. **Read-only, sempre.** Esta skill não corrige; evidencia. Nenhuma query aqui escreve.
-2. **Acesso a dados de tenant exige ticket de auditoria + autorização do DPO Wire** — limite do `SKILL.md`. As queries devolvem contagens e metadados, nunca payload.
+2. **Acesso a dados de tenant exige ticket de auditoria + autorização do DPO <ORG>** — limite do `SKILL.md`. As queries devolvem contagens e metadados, nunca payload.
 3. **A própria auditoria é cross-tenant** e cai no CTRL-W-T-016: cada execução tem de aparecer no audit log com justificação e ticket.
 4. **Resultado inesperado que indicie vazamento real dispara IR**, não continua em modo auditoria. Ver `prumo-ir-multitenant`.
 5. **Guardar o resultado com a query**, não só a conclusão. "Conforme" sem output não é evidência.
@@ -79,12 +79,12 @@ Não se prova por SQL — prova-se por teste de comportamento:
 ```bash
 # pedido sem tenant-key deve ser rejeitado, não assumir default
 curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $TOKEN" \
-  "https://<produto>.wire.internal/api/v1/<recurso>"          # esperado: 4xx
+  "https://<produto>.$(prumo_org domain)/api/v1/<recurso>"          # esperado: 4xx
 
 # tenant-key de outro município com token do primeiro
 curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $TOKEN" \
   -H "X-Tenant-Id: <UUID-de-outro>" \
-  "https://<produto>.wire.internal/api/v1/<recurso>"           # esperado: 403
+  "https://<produto>.$(prumo_org domain)/api/v1/<recurso>"           # esperado: 403
 ```
 
 **Não-conformidade grave:** `200` no segundo caso. **Limitação:** cobre os endpoints testados. A cobertura completa exige a lista de endpoints, e essa lista é o que costuma faltar.
@@ -103,7 +103,7 @@ aws s3 ls "s3://<bucket>/" --recursive | grep -v '^.*tenant=[0-9a-f-]\{36\}/' | 
 ```bash
 # sessão de um município usada contra recurso de outro
 curl -s -o /dev/null -w '%{http_code}\n' -b "session=<cookie-do-A>" \
-  "https://<produto>.wire.internal/<recurso-do-B>"             # esperado: 403
+  "https://<produto>.$(prumo_org domain)/<recurso-do-B>"             # esperado: 403
 ```
 
 Verificar ainda que o `tenant_id` está **no lado do servidor**, não em cookie ou JWT alterável pelo cliente.
@@ -113,7 +113,7 @@ Verificar ainda que o `tenant_id` está **no lado do servidor**, não em cookie 
 ```bash
 # acesso admin sem MFA
 curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $TOKEN_SEM_MFA" \
-  "https://<produto>.wire.internal/admin/<recurso>"            # esperado: 401/403
+  "https://<produto>.$(prumo_org domain)/admin/<recurso>"            # esperado: 401/403
 ```
 
 Cruzar com Wazuh: todo o acesso admin bem-sucedido deve ter entrada correspondente.

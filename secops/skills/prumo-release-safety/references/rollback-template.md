@@ -30,7 +30,7 @@ A consequência prática: preferir sempre *expand/contract*. Fase 1 aditiva (cla
 ```
 PLANO DE ROLLBACK
 Release:     <id> @ <SHA>          Rollback para: <SHA anterior>
-Produto(s):  <wire*>               Classe: <A | B | C | D>
+Produto(s):  <os produtos do inventário>               Classe: <A | B | C | D>
 Autor:       <nome>                Data: <data>
 
 TEMPO-ALVO

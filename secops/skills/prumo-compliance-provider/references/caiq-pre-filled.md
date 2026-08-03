@@ -14,7 +14,7 @@
 
 ## Para que serve
 
-O CAIQ (*Consensus Assessments Initiative Questionnaire*) é o questionário da Cloud Security Alliance, alinhado com o CCM (*Cloud Controls Matrix*). Para a Wire tem dois usos:
+O CAIQ (*Consensus Assessments Initiative Questionnaire*) é o questionário da Cloud Security Alliance, alinhado com o CCM (*Cloud Controls Matrix*). Para a organização tem dois usos:
 
 - **Self-assessment publicado** no CSA STAR Registry (Level 1), que evita responder ao mesmo questionário 170 vezes.
 - **Base de resposta** a questionários de concurso, que na prática costumam ser subconjuntos das mesmas perguntas com outra redacção.
@@ -28,7 +28,7 @@ ID:            <domínio>-<n>   (ex: IVS-03)
 Pergunta:      <texto do CAIQ>
 Resposta:      Yes | No | NA
 Justificação:  <2 a 4 frases. O que está implementado e como.>
-Controlo Wire: <CTRL-W-*>
+Controlo <ORG>: <CTRL-W-*>
 Evidência:     <artefacto verificável e onde está>
 Validado por:  <nome> · <data>
 Revalidar até: <data>
@@ -41,8 +41,8 @@ Uma entrada sem `Validado por` **não é canónica** e não pode ser usada em re
 
 1. **`Yes` significa implementado e demonstrável hoje.** Não "planeado", não "parcial". Um `Yes` que não sobreviva a um pedido de evidência é pior do que um `No` honesto — destrói a credibilidade das outras 260 respostas.
 2. **`No` com plano vale mais do que `Yes` com asterisco.** Compradores públicos estão habituados a lacunas com prazo; não estão a descobrir que uma resposta era falsa.
-3. **`NA` exige justificação.** "Não aplicável porque a Wire não opera datacentro próprio" é justificação; `NA` sozinho lê-se como evasão.
-4. **Justificação descreve o mecanismo, não a intenção.** "Os segredos são intermediados por um broker com TTL de 15 minutos e sem chaves estáticas em disco" diz alguma coisa; "a Wire leva a segurança a sério" não.
+3. **`NA` exige justificação.** "Não aplicável porque a organização não opera datacentro próprio" é justificação; `NA` sozinho lê-se como evasão.
+4. **Justificação descreve o mecanismo, não a intenção.** "Os segredos são intermediados por um broker com TTL de 15 minutos e sem chaves estáticas em disco" diz alguma coisa; "a organização leva a segurança a sério" não.
 5. **Uma pergunta, uma resposta canónica.** Se dois municípios recebem respostas diferentes à mesma pergunta, uma delas está errada.
 6. **Sem detalhe explorável.** Descrever o controlo sem entregar o mapa da sua contornagem. É o mesmo critério do TLP no IR.
 
@@ -70,9 +70,9 @@ Estrutura para organizar o banco. As perguntas concretas vêm da versão em vigo
 | TVM | Threat & Vulnerability Management |
 | UEM | Universal Endpoint Management |
 
-### Domínios onde a arquitectura da Wire concentra o risco
+### Domínios onde a arquitectura da organização concentra o risco
 
-Sem antecipar respostas, é onde vale a pena começar o banco — são os mais perguntados a um SaaS multi-tenant e aqueles onde a Wire tem evidência mais específica:
+Sem antecipar respostas, é onde vale a pena começar o banco — são os mais perguntados a um SaaS multi-tenant e aqueles onde a organização tem evidência mais específica:
 
 - **IVS** — segregação entre tenants. O controlo crítico nº 1 da plataforma; ancora na família `CTRL-W-T-*`.
 - **IAM** e **CEK** — Vault como broker, TTLs curtos, SSH CA sem chaves estáticas.
@@ -81,7 +81,7 @@ Sem antecipar respostas, é onde vale a pena começar o banco — são os mais p
 - **STA** — cadeia de fornecimento, nas duas direcções. Cruza com o Anexo II.
 - **DSP** — ciclo de vida dos dados; cruza com o Anexo II e a DPIA.
 - **CCC** — gestão de alterações; família `CTRL-W-R-*` e o `/prumo-release-gate`.
-- **DCS** — provavelmente muito `NA`, por a Wire não operar datacentro próprio. **`NA` com justificação e com indicação de quem opera** — a responsabilidade transfere-se para o fornecedor de infraestrutura, e o cliente tem direito a saber para quem.
+- **DCS** — provavelmente muito `NA`, por a organização não operar datacentro próprio. **`NA` com justificação e com indicação de quem opera** — a responsabilidade transfere-se para o fornecedor de infraestrutura, e o cliente tem direito a saber para quem.
 
 ## Processo
 

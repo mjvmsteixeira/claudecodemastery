@@ -29,6 +29,18 @@ Três cenários verificados: base antigo em cache (resolve na mesma), sem `org.j
 
 Ratchet: **661 → 567**.
 
+### Fase 3c — os 21 templates que saem para fora
+
+**As 199 ocorrências em `skills/*/references/` a zero.** São os artefactos com maior consequência de todo o plugin: notificação ao CNCS, Anexo II do contrato Art. 28, DPIA, dossier de cliente, relatório de isolamento. Um nome de organização errado aqui não é um defeito cosmético — é uma peça institucional dirigida a um regulador ou a um município com o nome de outra empresa.
+
+A transformação foi por camadas, do mais específico para o mais genérico: referências documentais `<ORG>.XXX.YYY.NNN`, AppRoles `<prefixo>-*`, hosts compostos de `prumo_org domain`, produtos, e só no fim o nome solto.
+
+**Dois acabamentos que a substituição automática não faz sozinha.** O primeiro é gramatical: `A <ORG> não é entidade essencial` ficou a conviver com `a organização` no mesmo parágrafo, e um documento que sai para auditor não pode ler-se como um find-and-replace. `<ORG>` ficou reservado a placeholder de nome — cabeçalhos, campo *Designação*, assunto de email — e a prosa passou a dizer *a organização*.
+
+O segundo é que **os templates já eram templates**: usavam `<ID>`, `<X>`, `<data>`. Só o prefixo é que estava literal, escondido dentro do placeholder — `wire-<ID>`, `wire<X>`, `[LISTA_WIRE_PRODUCTS]`. Passaram a `<prefixo>-<ID>` e `<produto>`, que é o que já deviam ser.
+
+Ratchet: **567 → 368**. O que resta concentra-se em comandos (91), skills (83), agents (56), `vault-policies.hcl` (33) e `base` (58) — e as policies são, por desenho, a última camada.
+
 ## v0.8.2 — 2026-08-02
 
 **A lacuna `CTRL-W-IR-*` estava declarada, mas não estava pedida.** Dizer *"não existe matriz IR"* identifica o buraco e deixa o trabalho por fazer no sítio errado: quem lê fica a saber que falta algo, não o que perguntar nem a quem. Nova secção **"O que pedir ao `WIRE.MTZ.SEC.006`"** no `ctrl-w-inventario.md`, com os três pedidos, o formato exigido e o critério de recusa.

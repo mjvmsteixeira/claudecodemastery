@@ -1,22 +1,22 @@
 # DPIA — Avaliação de Impacto sobre a Protecção de Dados
 
 > **Estado: rascunho operacional.** Estrutura derivada do Art. 35 do RGPD e do que o `SKILL.md`
-> enumera. **A DPIA final é responsabilidade conjunta do DPO Wire e do DPO do município** — este
-> template produz a contribuição técnica da Wire, não a avaliação concluída.
+> enumera. **A DPIA final é responsabilidade conjunta do DPO <ORG> e do DPO do município** — este
+> template produz a contribuição técnica da <ORG>, não a avaliação concluída.
 
 ## Quem faz a DPIA
 
 Ponto que se presta a confusão e que convém fixar antes de começar.
 
-A obrigação do Art. 35 recai sobre o **responsável pelo tratamento** — o município. A Wire, enquanto subcontratante, **assiste** (Art. 28(3)(f)) fornecendo a descrição técnica do tratamento, as medidas de segurança implementadas e a informação de risco que só ela conhece.
+A obrigação do Art. 35 recai sobre o **responsável pelo tratamento** — o município. A <ORG>, enquanto subcontratante, **assiste** (Art. 28(3)(f)) fornecendo a descrição técnica do tratamento, as medidas de segurança implementadas e a informação de risco que só ela conhece.
 
-Consequência prática: a Wire produz uma **DPIA por produto `wire*`**, reutilizável por todos os municípios que o contratem, que cada município adapta ao seu contexto. A avaliação final de necessidade e proporcionalidade é do município — depende das finalidades dele e da base de licitude que invocou, que a Wire não determina.
+Consequência prática: a organização produz uma **DPIA por produto `os produtos do inventário`**, reutilizável por todos os municípios que o contratem, que cada município adapta ao seu contexto. A avaliação final de necessidade e proporcionalidade é do município — depende das finalidades dele e da base de licitude que invocou, que a organização não determina.
 
 Não escrever a DPIA como se fosse a avaliação do município. Escrevê-la como o que é: o contributo técnico do subcontratante.
 
 ## Quando é obrigatória
 
-O Art. 35(1) exige DPIA quando o tratamento seja susceptível de implicar **risco elevado**. O Art. 35(3) enumera três casos, e a CNPD publica lista de tratamentos sujeitos. Para produtos `wire*`, os gatilhos habituais:
+O Art. 35(1) exige DPIA quando o tratamento seja susceptível de implicar **risco elevado**. O Art. 35(3) enumera três casos, e a CNPD publica lista de tratamentos sujeitos. Para produtos `os produtos do inventário`, os gatilhos habituais:
 
 - Tratamento em larga escala de dados de munícipes
 - Categorias especiais (Art. 9) — saúde, dados biométricos, convicções
@@ -31,10 +31,10 @@ Na dúvida, fazer. Uma DPIA desnecessária custa tempo; a ausência de uma neces
 ### 1. Identificação
 
 ```
-Produto:            wire<X> · versão <v>
+Produto:            <produto> · versão <v>
 Data:               <data> · Revisão: <n>
-Autor (Wire):       <nome> · <cargo>
-DPO Wire:           <nome> — parecer em anexo
+Autor (<ORG>):       <nome> · <cargo>
+DPO <ORG>:           <nome> — parecer em anexo
 Âmbito:             <módulos e funcionalidades abrangidos>
 Municípios:         <template genérico | específico para <município>>
 ```
@@ -60,7 +60,7 @@ Se houver componente de IA, a descrição da lógica não é opcional: cruza-se 
 
 ### 3. Necessidade e proporcionalidade (Art. 35(7)(b))
 
-Secção onde a Wire **contribui mas não conclui** — a avaliação depende das finalidades do município.
+Secção onde a organização **contribui mas não conclui** — a avaliação depende das finalidades do município.
 
 ```
 Base de licitude:       <invocada pelo responsável>
@@ -76,7 +76,7 @@ A linha das alternativas é a mais frequentemente omitida e a que o regulador ma
 
 ### 4. Riscos para direitos e liberdades (Art. 35(7)(c))
 
-Avaliar do ponto de vista **do titular**, não da organização. O risco relevante não é o dano reputacional da Wire — é o dano para o munícipe.
+Avaliar do ponto de vista **do titular**, não da organização. O risco relevante não é o dano reputacional da organização — é o dano para o munícipe.
 
 | # | Risco | Origem | Probabilidade | Gravidade | Nível | Medidas | Risco residual |
 |---|---|---|---|---|---|---|---|
@@ -93,19 +93,19 @@ Escalas em três níveis (baixo/médio/elevado), com critério escrito para cada
 ```
 Por risco identificado:
   Medida:            <técnica ou organizativa>
-  Controlo Wire:     <CTRL-W-*>
+  Controlo <ORG>:     <CTRL-W-*>
   Evidência:         <artefacto verificável>
-  Responsável:       <Wire | município | ambos>
+  Responsável:       <<ORG> | município | ambos>
   Estado:            <implementada | em curso, com prazo>
   Risco residual:    <nível após a medida>
 ```
 
-A coluna "Responsável" é essencial: numa relação responsável/subcontratante há medidas que só o município pode aplicar — gestão de perfis dos seus utilizadores, definição de prazos de conservação, informação aos titulares. Uma DPIA que atribua tudo à Wire dá ao município uma falsa sensação de cobertura.
+A coluna "Responsável" é essencial: numa relação responsável/subcontratante há medidas que só o município pode aplicar — gestão de perfis dos seus utilizadores, definição de prazos de conservação, informação aos titulares. Uma DPIA que atribua tudo à organização dá ao município uma falsa sensação de cobertura.
 
 ### 6. Consulta
 
 ```
-DPO Wire:            parecer de <data> — <anexo>
+DPO <ORG>:            parecer de <data> — <anexo>
 DPO do município:    <a obter pelo responsável>
 Titulares ou representantes: <consultados / não, com justificação — Art. 35(9)>
 Consulta prévia à CNPD: <necessária se risco residual elevado se mantiver — Art. 36>
@@ -115,7 +115,7 @@ Consulta prévia à CNPD: <necessária se risco residual elevado se mantiver —
 
 ```
 Risco residual global:  <baixo | médio | elevado>
-Parecer técnico Wire:   <favorável | favorável condicionado a … | desfavorável>
+Parecer técnico <ORG>:   <favorável | favorável condicionado a … | desfavorável>
 Decisão final:          do responsável (município)
 Revisão:                a cada <n> meses, ou antes se houver alteração material do
                         tratamento, da arquitectura ou do quadro legal

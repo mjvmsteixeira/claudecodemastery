@@ -4,7 +4,7 @@
 > Estrutura-se sobre o modelo de três fases (alerta inicial / actualização / relatório final) que o
 > `SKILL.md` fixa e que corresponde ao regime NIS2. **Os campos exactos do formulário do CNCS não
 > foram verificados contra o portal oficial** e podem diferir. Antes do primeiro uso real:
-> confirmar o formulário em vigor, os prazos aplicáveis à Wire enquanto fornecedor, e a articulação
+> confirmar o formulário em vigor, os prazos aplicáveis à organização enquanto fornecedor, e a articulação
 > com a notificação que cada município faz enquanto entidade essencial. Validação obrigatória do
 > Coordenador SecOps e do jurídico.
 
@@ -13,11 +13,11 @@
 Ponto que se presta a confusão e que convém ter claro antes do incidente:
 
 - **Cada município** notifica o CNCS enquanto **entidade essencial ou importante**, por direito próprio.
-- **A Wire** notifica enquanto **fornecedor de serviço digital** aos municípios.
+- **A <ORG>** notifica enquanto **fornecedor de serviço digital** aos municípios.
 
-São notificações **paralelas, não alternativas**. A Wire não notifica em nome do município, e a notificação da Wire não dispensa a do município. O que a Wire deve fazer é dar ao município os factos técnicos de que ele precisa para cumprir o seu próprio dever — e fazê-lo a tempo de ele cumprir o prazo dele.
+São notificações **paralelas, não alternativas**. A <ORG> não notifica em nome do município, e a notificação da organização não dispensa a do município. O que a organização deve fazer é dar ao município os factos técnicos de que ele precisa para cumprir o seu próprio dever — e fazê-lo a tempo de ele cumprir o prazo dele.
 
-Quando o incidente envolve dados pessoais, acresce a CNPD: aí o município é o **responsável pelo tratamento** e a Wire o **subcontratante**. A notificação à CNPD é do município; a Wire apoia com factos técnicos e não faz avaliação jurídica do risco — essa é do responsável.
+Quando o incidente envolve dados pessoais, acresce a CNPD: aí o município é o **responsável pelo tratamento** e a organização o **subcontratante**. A notificação à CNPD é do município; a organização apoia com factos técnicos e não faz avaliação jurídica do risco — essa é do responsável.
 
 ## Fases
 
@@ -35,11 +35,11 @@ O propósito é sinalizar, não explicar. Um alerta com metade dos campos em "em
 
 ```
 NOTIFICAÇÃO DE INCIDENTE — ALERTA INICIAL
-Referência interna: wire-<ID>
+Referência interna: <prefixo>-<ID>
 Data/hora da notificação: <UTC>
 
 ENTIDADE NOTIFICANTE
-Designação: Wire
+Designação: <ORG>
 Qualidade: fornecedor de serviço digital a entidades da Administração Local
 Contacto para o incidente: <nome> · <cargo> · <email> · <telefone 24h>
 
@@ -57,7 +57,7 @@ IMPACTO CONHECIDO
 Entidades afectadas: <n> municípios
 <Identificação nominal apenas se exigida pelo formulário; caso contrário,
 caracterizar sem nomear.>
-Serviços afectados: <produtos wire*>
+Serviços afectados: <produtos do inventário>
 Utilizadores afectados (estimativa): <n ou "em apuramento">
 Transfronteiriço: <sim/não>
 Dados pessoais envolvidos: <sim | não | em apuramento>
@@ -80,7 +80,7 @@ Acrescenta ao alerta inicial. Repete a referência para permitir juntar as peça
 
 ```
 NOTIFICAÇÃO DE INCIDENTE — ACTUALIZAÇÃO
-Referência interna: wire-<ID> · Actualização a <data do alerta inicial>
+Referência interna: <prefixo>-<ID> · Actualização a <data do alerta inicial>
 
 ALTERAÇÕES AO ÂMBITO
 <O que mudou face ao alerta inicial, incluindo correcções ao que foi
@@ -116,7 +116,7 @@ TLP:AMBER
 
 ```
 RELATÓRIO FINAL DE INCIDENTE
-Referência interna: wire-<ID>
+Referência interna: <prefixo>-<ID>
 Período: <T0> a <fecho>
 
 SUMÁRIO EXECUTIVO
@@ -159,4 +159,4 @@ TLP:GREEN
 - **Corrigir de forma explícita.** A actualização e o relatório final devem assinalar o que contradiz comunicações anteriores.
 - **Coerência com as comunicações aos municípios.** O que se diz ao CNCS e o que se diz ao cliente têm de ser conciliáveis — divergências vão ser notadas, e o município é destinatário de ambas por vias diferentes.
 - **Cada envio entra na timeline**: hora, fase, versão.
-- **Coordenação com os municípios.** Convém saber se e quando notificaram, para que os relatos não se contradigam. Não é a Wire que decide por eles, mas a incoerência prejudica os dois lados.
+- **Coordenação com os municípios.** Convém saber se e quando notificaram, para que os relatos não se contradigam. Não é a organização que decide por eles, mas a incoerência prejudica os dois lados.
