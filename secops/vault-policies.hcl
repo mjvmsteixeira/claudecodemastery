@@ -1,14 +1,15 @@
 # ============================================================================
-# Wire SecOps · Vault Policies HCL
+# SecOps · Vault Policies HCL
+# TEMPLATE: {{PREFIX}} é substituído por `prumo_org prefix` antes de aplicar.
 # ============================================================================
 # Sete AppRoles: 6 com subagent local (prumo-monitor-01, prumo-ir-saas-01, prumo-tenant-01,
-# prumo-srv-saas-01, prumo-deploy-01, prumo-compliance-01) + Cowork `wire-cowork-reporting`
+# prumo-srv-saas-01, prumo-deploy-01, prumo-compliance-01) + Cowork `{{PREFIX}}-cowork-reporting`
 # externo (Cowork agent `ai-rep-01`, sem subagent neste plugin). TTLs deliberadamente curtos.
 # Os comandos de criação dos AppRoles estão no fim do ficheiro.
 # ============================================================================
 
 # ----------------------------------------------------------------------------
-# wire-monitor — prumo-monitor-01 (read-only sobre observabilidade)
+# {{PREFIX}}-monitor — prumo-monitor-01 (read-only sobre observabilidade)
 # ----------------------------------------------------------------------------
 path "secret/data/observability/wazuh/*" {
   capabilities = ["read"]
@@ -24,12 +25,12 @@ path "secret/data/observability/otel/*" {
 }
 
 # ----------------------------------------------------------------------------
-# wire-ir — prumo-ir-saas-01 (IR multi-tenant, mais permissivo, TTL curto)
+# {{PREFIX}}-ir — prumo-ir-saas-01 (IR multi-tenant, mais permissivo, TTL curto)
 # ----------------------------------------------------------------------------
 path "secret/data/ir/*" {
   capabilities = ["read", "create", "update"]
 }
-path "ssh/sign/wire-ir-role" {
+path "ssh/sign/{{PREFIX}}-ir-role" {
   capabilities = ["create", "update"]
 }
 path "transit/encrypt/forensics" {
@@ -46,7 +47,7 @@ path "sys/audit-hash/*" {
 }
 
 # ----------------------------------------------------------------------------
-# wire-tenant — prumo-tenant-01 (auditoria de isolamento)
+# {{PREFIX}}-tenant — prumo-tenant-01 (auditoria de isolamento)
 # ----------------------------------------------------------------------------
 path "secret/data/tenants/metadata/*" {
   capabilities = ["read"]
@@ -62,9 +63,9 @@ path "sys/policies/acl/*" {
 }
 
 # ----------------------------------------------------------------------------
-# wire-srv — prumo-srv-saas-01 (operações servidor, SSH CA)
+# {{PREFIX}}-srv — prumo-srv-saas-01 (operações servidor, SSH CA)
 # ----------------------------------------------------------------------------
-path "ssh/sign/wire-srv-role" {
+path "ssh/sign/{{PREFIX}}-srv-role" {
   capabilities = ["create", "update"]
 }
 path "secret/data/srv/inventory/*" {
@@ -78,7 +79,7 @@ path "secret/data/srv/ansible/*" {
 }
 
 # ----------------------------------------------------------------------------
-# wire-deploy — prumo-deploy-01 (release gate, CI/CD reads)
+# {{PREFIX}}-deploy — prumo-deploy-01 (release gate, CI/CD reads)
 # ----------------------------------------------------------------------------
 path "secret/data/cicd/gitlab/*" {
   capabilities = ["read"]
@@ -94,7 +95,7 @@ path "secret/data/registry/credentials" {
 }
 
 # ----------------------------------------------------------------------------
-# wire-compliance — prumo-compliance-01 (read-only sobre compliance)
+# {{PREFIX}}-compliance — prumo-compliance-01 (read-only sobre compliance)
 # ----------------------------------------------------------------------------
 path "secret/data/compliance/*" {
   capabilities = ["read"]
@@ -107,7 +108,7 @@ path "secret/data/dpia/*" {
 }
 
 # ----------------------------------------------------------------------------
-# wire-cowork-reporting — Cowork ai-rep-01 (confinado, leitura inbox + escrita output)
+# {{PREFIX}}-cowork-reporting — Cowork ai-rep-01 (confinado, leitura inbox + escrita output)
 # ----------------------------------------------------------------------------
 path "secret/data/reports/inbox/*" {
   capabilities = ["read"]
@@ -120,57 +121,57 @@ path "secret/data/reports/output/*" {
 # Configuração dos AppRoles — executar uma vez após criação das policies acima
 # ============================================================================
 #
-# vault write auth/approle/role/wire-monitor \
+# vault write auth/approle/role/{{PREFIX}}-monitor \
 #     token_ttl=30m token_max_ttl=1h \
-#     token_policies="wire-monitor" \
+#     token_policies="{{PREFIX}}-monitor" \
 #     secret_id_ttl=5m secret_id_num_uses=1
 #
-# vault write auth/approle/role/wire-ir \
+# vault write auth/approle/role/{{PREFIX}}-ir \
 #     token_ttl=15m token_max_ttl=1h \
-#     token_policies="wire-ir" \
+#     token_policies="{{PREFIX}}-ir" \
 #     secret_id_ttl=5m secret_id_num_uses=1
 #
-# vault write auth/approle/role/wire-tenant \
+# vault write auth/approle/role/{{PREFIX}}-tenant \
 #     token_ttl=15m token_max_ttl=30m \
-#     token_policies="wire-tenant" \
+#     token_policies="{{PREFIX}}-tenant" \
 #     secret_id_ttl=5m secret_id_num_uses=1
 #
-# vault write auth/approle/role/wire-srv \
+# vault write auth/approle/role/{{PREFIX}}-srv \
 #     token_ttl=15m token_max_ttl=30m \
-#     token_policies="wire-srv" \
+#     token_policies="{{PREFIX}}-srv" \
 #     secret_id_ttl=5m secret_id_num_uses=1
 #
-# vault write auth/approle/role/wire-deploy \
+# vault write auth/approle/role/{{PREFIX}}-deploy \
 #     token_ttl=15m token_max_ttl=30m \
-#     token_policies="wire-deploy" \
+#     token_policies="{{PREFIX}}-deploy" \
 #     secret_id_ttl=5m secret_id_num_uses=1
 #
-# vault write auth/approle/role/wire-compliance \
+# vault write auth/approle/role/{{PREFIX}}-compliance \
 #     token_ttl=30m token_max_ttl=1h \
-#     token_policies="wire-compliance" \
+#     token_policies="{{PREFIX}}-compliance" \
 #     secret_id_ttl=5m secret_id_num_uses=1
 #
-# vault write auth/approle/role/wire-cowork-reporting \
+# vault write auth/approle/role/{{PREFIX}}-cowork-reporting \
 #     token_ttl=60m token_max_ttl=2h \
-#     token_policies="wire-cowork-reporting" \
+#     token_policies="{{PREFIX}}-cowork-reporting" \
 #     secret_id_ttl=10m secret_id_num_uses=1
 #
 # ============================================================================
 # SSH CA roles (criados nos paths ssh/sign/wire-*-role)
 # ============================================================================
 #
-# vault write ssh/roles/wire-srv-role \
+# vault write ssh/roles/{{PREFIX}}-srv-role \
 #     key_type=ca \
 #     algorithm_signer=rsa-sha2-256 \
-#     allowed_users="wire-srv,wire-deploy" \
-#     default_user="wire-srv" \
+#     allowed_users="{{PREFIX}}-srv,{{PREFIX}}-deploy" \
+#     default_user="{{PREFIX}}-srv" \
 #     ttl=15m max_ttl=15m
 #
-# vault write ssh/roles/wire-ir-role \
+# vault write ssh/roles/{{PREFIX}}-ir-role \
 #     key_type=ca \
 #     algorithm_signer=rsa-sha2-256 \
-#     allowed_users="wire-ir" \
-#     default_user="wire-ir" \
+#     allowed_users="{{PREFIX}}-ir" \
+#     default_user="{{PREFIX}}-ir" \
 #     ttl=15m max_ttl=15m
 #
 # ============================================================================
