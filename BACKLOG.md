@@ -8,7 +8,15 @@ Aberto a 2026-08-02.
 
 ---
 
-## B1 · Identidade do embedder do MemPalace — decisão pendente
+## B1 · Identidade do embedder do MemPalace — **FECHADO** (2026-08-03)
+
+**Resolvido com `mempalace palace set-embedder --model minilm`.** Identidade gravada em `palace/mempalace_embedder.json` (`minilm`, dim 384), coerente com o `embedding_model` do `config.json`. Verificado pelo comportamento: a operação que antes emitia o `EmbedderIdentityUnknownWarning` para as duas colecções — `repair --dry-run` — deixou de emitir qualquer aviso.
+
+**A premissa abaixo estava errada e é o que vale a pena reter.** O item dizia *"fixar é fácil de fazer e difícil de desfazer"* e tratava fixar e migrar como caminhos exclusivos. Não são: o `--help` do `set-embedder` é explícito em que **regista identidade, não converte vectores** (*"Records identity on the palace only; does not change the configured model"*). Registar é etiquetagem — não fecha a porta a migrar para `embeddinggemma`, porque o custo da migração é o re-embed, igual com ou sem etiqueta. A decisão cara continua disponível; o que se fechou por custo zero foi o risco de um upgrade trocar o modelo em silêncio.
+
+Lição: **ler o `--help` antes de classificar uma acção como irreversível.** Um item ficou meses em "decisão pendente" por uma premissa que um comando de dez segundos desmentia.
+
+### Contexto original (mantido para referência)
 
 **Estado:** decisão do utilizador, não tarefa. Bloqueado por escolha, não por esforço.
 
@@ -29,27 +37,42 @@ Dois caminhos, ambos legítimos:
 
 ---
 
-## B2 · Recuperação de jobs falhados na fila do daemon
+## B2 · A fila do daemon falha ~79 jobs por dia — causa, não recuperação
 
-**Estado:** viabilidade parcialmente verificada; a fase 3 pode invalidar o resto.
+**Reescrito a 2026-08-03. A versão anterior descrevia um incidente que não existe.**
 
-Após o daemon ficar encravado (ver `base/CHANGELOG.md` v0.9.1), ~694 jobs ficaram em `state='failed'`. A maioria são `diary_write` — conteúdo único por sessão que **ninguém re-submete**, ao contrário de um `mine`.
+Dizia *"após o daemon ficar encravado, ~694 jobs ficaram em `failed`"* — como se fosse um lote congelado de um evento único, e a tarefa fosse recuperá-lo. Medido contra a queue real (`~/.mempalace/daemon/<id>/queue.sqlite3`), são **710 falhados contra 55 bem-sucedidos**, distribuídos por **9 dias consecutivos**, de 26/07 a 03/08. Não é um lote: é uma sangria, e continua a correr.
 
-Verificado:
-- `payload_json` está **íntegro e legível** — os dados não se perderam
-- não existe verbo de recuperação na CLI: `mempalace daemon` tem apenas `jobs|start|status|stop|wait`, e `jobs` só aceita `--limit`
-- existe `UNIQUE INDEX ... WHERE state IN ('queued', …)` — repor para `queued` **pode colidir com o dedupe**
+**Falhas por dia:** 46 · 104 · 89 · 86 · 179 · 50 · 59 · 61 · 30. Nenhum dia a zero.
 
-Fases:
+### As três causas, medidas
 
-1. Exportar os payloads para ficheiro (read-only, serve de backup)
-2. Testar um job numa **cópia** da queue
-3. Perceber o comportamento do dedupe e se o daemon consome o job reposto ← **decide se o resto vale a pena**
-4. Aplicar em lotes, com o daemon a drenar
+| Falhas | % | Causa | Leitura |
+|---|---|---|---|
+| **542** | 76% | `palace is held by PID <n> (mempalace-mcp)` | **uma sessão Claude aberta bloqueia a escrita do daemon** |
+| 85 | 12% | `Failed to apply logs to the hnsw segment writer` · compaction | a divergência do índice, do lado da escrita |
+| 83 | 12% | `MaxAttemptsExceeded` | consequência das duas acima, não causa própria |
 
-**Risco: o mais alto dos itens deste backlog.** Escreve na base de dados interna do MemPalace, sem caminho suportado pela ferramenta.
+Por tipo: **620 `diary_write`** e 90 `mine`. Os `diary_write` são conteúdo único por sessão que ninguém re-submete; um `mine` perdido recupera-se na corrida seguinte.
 
-**Alternativa mais barata:** exportar os payloads e arquivá-los fora, sem re-ingerir. Perde-se a pesquisa sobre eles; ganha-se não mexer na fila.
+### O que isto significa
+
+**Três quartos das falhas são o desenho a colidir com o padrão de uso.** O daemon precisa do palace sem holders; o servidor MCP de cada sessão Claude aberta é um holder. Com sessões abertas quase todo o dia, a fila falha quase todo o dia. É a mesma guarda que bloqueou a consolidação dos wings e o `repair` a 02/08 — e a guarda está certa; o que falta é o daemon saber esperar em vez de falhar.
+
+**Recuperar os payloads trata o sintoma.** Mesmo que se re-enfileirassem os 710, amanhã há mais ~79. A tarefa útil é a causa, não a recuperação.
+
+### O que fazer, por ordem
+
+1. **Apurar se o `held by PID` devia ser falha ou espera.** Um job que falha porque o recurso está ocupado devia voltar à fila, não morrer — provavelmente é comportamento a reportar upstream, não a corrigir aqui. Confirmar contra o changelog da versão instalada (3.6.0) antes de assumir que é bug.
+2. **Reduzir a janela de bloqueio** — sessões Claude fechadas quando não estão em uso, ou o daemon a correr em janela onde não há sessões.
+3. **A divergência do HNSW** (12%) resolve-se com o `repair` já documentado; ver [[hnsw-diverge-com-mining-normal]] na memória — recorre com mining activo e o threshold de 4 é apertado de mais.
+4. **Só então** decidir se vale re-enfileirar os `diary_write` históricos. Continua sem verbo de CLI (`mempalace daemon` tem apenas `jobs|start|status|stop|wait`) e o `UNIQUE INDEX ... WHERE state IN ('queued', …)` pode colidir com o dedupe. Escrever na queue interna continua a ser o item de maior risco deste backlog.
+
+### Verificado e ainda válido
+
+- `payload_json` **íntegro e legível** — nada se perdeu, os dados estão lá
+- não existe verbo de recuperação na CLI
+- **alternativa mais barata**, se se decidir não mexer na fila: exportar os payloads e arquivá-los fora. Perde-se a pesquisa sobre eles; ganha-se não escrever na base de dados interna.
 
 ---
 
