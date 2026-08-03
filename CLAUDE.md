@@ -26,7 +26,20 @@ design/   ← prumo-design · orquestrador de design (standalone)
 
 ## Dois CLAUDE.md de runtime — não confundir com este
 
-`secops/CLAUDE.md` e `devkit/CLAUDE.md` são conteúdo *shipped dentro dos plugins* (contexto de runtime para quem os usa). Editar como conteúdo de plugin, não como guidance do repo. O `secops/CLAUDE.md` descreve o ambiente de produção da empresa Wire (SaaS eGovernment) — os tokens `wire*` aí são domínio real, **nunca** renomear para prumo.
+`secops/CLAUDE.md` e `devkit/CLAUDE.md` são conteúdo *shipped dentro dos plugins* (contexto de runtime para quem os usa). Editar como conteúdo de plugin, não como guidance do repo.
+
+### Identidade da organização — parametrizar, nunca renomear
+
+O `secops/CLAUDE.md` descreve o ambiente de produção de uma organização concreta. Duas regras que **parecem a mesma e não são**:
+
+- **Nunca renomear objectos reais.** Os AppRoles e policies `wire-*` existem no Vault de produção. Trocar o nome no plugin sem o trocar no Vault faz o hook pedir uma role inexistente — e em `prod` os hooks de Vault são fail-closed, portanto não degrada, **bloqueia**. O mesmo vale para hosts, nomes de produto e referências documentais: são o domínio real de alguém.
+- **Nunca hardcoded.** O plugin destina-se a mais do que uma organização. A identidade — prefixo, produtos, hosts, referência do registo de controlos — é **configuração da instalação**, não conteúdo de plugin.
+
+A forma de cumprir as duas ao mesmo tempo é **parametrizar**: `prumo_org()` na `prumo-common.sh` lê `~/.prumo/org.json` (com override por `PRUMO_ORG_*`), e o conteúdo do plugin refere-se ao valor, nunca ao literal. A instalação actual continua a resolver para `wire` e nada no Vault muda.
+
+Precedente já existente no plugin: `PRUMO_WAZUH_HOST`, `PRUMO_RAILS_DEPLOY_BASE`, `FORTIGATE_HOST`.
+
+**O que não fazer:** um `sed` global sobre o repositório. São ~876 ocorrências em 70 ficheiros com quatro naturezas misturadas; um replace cego acerta nos exemplos e parte os objectos reais. Migrar por camadas, com os AppRoles em último — ver `BACKLOG.md` B6.
 
 ## Convenções
 

@@ -162,6 +162,42 @@ else
   warn "enumerações não verificáveis — $MP ausente ou jq em falta"
 fi
 
+# ──────────── 1c. identidade da organização · ratchet do B6 ────────────
+# A migração para `prumo_org()` é por camadas e demora. Um check que exija zero
+# ocorrências falharia hoje e seria desligado no dia seguinte — por isso é um
+# **ratchet**: o número só pode descer. Baixar o baseline faz parte do commit
+# que remove ocorrências; subir é regressão e falha aqui.
+#
+# LIMITAÇÃO CONHECIDA, e é importante: isto conta o literal, e o literal aparece
+# em duas coisas diferentes. A identidade da **organização** é o alvo. O path
+# legacy `~/.wire` na `prumo-common.sh` é a marca antiga do **próprio
+# ecossistema** (rebrand de 2026-07) e não é para migrar — some quando a
+# migração one-shot for removida. O check não os distingue; ao baixar o
+# baseline, confirmar qual dos dois desceu.
+section "identidade da organização (ratchet · B6)"
+
+ORG_BASELINE=661   # medido a 2026-08-03 · ver BACKLOG.md B6
+
+if grep -rio 'wire' base secops devkit design scripts >/dev/null 2>&1; then
+  ORG_NOW=$(grep -rio 'wire' base secops devkit design scripts 2>/dev/null \
+            | grep -vE 'CHANGELOG\.md|BACKLOG\.md|org\.example\.json' | wc -l | tr -d ' ')
+else
+  ORG_NOW=0
+fi
+
+if [ "$ORG_NOW" -gt "$ORG_BASELINE" ]; then
+  fail "identidade da organização hardcoded aumentou: $ORG_BASELINE → $ORG_NOW"
+  info "conteúdo de plugin refere-se a \$(prumo_org <chave>), nunca ao literal — ver CLAUDE.md"
+elif [ "$ORG_NOW" -lt "$ORG_BASELINE" ]; then
+  warn "ocorrências desceram para $ORG_NOW (baseline $ORG_BASELINE) — baixar ORG_BASELINE neste ficheiro"
+else
+  pass "identidade da organização estável em $ORG_NOW ocorrências (migração B6 em curso)"
+fi
+
+# O exemplo tem de existir, ou não há como uma instalação nova saber o formato.
+[ -f base/org.example.json ] && pass "base/org.example.json presente" \
+  || fail "base/org.example.json em falta — instalação nova fica sem template de ~/.prumo/org.json"
+
 # ──────────────────────── 2. plugin.json ────────────────────────
 section "plugin.json (per plugin)"
 

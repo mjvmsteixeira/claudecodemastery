@@ -2,6 +2,21 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.11.0 — 2026-08-03
+
+**B6 fase 1 e 2 — a identidade da organização passa a ser configuração.** O `prumo-secops` foi escrito contra uma organização concreta e ficou com o nome dela na estrutura, não só nos exemplos: 876 ocorrências em 70 ficheiros. Impedia aplicá-lo a outro cliente sem um find-and-replace, que é a última operação a fazer num plugin cujos hooks de Vault falham fechados.
+
+- **`prumo_org <chave> [default]`** na `prumo-common.sh` (v0.2.0 → v0.3.0), com precedência env → `~/.prumo/org.json` → default. Arrays saem um por linha, para o call-site usar o mesmo heredoc do `prumo_plugins`. **`prumo_org_require`** falha alto para o que não tem default seguro — um relatório que cite um registo de controlos inventado é pior do que um que pare a dizer que não sabe qual é.
+- **`base/org.example.json`** shipped como template. Os valores reais vivem em `~/.prumo/org.json`, fora do repositório.
+- **A regra do `CLAUDE.md` foi reescrita antes de qualquer código**, e essa ordem era o passo crítico. Dizia *"os tokens `wire*` são domínio real, nunca renomear"* — regra correcta contra um rename cego, mas que como estava escrita proibia também a parametrização, e teria feito a próxima sessão travar o trabalho. Passou a separar as duas: **nunca renomear objectos reais** (o AppRole existe no Vault; trocar-lhe o nome no plugin bloqueia em `prod`) e **nunca hardcoded** (a identidade é da instalação).
+- **Check `1c` no `validate.sh`, em ratchet.** Exigir zero ocorrências falharia hoje e o check seria desligado amanhã; o número só pode descer. Baseline 661, medido com `CHANGELOG`/`BACKLOG` excluídos por serem histórico.
+
+**O ratchet apanhou o seu próprio autor.** O comentário que escrevi a explicar a função citava `wire-*` como exemplo, e subiu a contagem de 661 para 663 no mesmo commit que criava o check. Ficou genérico.
+
+**Limitação registada no código:** o check conta o literal, e o literal aparece em duas coisas distintas — a identidade da organização, que é o alvo, e o path legacy `~/.wire` do rebrand de 2026-07, que é a marca antiga do próprio ecossistema e não é para migrar. Ao baixar o baseline, confirmar qual dos dois desceu.
+
+Fases 3 (migrar as camadas) e 4 (verificar contra a instalação real) por fazer — ver `BACKLOG.md` B6.
+
 ## v0.10.0 — 2026-08-02
 
 **B5 — a lista de plugins deixa de ser escrita.** O `prumo-design` ficou de fora de enumerações à mão **três vezes**, e nenhuma das omissões falhou: o `/prumo-upgrade` reportava *"tudo actualizado"* com toda a confiança sobre 75% do marketplace. Um erro sem forma de se manifestar é pior que um que rebenta — e a correcção de cada instância não impedia a quarta.
