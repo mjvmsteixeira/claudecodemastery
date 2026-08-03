@@ -2,11 +2,41 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.9.3 · prumo-secops 0.8.0 · prumo-devkit 0.5.2 · prumo-design 0.6.1**
+Estado actual: **prumo-base 0.10.0 · prumo-secops 0.8.2 · prumo-devkit 0.5.2 · prumo-design 0.6.1**
 
 **Convenção de tags: `prumo-<plugin>-v<versão>`, uma por plugin e por release.** Todas as tags actuais apontam para o commit onde o `plugin.json` desse plugin tem essa versão — invariante verificável com `git show <tag>:<plugin>/.claude-plugin/plugin.json`.
 
 As tags legacy `v0.5.0`, `v0.5.1` e `v0.6.0` são anteriores à convenção e não identificam o plugin (a `v0.5.1` era do devkit, não do base, apesar de a numeração o sugerir). Ficam como estão, por já estarem publicadas; não usar como referência.
+
+## 2026-08-02 · `prumo-base 0.10.0` · a lista de plugins deixa de ser escrita
+
+**O `prumo-design` ficou de fora de enumerações escritas à mão três vezes, e nenhuma das omissões falhou.** O `/prumo-upgrade` reportava *"tudo actualizado"* com toda a confiança sobre **75%** do marketplace: consultava três plugins de quatro e o silêncio lia-se como "em dia".
+
+Corrigir cada instância não impedia a quarta, por isso a correcção passou a ser estrutural. `prumo_plugins()` na `prumo-common.sh` (v0.1.0 → v0.2.0) deriva do `marketplace.json` em três formatos — `name`, `dir` e `pair`. O `pair` existe para que quem precisa dos dois não infira um do outro removendo o prefixo: a correspondência nome↔directoria é declarada, não convencionada.
+
+Quatro consumidores convertidos, e o quarto é o que interessa: `/prumo-upgrade`, `/prumo-onboard`, `scripts/package.sh` e o próprio **`scripts/validate.sh`**, que enumerava à mão na linha 70. O validador era ele próprio uma instância do defeito que passa a detectar.
+
+O check `1b` fecha a porta: o `PRUMO_PLUGINS_FALLBACK` tem de bater com o `marketplace.json`, e nenhum loop ou array pode enumerar plugins à mão. Ambos os ramos testados por injecção de regressão. Duas armadilhas ficaram registadas no código por terem sido cometidas durante a implementação — `for p in $VAR` não faz word-splitting em zsh (escrita duas linhas depois de a documentar), e o padrão de busca apanhava a prosa que descreve o anti-padrão.
+
+## 2026-08-02 · `prumo-secops 0.8.0` → `0.8.2` · os controlos que ninguém definia
+
+**`/prumo-tenant-audit` dizia *"aplica CTRL-W-T-001..016"* a um agente que não tinha acesso a definição nenhuma.** As matrizes existiam desde 7 de Julho, mas dentro de dois `SKILL.md` que os comandos não lêem. Um mandato impossível de cumprir, cujo incumprimento não aparecia no output — o agente ou inventava os controlos ou ignorava a instrução.
+
+**0.8.0** — novo `secops/ctrl-w-inventario.md`, fonte única com as famílias `T` (16) e `R` (18) transcritas das origens e verificadas char a char. Os dois comandos apontam para lá e **param** se não o conseguirem ler. Para o release gate ficou escrito porquê: o *tipo* de cada controlo (Bloqueante / Bloqueante-se-aplicável / Avaliativo) decide o veredicto, logo não pode ser adivinhado.
+
+**0.8.1** — a 0.8.0 corrigiu os corpos e deixou o frontmatter. As `description:` continuavam a citar os intervalos nus, e é o frontmatter que aparece na listagem de comandos e alimenta o dispatch: a correcção ficara invisível onde mais se olha. Quatro descrições reescritas, e os dois agents ganharam a regra de paragem que só os comandos tinham.
+
+**0.8.2** — a lacuna `CTRL-W-IR-*` estava declarada, mas não **pedida**. Nova secção com os três pedidos ao `WIRE.MTZ.SEC.006`, o formato exigido e o critério de recusa: um controlo inferido do comportamento do plugin é circular, valida o plugin contra si próprio.
+
+**Auditoria de proveniência, motivada por dúvida legítima sobre controlos perdidos.** Não há. Em `aecabaf` (2026-05-19, pré-rebranding) existiam **59 identificadores em 6 famílias**; os 24 de `C`/`S`/`O`/`P` viviam só nas tabelas de mapping ISO e NIS2 e eram inventados — davam `OK` a controlos sem matriz, com evidência fabricada (*"LMS completion >95% staff"*). Desapareceram no rebranding, e bem. Fica registado como hipótese testada e eliminada: as medidas de governança sem candidato **não** estão bloqueadas por controlos perdidos.
+
+## 2026-08-02 · `prumo-base 0.9.1` → `0.9.3` · o daemon vivo mas surdo
+
+**0.9.1** — check 4b.1b no `memory-doctor`. O daemon do MemPalace esteve encravado 6h42m com a lease presa, e o `daemon status` respondia *"not running"* enquanto o processo estava vivo: dois sinais contraditórios que nenhuma verificação cruzava. O check compara `pgrep` com o que o daemon diz de si próprio e trata a divergência como crítica. Ficou também documentada a armadilha que produziu um falso "sem crashes": em zsh, um glob que não casa **aborta o comando inteiro**, e a corrida que reportou zero relatórios de diagnóstico tinha 45.
+
+**0.9.2** — o `prumo-design` entra nos loops do `/prumo-upgrade` (correcção pontual; a estrutural veio na 0.10.0).
+
+**0.9.3** — `BACKLOG.md` versionado, com cinco itens e o estado de verificação de cada um. Exigiu acrescentar `!BACKLOG.md` ao `.gitignore` em whitelist-mode, ou teria ficado untracked em silêncio. O check 4b.1b passou a ligar explicitamente a divergência do índice ao crash loop: **45 SIGSEGV entre 26/07 e 01/08**, todos no daemon, com a stack inteira nas bindings Rust do ChromaDB e null derefs em `0x88` e `0x0`. Causa apurada: índice HNSW divergente. Confirmada por 13h26m de uptime sem crashes após o rebuild.
 
 ## 2026-07-20 · `prumo-base 0.7.3` · o onboard tratava dois Vaults como um
 

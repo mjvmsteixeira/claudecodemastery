@@ -1,137 +1,81 @@
 # prumo · marketplace
 
-Marketplace privado **prumo** com o ecossistema de plugins para Claude Code.
-
-## Plugins
-
-| Plugin | Versão | Domínio |
-|--------|--------|---------|
-| **prumo-base** | 0.6.0 | Foundacional — 14 commands (`vault-toolkit`: 5 `/vault-*` + 2 bootstraps `/prumo-vault-bootstrap` e `/prumo-vault-kv-migrate` + `/prumo-vault-policy`; setup/diagnóstico: `/prumo-onboard`, `/prumo-doctor`, `/prumo-mode`, `/prumo-context-pack`, `/prumo-upgrade`, `/prumo-smoke`), 10 skills (incl. `memory-doctor`, `claude-deep-audit`), helpers bash partilhados (`lib/prumo-common.sh`, `lib/vault-env.sh`), hook SessionStart auto-unseal + hook PreToolUse `audit-guard` que dá defense-in-depth ao `prumo-devkit`. **Instalar primeiro.** |
-| **prumo-secops** | 0.5.0 | SecOps com Agentes IA para a Wire enquanto fornecedora SaaS de eGovernment local (170+ autarquias). 6 agents, 10 commands `/prumo-*` (inclui `/prumo-secops-bootstrap` para provisionar policies + AppRoles + Keychain numa só corrida), 6 skills com **20 templates `references/`** (progressive disclosure), cadeia de hooks PreToolUse/PostToolUse/Stop **funcional**. Assume `prumo-base` instalado. |
-| **prumo-devkit** | 0.5.0 | Toolkit de auditoria de developer — `full-audit`, `security-scan`, `infra-audit`, `ux-audit`, `code-quality`, `performance-audit`, `chrome-live` (browser ao vivo via CDP, gated), agente `local-reviewer` e `ngrok-expose`. **Read-only por defeito**: relatórios não tocam em ficheiros; correcção é opt-in via `--apply`, com loop de feedback (fingerprint semântico + accept) que suprime falsos-positivos entre corridas. Dependência soft do `prumo-base`. |
-| **prumo-design** | 0.6.0 | Orquestrador de design — a skill product-design conduz a stack nativa do Claude (frontend-design + Artifact + design-sync) em dois modos (mockup / system). Sem regras de design próprias. |
-
-## Estrutura
-
-```
-.
-├── .claude-plugin/
-│   └── marketplace.json          ← declaração do marketplace 'prumo'
-├── base/                         ← plugin prumo-base v0.6.0
-│   ├── .claude-plugin/plugin.json
-│   ├── lib/      (prumo-common.sh, vault-env.sh)
-│   ├── hooks/    (SessionStart → vault-session-check.sh; PreToolUse → pre-tool-audit-guard.sh)
-│   ├── commands/ (14 commands: 5 /vault-* + /prumo-vault-{bootstrap,kv-migrate,policy} + /prumo-{onboard,doctor,mode,context-pack,upgrade,smoke})
-│   └── skills/   (10 skills: vault-toolkit, memory-doctor, claude-deep-audit, prumo-{onboard,doctor,mode,context-pack,upgrade,smoke,vault-policy})
-├── secops/                       ← plugin prumo-secops v0.5.0
-│   ├── .claude-plugin/plugin.json
-│   ├── agents/   (6 agents prumo-*-01)
-│   ├── commands/ (10 commands /prumo-* incl. /prumo-secops-bootstrap)
-│   ├── hooks/    (4 pre + 1 post + 1 stop + 1 SessionStart)
-│   ├── skills/   (6 skills prumo-* + 20 templates references/)
-│   ├── CHANGELOG.md
-│   ├── CLAUDE.md
-│   └── vault-policies.hcl
-├── devkit/                        ← plugin prumo-devkit v0.5.0
-│   ├── .claude-plugin/plugin.json
-│   ├── commands/ (7 wrappers finos)
-│   ├── skills/   (8 skills: 6 audits + local-reviewer + ngrok-expose)
-│   ├── agents/   (local-reviewer)
-│   └── shared/   (scoring, ci-mode, report-format, safe-apply)
-├── design/                        ← plugin prumo-design v0.6.0
-│   ├── .claude-plugin/plugin.json
-│   ├── commands/ (1 wrapper · /product-design)
-│   └── skills/   (1 skill · product-design)
-└── scripts/
-    ├── validate.sh                ← checks estáticos (JSON, frontmatter, shellcheck)
-    └── package.sh                 ← empacotador unificado dos 4 plugins
-```
-
-## Desenvolvimento
-
-```bash
-./scripts/validate.sh                  # validar tudo antes de tagar/publicar
-./scripts/package.sh                   # empacotar os 4 em /tmp/*.plugin
-./scripts/package.sh base              # só prumo-base
-./scripts/package.sh --out ./dist      # outdir alternativo
-```
-
-## Instalar no Claude Code
+Marketplace privado de plugins para Claude Code. Quatro plugins escritos em Markdown + Bash — sem compilador, sem runtime, sem dependências a instalar.
 
 ```
 /plugin marketplace add mjvmsteixeira/claudecodemastery
 /plugin install prumo-base@prumo
-/plugin install prumo-secops@prumo
-/plugin install prumo-devkit@prumo
-/plugin install prumo-design@prumo      # opcional · orquestrador de design, standalone
+/prumo-onboard
 ```
 
-Ordem importa: `prumo-base` primeiro — fornece convenções e helpers que o `prumo-secops` assume e que o `ngrok-expose` do `prumo-devkit` usa. `prumo-secops` e `prumo-devkit` são independentes entre si.
+O `/prumo-onboard` detecta o que falta, emite as linhas de install dos restantes e sugere os smoke tests. É idempotente — corre as vezes que quiseres.
 
-Depois do primeiro install, **`/prumo-onboard`** (vive no `prumo-base`) detecta o que ainda falta, emite as linhas de install dos plugins em falta e sugere smoke tests por plugin já instalado. Idempotente — pode correr múltiplas vezes.
+## Os quatro plugins
 
-## Verificar
+| Plugin | Versão | Para quê |
+|---|---|---|
+| **prumo-base** | 0.10.0 | Fundação: gestão de segredos com Vault, diagnóstico do setup, governança da memória do agente. **Instalar primeiro.** |
+| **prumo-secops** | 0.8.2 | SecOps para um SaaS multi-tenant — isolamento entre clientes, release gates, resposta a incidentes, conformidade. |
+| **prumo-devkit** | 0.5.2 | Auditoria de código e infra: segurança, dependências, performance, UX. Read-only por defeito. |
+| **prumo-design** | 0.6.1 | Orquestrador de design sobre a stack nativa do Claude. Standalone. |
 
-```
-/plugin list      # prumo-base · 0.6.0  +  prumo-secops · 0.5.0  +  prumo-devkit · 0.5.0  +  prumo-design · 0.6.0
-/agents           # 6 agents prumo-*-01
-/prumo-onboard    # sanity check do ecossistema + sugestões de smoke test
-```
+**A ordem importa só numa direcção:** o `prumo-base` fornece as libs partilhadas que o `secops` assume e que o `/ngrok-expose` do `devkit` consome. Entre si, `secops` e `devkit` são independentes. O `design` não depende de nenhum.
 
-## Upgrade wire → prumo (OBRIGATÓRIO uninstall antes de install)
+## Por onde começar, consoante o que queres
 
-Claude Code não actualiza plugins in-place de forma fiável, e esta release muda o nome do marketplace e dos plugins — não é um simples bump de versão. Cache antiga lado-a-lado da nova provoca comportamento inconsistente. Faz **sempre**:
+**Gerir segredos de um projecto** → `/vault-list`, `/vault-set`, `/vault-integrate`. Migram API keys de `.env` para o Vault e substituem placeholders. O `/vault-audit` diz o que ficou por preencher.
 
-```
-/plugin uninstall wire-base@jump2new
-/plugin uninstall wire-secops@jump2new
-/plugin uninstall wire-devkit@jump2new
-/plugin uninstall wire-craft@jump2new
-/plugin marketplace remove jump2new   (se aplicável)
-/plugin marketplace add <path-ou-URL do repo>
-/plugin install prumo-base@prumo
-/plugin install prumo-secops@prumo
-/plugin install prumo-devkit@prumo
-/plugin install prumo-design@prumo
-```
+**Saber se o teu setup está são** → `/prumo-doctor`. Orquestra os doctors todos em paralelo — memória, configuração Claude Code, Vault local e de produção — e consolida num relatório único. Read-only.
 
-Recarrega a sessão Claude Code (nova janela ou Ctrl-D + abrir). `/plugin list` deve mostrar `prumo-base · 0.6.0`, `prumo-secops · 0.5.0`, `prumo-devkit · 0.5.0`, `prumo-design · 0.6.0`.
+**Auditar um projecto** → `/full-audit` corre segurança, infra, qualidade, performance e UX em paralelo, com scoring unificado. Cada um também corre isolado.
 
-**⚠ Behavior change:** os hooks do `prumo-secops` não são bypassed. Operações destrutivas exigem `PRUMO_APPROVE=N1/N2/N3`; tool calls com PII (NIF, IBAN PT, CC PT, email, telefone PT) bloqueiam fail-closed; `/prumo-vault-doctor` exige `VAULT_ADDR` explícita. Ver `secops/CHANGELOG.md` e a secção "Variáveis de ambiente do plugin" em `secops/CLAUDE.md`.
+**Auditar isolamento multi-tenant ou aprovar um release** → `/prumo-tenant-audit <cliente>` e `/prumo-release-gate <release>`. Ambos aplicam os controlos definidos em `secops/ctrl-w-inventario.md` e **param** se não o conseguirem ler, em vez de inventar critérios.
 
-## Bootstrap do Vault
+**Perceber onde vive cada tipo de memória** → a skill `memory-doctor` audita as três camadas (conversas, estrutura de código, documentação), arbitra colisões entre elas e propõe uma regra única de encaminhamento.
 
-Setup completo do Vault local em 3 comandos (provisiona audit, kv-v2, AppRoles, transit, ssh, Keychain). Documentado em detalhe nos READMEs de `base/` e `secops/`:
+## Modo operacional
+
+Tudo no ecossistema respeita `PRUMO_OPERATING_MODE` — `prod` (default, fail-closed), `dev` (avisa e deixa passar) ou `lab` (bypass explícito, exige o marker `~/.prumo/lab-mode`). Gere-se com `/prumo-mode`.
+
+Em `prod` e `dev`, operações destrutivas exigem `PRUMO_APPROVE=N1|N2|N3` no ambiente do Claude Code. Em `lab` passam todas, com registo `via=lab-bypass`. **Isto é defense-in-depth e audit-logging, não uma barreira de autorização inquebrável** — ver o disclaimer no fim.
+
+## Estrutura
 
 ```
-/prumo-vault-bootstrap --plan && /prumo-vault-bootstrap --apply       # base · infra genérica
-/prumo-secops-bootstrap --plan && /prumo-secops-bootstrap --apply     # secops · policies + 7 AppRoles + Keychain
-/prumo-vault-doctor                                                  # confirma findings resolvidos
+.claude-plugin/marketplace.json   ← source of truth: nomes e directorias
+base/     16 commands · 11 skills · 3 hooks · lib/{prumo-common,vault-env}.sh
+secops/   10 commands ·  6 skills · 6 agents · 8 hooks · 23 references
+devkit/    8 commands ·  9 skills · 1 agent  · 1 hook
+design/    1 command  ·  1 skill
+scripts/  validate.sh · package.sh
 ```
 
-Se já tens dados em `secret/` kv-v1: corre primeiro `/prumo-vault-kv-migrate --plan` / `--backup` / `PRUMO_VAULT_MIGRATE_CONFIRM=migrate-now /prumo-vault-kv-migrate --apply` para migrar para kv-v2 sem perder dados.
+O `marketplace.json` é a fonte única da lista de plugins — nenhum comando a escreve à mão, e o `validate.sh` rebenta se alguém voltar a fazê-lo.
 
-## Stack assumido (`prumo-secops`)
+## Desenvolvimento
 
-O plugin assume um padrão arquitectural genérico — não impõe ferramentas concretas:
+```bash
+./scripts/validate.sh              # checks estáticos — correr antes de qualquer tag
+./scripts/package.sh               # empacota os quatro em /tmp/*.plugin
+./scripts/package.sh base          # só um
+```
 
-- **Broker de segredos** (Vault, ou equivalente)
-- **SIEM** central (Wazuh, Splunk, Elastic, …) que recebe eventos do plugin via CEF/syslog
-- **Reverse-proxy / firewall de perímetro** (Fortigate, nginx, Cloudflare, …)
-- **Monitorização activa** (Zabbix, Prometheus, Datadog, …)
-- **DB relacional multi-tenant** (PostgreSQL, MySQL, …) com isolamento por tenant
-- **Servidores aplicacionais** nativos ou containerizados (Rails, Django, Node, .NET, …)
+Tags seguem `prumo-<plugin>-v<versão>`, uma por plugin e por release. A invariante é verificável: `git show <tag>:<plugin>/.claude-plugin/plugin.json` tem de mostrar essa versão.
 
-Os exemplos concretos no `secops/CLAUDE.md` são apenas ilustrativos do setup onde o plugin foi criado. **Podem ser adaptados ao tooling do teu projecto** — é uma alteração puramente documental; as skills e os hooks são tool-agnósticos ao nível conceptual e funcionam sobre qualquer stack equivalente.
+Guidance de desenvolvimento em `CLAUDE.md`. Trabalho em aberto em `BACKLOG.md`. Histórico agregado em `CHANGELOG.md`, com detalhe por plugin em cada `<plugin>/CHANGELOG.md`.
 
-## Disclaimer de utilização
+## Stack assumido pelo `prumo-secops`
 
-Software fornecido "tal como está" (*as is*), sem garantias de qualquer tipo, expressas ou implícitas. A utilização é da inteira responsabilidade do utilizador.
+Um padrão arquitectural genérico, não ferramentas concretas: broker de segredos, SIEM central, firewall de perímetro, monitorização activa, base de dados multi-tenant e servidores aplicacionais. Os exemplos no `secops/CLAUDE.md` descrevem o ambiente onde o plugin nasceu e **podem ser adaptados ao teu tooling** — é alteração documental; as skills e hooks são agnósticos ao nível conceptual.
 
-- Os plugins **classificam e sinalizam** operações (defense-in-depth, audit-logging, speed-bumps) — **não** constituem uma barreira de autorização inquebrável nem substituem controlos de segurança próprios do teu ambiente.
-- Valida o comportamento dos hooks e audits no **teu** contexto antes de confiar neles em produção. Testa em modo `dev`/`lab` primeiro.
-- Nenhum conteúdo aqui constitui aconselhamento jurídico, regulatório ou de conformidade. Qualquer referência a frameworks (NIS2, RGPD, etc.) é meramente ilustrativa do domínio — a responsabilidade de cumprimento é do operador.
-- Operações destrutivas, geridas por credenciais ou sobre dados de produção ficam sempre sob julgamento e autorização humana.
+## Disclaimer
+
+Software fornecido "tal como está", sem garantias de qualquer tipo. A utilização é da inteira responsabilidade do utilizador.
+
+- Os plugins **classificam e sinalizam** operações — não substituem os controlos de segurança do teu ambiente.
+- Valida o comportamento dos hooks no **teu** contexto antes de confiar neles em produção. Testa em `dev` ou `lab` primeiro.
+- Nenhum conteúdo constitui aconselhamento jurídico ou de conformidade. Referências a NIS2, RGPD e afins são ilustrativas do domínio; o cumprimento é do operador.
+- Operações destrutivas, com credenciais ou sobre dados de produção ficam sempre sob julgamento e autorização humana.
 
 ---
 
