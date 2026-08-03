@@ -1,6 +1,6 @@
 ---
 name: prumo-release-gate
-description: Release gate Wire — aplica os 18 controlos CTRL-W-R-* definidos em ctrl-w-inventario.md a um release e produz decisão GO / GO_COM_CONDICOES / NO-GO com plano de canary.
+description: Release gate — aplica os 18 controlos CTRL-W-R-* definidos em ctrl-w-inventario.md a um release e produz decisão GO / GO_COM_CONDICOES / NO-GO com plano de canary.
 argument-hint: <release-id-ou-tag>
 ---
 

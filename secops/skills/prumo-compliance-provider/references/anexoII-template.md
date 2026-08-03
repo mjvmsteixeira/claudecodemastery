@@ -1,11 +1,11 @@
 # Anexo II — Termos do subcontratante (RGPD Art. 28)
 
 > **Estado: rascunho operacional.** Estrutura derivada do Art. 28(3) do RGPD e do que o `SKILL.md`
-> enumera. **Peça contratual — carece de validação do jurídico e do DPO Wire antes de qualquer
+> enumera. **Peça contratual — carece de validação do jurídico e do DPO <ORG> antes de qualquer
 > utilização.** Os campos entre `<…>` são de preenchimento obrigatório; um anexo entregue com
 > campos por preencher é pior do que anexo nenhum, porque aparenta ter sido validado.
 
-Este anexo acompanha o contrato de prestação de serviços entre a Wire (**subcontratante**) e o município (**responsável pelo tratamento**). Existe para satisfazer o Art. 28(3), que exige que o tratamento seja regido por contrato que fixe objecto, duração, natureza, finalidade, tipo de dados, categorias de titulares e obrigações das partes.
+Este anexo acompanha o contrato de prestação de serviços entre a organização (**subcontratante**) e o município (**responsável pelo tratamento**). Existe para satisfazer o Art. 28(3), que exige que o tratamento seja regido por contrato que fixe objecto, duração, natureza, finalidade, tipo de dados, categorias de titulares e obrigações das partes.
 
 A parte que muda de município para município é pequena — categorias de dados variam com os produtos contratados. **O resto deve ser idêntico em todos os contratos.** Divergências entre municípios criam obrigações incompatíveis entre si sobre a mesma plataforma partilhada, e é impossível cumprir prazos de notificação diferentes com a mesma infraestrutura.
 
@@ -14,20 +14,20 @@ A parte que muda de município para município é pequena — categorias de dado
 ```
 Responsável pelo tratamento:  Município de <nome>
   Encarregado de Protecção de Dados: <nome> · <email>
-Subcontratante:               Wire
+Subcontratante:               <ORG>
   Encarregado de Protecção de Dados: <nome> · <email>
 Contrato:                     <referência> · <data>
-Produtos contratados:         <lista wire*>
+Produtos contratados:         <lista os produtos do inventário>
 ```
 
 ## 2. Objecto, natureza e finalidade
 
 ```
-Objecto:     Prestação dos serviços <produtos wire*> em regime SaaS multi-tenant.
+Objecto:     Prestação dos serviços <produtos do inventário> em regime SaaS multi-tenant.
 Natureza:    Recolha, registo, organização, conservação, consulta, utilização e
              apagamento de dados pessoais, por conta e sob instruções do responsável,
              na medida do necessário à prestação do serviço.
-Finalidade:  Exclusivamente a execução do contrato. A Wire não trata os dados para
+Finalidade:  Exclusivamente a execução do contrato. A <ORG> não trata os dados para
              finalidades próprias.
 Duração:     Vigência do contrato, acrescida do período de devolução/eliminação
              previsto na secção 9.
@@ -39,9 +39,9 @@ Por produto. **Preencher apenas os contratados** — listar produtos não contra
 
 | Produto | Categorias de dados | Categorias especiais (Art. 9) |
 |---|---|---|
-| `wire<X>` | <ex: nome, NIF, morada, contactos> | <Sim: … / Não> |
+| `<produto>` | <ex: nome, NIF, morada, contactos> | <Sim: … / Não> |
 
-Se houver categorias especiais, indicar a base de licitude invocada pelo responsável — **a determinação da base é do município, não da Wire**.
+Se houver categorias especiais, indicar a base de licitude invocada pelo responsável — **a determinação da base é do município, não da organização**.
 
 ## 4. Categorias de titulares
 
@@ -91,12 +91,12 @@ Autorização do responsável nos termos do Art. 28(2). A lista tem de estar com
 | <IdP> | | | | |
 
 ```
-Regime de alteração: a Wire informa o responsável com <n> dias de antecedência sobre
+Regime de alteração: a organização informa o responsável com <n> dias de antecedência sobre
 adição ou substituição de sub-subcontratante, podendo o responsável opor-se com
 fundamento, nos termos do Art. 28(2).
 ```
 
-A Wire impõe aos sub-subcontratantes obrigações **não menos exigentes** do que as que assume perante o responsável (Art. 28(4)), e responde perante este pelo incumprimento daqueles.
+A <ORG> impõe aos sub-subcontratantes obrigações **não menos exigentes** do que as que assume perante o responsável (Art. 28(4)), e responde perante este pelo incumprimento daqueles.
 
 ## 8. Violação de dados pessoais
 
@@ -106,11 +106,11 @@ Prazo de notificação ao responsável: sem demora injustificada após ter conhe
 Via:       <canal e destinatários acordados — não a caixa geral>
 Conteúdo:  natureza da violação, categorias e número aproximado de titulares e de
            registos, consequências prováveis, medidas aplicadas ou propostas.
-Apoio:     a Wire presta ao responsável a informação técnica necessária ao
+Apoio:     a organização presta ao responsável a informação técnica necessária ao
            cumprimento dos Art. 33 e 34.
 ```
 
-A notificação à autoridade de controlo é do **responsável**. A Wire notifica o responsável, apoia-o com factos técnicos e não faz avaliação jurídica do risco.
+A notificação à autoridade de controlo é do **responsável**. A <ORG> notifica o responsável, apoia-o com factos técnicos e não faz avaliação jurídica do risco.
 
 O prazo aqui fixado tem de ser coerente com o `template-cliente.md` do `prumo-ir-multitenant`. **Se divergirem, é o contrato que vale** — e a skill de IR tem de ser corrigida, não o contrário.
 
@@ -138,11 +138,11 @@ Numa plataforma com 170+ municípios, auditorias presenciais individuais não es
 
 ## 11. Assistência ao responsável
 
-A Wire assiste o responsável, na medida do possível e considerando a natureza do tratamento (Art. 28(3)(e) e (f)), em: exercício de direitos dos titulares, avaliações de impacto, consultas prévias à autoridade, e segurança do tratamento.
+A <ORG> assiste o responsável, na medida do possível e considerando a natureza do tratamento (Art. 28(3)(e) e (f)), em: exercício de direitos dos titulares, avaliações de impacto, consultas prévias à autoridade, e segurança do tratamento.
 
 ```
 Prazo de resposta a pedido de exercício de direitos: <n> dias úteis
-Mecanismo: <como o município submete e como a Wire responde>
+Mecanismo: <como o município submete e como a organização responde>
 ```
 
 ## Notas de utilização

@@ -7,7 +7,7 @@
 > (responsável pelo tratamento) enquanto evidência do dever de isolamento multi-tenant do
 > subcontratante — RGPD Art. 28 §3 al. h) (auditorias e inspecções) + ISO/IEC 27017 §CLD.6.3
 > (Customer separation). Percorre os 16 controlos canónicos CTRL-W-T-001..016.
-> Marca `[CONFIRMAR]` os campos Wire-specific.
+> Marca `[CONFIRMAR]` os campos <ORG>-specific.
 
 ## Cabeçalho
 
@@ -18,7 +18,7 @@
 **NIF:** [NIF]
 **Auditor:** prumo-tenant-01 + revisão humana [NOME]
 **Data (UTC):** [DATA_UTC]
-**Produtos contratados:** [LISTA_WIRE_PRODUCTS]
+**Produtos contratados:** [LISTA_PRODUTOS]
 **Vault path metadata:** secret/data/tenants/metadata/[NIF]
 **Versão template:** v0.4.0
 **Enquadramento:** RGPD Art. 28 · ISO/IEC 27017 §CLD.6.3
@@ -56,5 +56,5 @@ Para cada controlo FAIL/WARN:
 
 ## Declaração final
 
-`[CONFIRMAR]` — declaração assinada digitalmente pelo responsável Wire, com referência ao
+`[CONFIRMAR]` — declaração assinada digitalmente pelo responsável <ORG>, com referência ao
 Vault path de evidência e à retenção do relatório.

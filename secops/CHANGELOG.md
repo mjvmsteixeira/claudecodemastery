@@ -2,6 +2,57 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.9.0 — 2026-08-03
+
+**B6 fase 3a — o bash executável deixa de nomear a organização.** Primeira camada da migração, escolhida por ser a única onde `prumo_org` é código a sério: das 661 ocorrências, apenas 12 estavam em hooks. As outras 649 são prosa em skills, references, comandos e agents, e migram com técnica diferente.
+
+- **`pre-tool-vault-ttl.sh`** — a conta do Keychain (`<prefixo>-secops`) passa a vir de `prumo_org prefix`. O heredoc de ajuda deixou de ser *quoted* para a interpolar, com todos os outros `$` escapados: o texto é para o utilizador copiar, e o `$(security …)` e o `$VAULT_ROLE_ID` têm de sair literais. Verificado pelo texto renderizado, não pelo código.
+- **`post-tool-cef-wazuh.sh`** — o default do host Wazuh compõe-se de `prumo_org domain`. `PRUMO_WAZUH_HOST` e o legacy `WAZUH_HOST` mantêm precedência.
+
+**O fallback é a parte que interessa, e quase ficou por fazer.** Os hooks do secops carregam a `prumo-common.sh` da **cache**, e `prumo_org` só existe no `prumo-base` v0.11.0 — nenhuma das 11 versões em cache a tinha. Sem rede de segurança, estes hooks partiriam em qualquer máquina até o base ser actualizado, e partiriam por uma razão que nada tem a ver com segurança.
+
+O `_lib.sh` já tinha o padrão certo para isto no `hook_tool_payload`: **guarda própria**, não a do bloco geral de stubs. O bloco geral está atrás de um único sentinela (`prumo_fail_or_warn`) que um `prumo-base` **antigo** também define — o que faz o bloco inteiro ser saltado e deixa uma função nova por definir. `prumo_org` ganhou guarda independente, e o fallback avisa uma vez por processo a pedir o upgrade.
+
+Três cenários verificados: base antigo em cache (resolve na mesma), sem `org.json` nenhum (devolve o default e avisa), e o texto de ajuda renderizado (conta interpolada, resto literal).
+
+**Uma ocorrência fica por migrar, de propósito:** o comentário em `pre-tool-vault-ttl.sh:61` aponta para `docs/superpowers/plans/2026-05-19-wire-vault-bootstraps/`, que é um directório que existe. Genericizar o texto tornaria o ponteiro falso.
+
+**Requer `prumo-base` >= 0.11.0** para o caminho nativo; abaixo disso corre em fallback com aviso.
+
+### Fase 3b — a prosa, começando pelo que o agente lê primeiro
+
+**`secops/CLAUDE.md` a zero ocorrências (eram 45).** É o contexto de runtime que toda a sessão secops carrega; enquanto enumerasse produtos, AppRoles e endpoints de uma organização concreta, tudo a jusante herdava. Passou a abrir com uma instrução explícita — *lê `~/.prumo/org.json` antes de nomear seja o que for* — e a descrever a **forma** do ambiente, com `<prefixo>` e `<domínio>` a resolver por `prumo_org`. A tabela de produtos com versões de Rails saiu por inteiro: são metadados operacionais que pertencem ao inventário Ansible e ficariam desactualizados à primeira migração.
+
+**`prumo-saas-monitoring/SKILL.md` a zero (eram 46).** Aqui o achado foi outro: metade das ocorrências estavam em **exemplos de output** — um painel de saúde com nomes de produto reais, hosts de amostra, nomes de template. É a forma mais insidiosa, porque o modelo aprende por imitação: um exemplo com `wirePAPER` produz `wirePAPER` em qualquer organização, independentemente do que a configuração diga. Passaram a `<produto-N>` e `<host-rails-XX>`, com o alinhamento das colunas refeito — um painel ASCII desalinhado ensina formatação errada com a mesma eficácia.
+
+**O `/prumo-secops-bootstrap` ficou deliberadamente por migrar.** Tem 31 ocorrências e é onde a parametrização teria mais consequência funcional — mas provisiona os AppRoles e policies reais no Vault, e é precisamente a camada que o B6 manda deixar para último. Migrá-la agora seria fazer o contrário do que o item diz.
+
+Ratchet: **661 → 567**.
+
+### Fase 3c — os 21 templates que saem para fora
+
+**As 199 ocorrências em `skills/*/references/` a zero.** São os artefactos com maior consequência de todo o plugin: notificação ao CNCS, Anexo II do contrato Art. 28, DPIA, dossier de cliente, relatório de isolamento. Um nome de organização errado aqui não é um defeito cosmético — é uma peça institucional dirigida a um regulador ou a um município com o nome de outra empresa.
+
+A transformação foi por camadas, do mais específico para o mais genérico: referências documentais `<ORG>.XXX.YYY.NNN`, AppRoles `<prefixo>-*`, hosts compostos de `prumo_org domain`, produtos, e só no fim o nome solto.
+
+**Dois acabamentos que a substituição automática não faz sozinha.** O primeiro é gramatical: `A <ORG> não é entidade essencial` ficou a conviver com `a organização` no mesmo parágrafo, e um documento que sai para auditor não pode ler-se como um find-and-replace. `<ORG>` ficou reservado a placeholder de nome — cabeçalhos, campo *Designação*, assunto de email — e a prosa passou a dizer *a organização*.
+
+O segundo é que **os templates já eram templates**: usavam `<ID>`, `<X>`, `<data>`. Só o prefixo é que estava literal, escondido dentro do placeholder — `wire-<ID>`, `wire<X>`, `[LISTA_WIRE_PRODUCTS]`. Passaram a `<prefixo>-<ID>` e `<produto>`, que é o que já deviam ser.
+
+Ratchet: **567 → 368**.
+
+### Fase 3d — agents, comandos e skills
+
+**Agents 56 → 0, skills 83 → 0, comandos 54 → 0** (excluído o bootstrap). O que aqui aparece são sobretudo instruções operacionais: AppRoles que o subagente usa, units systemd que reinicia, paths de log que lê.
+
+Duas classes precisaram de tratamento distinto do resto. As **units systemd e paths de servidor** — `puma-wirepaper.service`, `/var/log/wire-*/` — são objectos reais nas máquinas, mesma natureza dos AppRoles: passaram a `puma-<produto>.service` e `/var/log/<prefixo>-*/`. E os **exemplos de SQL** no `prumo-tenant-isolation` referiam uma base e uma tabela concretas (`wire_main`, `wirepaper_docs`), que num exemplo de query cross-tenant seriam copiadas tal e qual.
+
+A substituição automática deixou português desajeitado em três sítios que corrigi à mão: `Produto: <os produtos do inventário>` dentro de um placeholder de output, `canónico ainda em definição na <ORG> SaaS`, e `autorização DPO <ORG>`. Um replace global acerta no literal e falha na frase.
+
+**O `/prumo-secops-bootstrap` (37) continua por migrar, de propósito** — provisiona AppRoles e policies reais, e é a última camada por desenho.
+
+Ratchet: **368 → 161**. Restam o bootstrap (37), o `vault-policies.hcl` (33), o `base` (58) e resíduos.
+
 ## v0.8.2 — 2026-08-02
 
 **A lacuna `CTRL-W-IR-*` estava declarada, mas não estava pedida.** Dizer *"não existe matriz IR"* identifica o buraco e deixa o trabalho por fazer no sítio errado: quem lê fica a saber que falta algo, não o que perguntar nem a quem. Nova secção **"O que pedir ao `WIRE.MTZ.SEC.006`"** no `ctrl-w-inventario.md`, com os três pedidos, o formato exigido e o critério de recusa.

@@ -1,9 +1,9 @@
-# Regras Wazuh relevantes por produto `wire*`
+# Regras Wazuh relevantes por produto `os produtos do inventário`
 
 > **Estado: convenção e estrutura definidas — o catálogo de IDs custom está por preencher.**
 >
 > As gamas de IDs do Wazuh e o comportamento do `level` são documentação do produto, verificável.
-> **Os `rule_id` custom da Wire (≥100000) não constam aqui**: são facto do ambiente, lêem-se do
+> **Os `rule_id` custom da organização (≥100000) não constam aqui**: são facto do ambiente, lêem-se do
 > manager, e inventá-los produziria queries que devolvem vazio e passam por "sem alertas". Preencher
 > a partir do `rules/local_rules.xml` do manager — instrução no fim.
 
@@ -12,13 +12,13 @@
 | Gama | Origem | Alterável |
 |---|---|---|
 | `0`–`99999` | Regras nativas do Wazuh (ruleset oficial) | Não. Sobrepor com regra custom que herde via `<if_sid>` |
-| `100000`+ | Regras locais da organização | Sim — é aqui que vivem as regras Wire |
+| `100000`+ | Regras locais da organização | Sim — é aqui que vivem as regras <ORG> |
 
 Regra prática: **nunca editar uma regra nativa**. Um upgrade do ruleset reverte a alteração em silêncio, e o alerta que se esperava deixa de existir sem que nada falhe visivelmente.
 
 ## Níveis e o que fazer com eles
 
-O `level` do Wazuh vai de 0 a 16. O mapeamento para as severidades desta skill (P1–P4) **não é directo** — depende do que a regra significa no contexto Wire, não só do número.
+O `level` do Wazuh vai de 0 a 16. O mapeamento para as severidades desta skill (P1–P4) **não é directo** — depende do que a regra significa no contexto <ORG>, não só do número.
 
 | Level | Significado no Wazuh | Tradução habitual |
 |---|---|---|
@@ -40,7 +40,7 @@ Uma entrada por regra custom que a triagem use:
 rule_id:        <≥100000>
 Nome:           <descrição da regra>
 Level:          <0-16>
-Produto:        <wire* aplicável | transversal>
+Produto:        <os produtos do inventário aplicável | transversal>
 Origem do log:  <lograge | systemd | postgres | vault audit | fortigate>
 Significa:      <o que aconteceu, em português>
 Par Fortigate:  <ver wazuh-fortigate-pairs.md · ou "nenhum esperado">
@@ -51,7 +51,7 @@ Runbook:        <o que fazer>
 
 O campo **"Falso positivo"** é o que evita a erosão da triagem. Uma regra sem falsos positivos documentados vai gerar desconfiança na primeira vez que dispare por engano, e a desconfiança contamina as outras.
 
-## Famílias que a Wire deve ter cobertas
+## Famílias que a organização deve ter cobertas
 
 Sem antecipar IDs, é o que uma stack Rails multi-tenant precisa de ter em regras locais:
 
@@ -73,7 +73,7 @@ grep -oE 'rule id="[0-9]{6,}"' /var/ossec/etc/rules/local_rules.xml | sort -u
 # quais dispararam nos últimos 30 dias, e quantas vezes
 WAZUH_TOKEN=$(V kv get -field=api_token secret/data/observability/wazuh)
 curl -s -k -H "Authorization: Bearer $WAZUH_TOKEN" \
-  "${PRUMO_WAZUH_HOST:-wazuh-manager.wire.internal}/security/alerts?since_days=30" \
+  "${PRUMO_WAZUH_HOST:-wazuh-manager.$(prumo_org domain)}/security/alerts?since_days=30" \
   | jq -r '.data.affected_items[].rule.id' | sort | uniq -c | sort -rn
 ```
 

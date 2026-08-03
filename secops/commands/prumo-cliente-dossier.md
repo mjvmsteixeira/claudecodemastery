@@ -24,8 +24,8 @@ Sequência:
    7. Aspectos NIS2 do cliente (entidade essencial, CSIRT, contactos).
    8. Pedidos pendentes.
    9. Riscos identificados.
-   10. Recomendações Wire para o cliente.
-4. **Limpa para distribuição:** remove referências a outros tenants; classifica como "Confidencial — Wire + Município $ARGUMENTS".
+   10. Recomendações <ORG> para o cliente.
+4. **Limpa para distribuição:** remove referências a outros tenants; classifica como "Confidencial — <ORG> + Município $ARGUMENTS".
 5. Gera DOCX via Cowork `ai-rep-01` em `/shared/reports/output/dossier-<municipio>-<YYYY-MM-DD>.docx`.
 6. Regista a emissão no audit trail (quem pediu, quando, destinatário).
 

@@ -23,12 +23,12 @@ Se o âmbito ainda se move, envia o template 1 — que não promete âmbito — 
 Destinatário: responsável pelo tratamento no município (não a caixa geral). Cópia: gestor de conta.
 
 ```
-Assunto: [Wire] Incidente de segurança com impacto no serviço — comunicação inicial
+Assunto: [<ORG>] Incidente de segurança com impacto no serviço — comunicação inicial
 
 Exmo.(a) Senhor(a) <cargo>,
 
 Ao abrigo do contrato de subcontratação em vigor e do disposto no artigo 33.º, n.º 2
-do RGPD, a Wire comunica a ocorrência de um incidente de segurança que afecta o
+do RGPD, a organização comunica a ocorrência de um incidente de segurança que afecta o
 serviço prestado ao Município de <nome>.
 
 O QUE ACONTECEU
@@ -58,7 +58,7 @@ Até <data/hora>, ou antes se houver desenvolvimento relevante.
 
 CONTACTO
 <nome> · <cargo> · <email> · <telefone>
-Referência do incidente: wire-<ID>
+Referência do incidente: <prefixo>-<ID>
 
 TLP:AMBER — destinada à vossa organização e a quem por ela seja responsável.
 
@@ -70,11 +70,11 @@ TLP:AMBER — destinada à vossa organização e a quem por ela seja responsáve
 Só quando há facto novo. Uma actualização que não acrescenta nada gasta a atenção de que vais precisar na seguinte.
 
 ```
-Assunto: [Wire] Incidente wire-<ID> — actualização <n>
+Assunto: [<ORG>] Incidente <prefixo>-<ID> — actualização <n>
 
 Exmo.(a) Senhor(a) <cargo>,
 
-Actualização à comunicação de <data>, referente ao incidente wire-<ID>.
+Actualização à comunicação de <data>, referente ao incidente <prefixo>-<ID>.
 
 O QUE MUDOU DESDE A ÚLTIMA COMUNICAÇÃO
 <Só o novo.>
@@ -89,7 +89,7 @@ explícita. Nunca corrigir em silêncio.>
 PRÓXIMA COMUNICAÇÃO
 <data/hora>
 
-Referência: wire-<ID> · TLP:AMBER
+Referência: <prefixo>-<ID> · TLP:AMBER
 ```
 
 A secção de correcção existe de propósito. Num incidente, comunicar cedo implica comunicar com informação incompleta; a alternativa — esperar pela certeza — é pior e viola o prazo. O que preserva a confiança é corrigir de forma visível.
@@ -97,11 +97,11 @@ A secção de correcção existe de propósito. Num incidente, comunicar cedo im
 ## Template 3 — Encerramento
 
 ```
-Assunto: [Wire] Incidente wire-<ID> — encerramento
+Assunto: [<ORG>] Incidente <prefixo>-<ID> — encerramento
 
 Exmo.(a) Senhor(a) <cargo>,
 
-O incidente wire-<ID> foi encerrado a <data/hora>.
+O incidente <prefixo>-<ID> foi encerrado a <data/hora>.
 
 RESUMO
 <O que aconteceu, em linguagem acessível a não-técnico.>
@@ -125,14 +125,14 @@ O QUE VAMOS MUDAR
 DOCUMENTAÇÃO
 Relatório detalhado disponível a pedido, ao abrigo do contrato.
 
-Referência: wire-<ID> · TLP:AMBER
+Referência: <prefixo>-<ID> · TLP:AMBER
 ```
 
 ## Notas de redacção
 
 - **Português europeu, registo institucional.** Estas cartas podem ir a reunião de câmara e a processo.
 - **Sem jargão sem tradução.** "Movimento lateral" não diz nada a um vereador; "o atacante conseguiu passar de um servidor para outro dentro da nossa infraestrutura" diz.
-- **Voz activa e sujeito assumido.** "A Wire detectou", não "foi detectado". A construção impessoal lê-se como fuga à responsabilidade.
+- **Voz activa e sujeito assumido.** "A <ORG> detectou", não "foi detectado". A construção impessoal lê-se como fuga à responsabilidade.
 - **Nunca minimizar.** "Apenas alguns registos" transforma-se em problema quando o número real aparecer.
 - **Nada de desculpas antes dos factos.** O pedido de desculpas vem depois de dizer o que aconteceu, não em vez disso.
 - **Se não sabes, escreve que não sabes** e quando saberás. "Em apuramento, com actualização até às 18h" é uma resposta profissional; uma estimativa apresentada como facto não é.

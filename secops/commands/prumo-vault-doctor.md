@@ -1,6 +1,6 @@
 ---
 name: prumo-vault-doctor
-description: Diagnóstico do Vault de PRODUÇÃO do SaaS Wire (vault.wire.internal) — endpoint, token TTL, seal status, HA Raft leader, audit device, AppRoles wire-*, backends transit/ssh/kv. Reporta verde/amarelo/vermelho com acções concretas. NÃO confundir com /vault-audit (que valida o Vault LOCAL de desenvolvimento do projecto).
+description: Diagnóstico do Vault de PRODUÇÃO do SaaS <ORG> (vault.$(prumo_org domain)) — endpoint, token TTL, seal status, HA Raft leader, audit device, AppRoles `<prefixo>-*`, backends transit/ssh/kv. Reporta verde/amarelo/vermelho com acções concretas. NÃO confundir com /vault-audit (que valida o Vault LOCAL de desenvolvimento do projecto).
 ---
 
 Executa diagnóstico completo do Vault que sustenta o broker de credenciais do plugin prumo SecOps.
@@ -19,8 +19,8 @@ Corre checks **em sequência**, parando no primeiro fail crítico. Usa `Bash` pa
 : "${VAULT_ADDR:?VAULT_ADDR não definido.
 
 Produção:
-  export VAULT_ADDR=https://vault.wire.internal:8200
-  export VAULT_CACERT=/path/para/wire-prod-ca.pem
+  export VAULT_ADDR=https://vault.$(prumo_org domain):8200
+  export VAULT_CACERT=/path/para/<prefixo>-prod-ca.pem
 
 Local dev:
   export VAULT_ADDR=https://127.0.0.1:8200
@@ -38,7 +38,7 @@ curl -sf -m 3 "${VAULT_ADDR}/v1/sys/health" > "$TMP_HEALTH"
 ```
 
 - **OK** → continua
-- **FAIL** (connection refused, timeout) → reporta: Vault server em down. Acção: `docker compose up -d` (dev) ou contactar SRE Wire (prod). Para aqui.
+- **FAIL** (connection refused, timeout) → reporta: Vault server em down. Acção: `docker compose up -d` (dev) ou contactar SRE <ORG> (prod). Para aqui.
 - **FAIL TLS** (`cert not trusted`) → indica que CLI está em HTTP mas server em HTTPS (ou vice-versa). Acção: verificar `VAULT_ADDR` e `VAULT_SKIP_VERIFY`.
 
 ### Check 2 · Seal status
@@ -65,16 +65,16 @@ POLICIES=$(jq -r '.data.policies | join(",")' "$TMP_TOK")
 - **WARN** se TTL < 300s → token vai expirar em breve. Acção: `vault token renew` ou re-login AppRole (ver Re-login abaixo).
 - **FAIL** se token inválido (404/permission denied) → expirado/revogado. Acção: re-login AppRole.
 
-#### Re-login AppRole (substitui o antigo `wire-secops-login`)
+#### Re-login AppRole (substitui o antigo `<prefixo>-secops-login`)
 
 ```bash
-export VAULT_ROLE_ID=$(security find-generic-password -a wire-secops -s vault-role-id-wire-monitor -w)
-export VAULT_SECRET_ID=$(security find-generic-password -a wire-secops -s vault-secret-id-wire-monitor -w)
+export VAULT_ROLE_ID=$(security find-generic-password -a <prefixo>-secops -s vault-role-id-<prefixo>-monitor -w)
+export VAULT_SECRET_ID=$(security find-generic-password -a <prefixo>-secops -s vault-secret-id-<prefixo>-monitor -w)
 export VAULT_TOKEN=$(vault write -field=token auth/approle/login \
   role_id="$VAULT_ROLE_ID" secret_id="$VAULT_SECRET_ID")
 ```
 
-(Substitui `wire-monitor` por outro AppRole conforme o contexto.)
+(Substitui `<prefixo>-monitor` por outro AppRole conforme o contexto.)
 
 ### Check 4 · HA status (se aplicável)
 
@@ -94,7 +94,7 @@ COUNT=$(jq 'keys | length' "$TMP_AUDIT")
 ```
 
 - **OK** se ≥1 audit device activo
-- **CRÍTICO** se nenhum → **toda a operação não fica auditada**. Acção imediata: `vault audit enable file file_path=/var/log/vault-audit.log` ou `socket address=wazuh:514 socket_type=udp`. Para conformidade Wire, audit é não-negociável.
+- **CRÍTICO** se nenhum → **toda a operação não fica auditada**. Acção imediata: `vault audit enable file file_path=/var/log/vault-audit.log` ou `socket address=wazuh:514 socket_type=udp`. Para conformidade <ORG>, audit é não-negociável.
 
 ### Check 6 · Backends esperados
 
@@ -121,13 +121,13 @@ vault list -format=json auth/approle/role | jq -r '.[]' > "$TMP_APPROLES"
 ```
 
 Espera-se ver:
-- `wire-monitor`
-- `wire-ir`
-- `wire-tenant`
-- `wire-srv`
-- `wire-deploy`
-- `wire-compliance`
-- `wire-cowork-reporting`
+- `<prefixo>-monitor`
+- `<prefixo>-ir`
+- `<prefixo>-tenant`
+- `<prefixo>-srv`
+- `<prefixo>-deploy`
+- `<prefixo>-compliance`
+- `<prefixo>-cowork-reporting`
 
 - **OK** se todos os 7 presentes
 - **WARN** com lista do que falta. Acção: aplicar `vault-policies.hcl` + criar AppRoles (slide 12).
@@ -135,7 +135,7 @@ Espera-se ver:
 ### Output estruturado
 
 ```
-== Wire · Vault Doctor · 2026-05-13 23:00 ==
+== <ORG> · Vault Doctor · 2026-05-13 23:00 ==
 
 Endpoint:        http://127.0.0.1:8200        [✓ HTTP 200]
 Seal status:     unsealed · initialized        [✓]
@@ -143,7 +143,7 @@ Token TTL:       28m12s · policies=root        [✓]
 HA:              single-node (dev)             [INFO]
 Audit devices:   1 (file)                      [✓]
 Backends:        kv-v2 · transit · ssh         [✓]
-AppRoles:        7/7 (wire-*)              [✓]
+AppRoles:        7/7 (<prefixo>-*)              [✓]
 
 Verdicto: HEALTHY · broker operacional.
 
@@ -163,7 +163,7 @@ Action items:
 - `VAULT_ADDR` — endpoint
 - `VAULT_TOKEN` — token actual da sessão
 - `VAULT_CACERT` — CA cert para TLS (prod)
-- `VAULT_NAMESPACE` — namespace Wire (se Vault Enterprise)
+- `VAULT_NAMESPACE` — namespace <ORG> (se Vault Enterprise)
 
 ## Cadência sugerida
 

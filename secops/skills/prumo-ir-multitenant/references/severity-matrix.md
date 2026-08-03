@@ -1,6 +1,6 @@
-# Matriz de severidade S1–S4 · IR multi-tenant Wire
+# Matriz de severidade S1–S4 · IR multi-tenant <ORG>
 
-> **Estado: rascunho operacional.** Estruturado a partir do `SKILL.md` e do WIRE.PRC.IRT.005.
+> **Estado: rascunho operacional.** Estruturado a partir do `SKILL.md` e do <ORG>.PRC.IRT.005.
 > Os limiares e a atribuição de responsáveis **têm de ser validados pelo Coordenador SecOps**
 > antes de servirem de base a uma decisão real. Os prazos regulatórios citados são os que a
 > skill já assume — confirmar com o DPO/jurídico antes de uma notificação efectiva.
@@ -15,7 +15,7 @@ Qualquer uma basta:
 
 - **Vazamento confirmado de dados pessoais** que cruza fronteira de tenant (dados do município A acessíveis ao município B, ou a terceiro).
 - **Comprometimento de componente partilhado com credenciais**: Vault, IdP, base de dados de plataforma, pipeline de build.
-- **Indisponibilidade total** de um ou mais produtos `wire*` para a generalidade dos municípios.
+- **Indisponibilidade total** de um ou mais produtos `os produtos do inventário` para a generalidade dos municípios.
 - **Exfiltração activa em curso** — atacante com acesso ainda não cortado.
 - **Comprometimento de cadeia de fornecimento** confirmado num artefacto já em produção.
 
@@ -87,8 +87,8 @@ Os prazos são os que o `SKILL.md` fixa. **Contam a partir do conhecimento do in
 |---|---|---|
 | Query sem `tenant_key` expõe registos de outro município | **S1** | Cruza fronteira de tenant com dados pessoais |
 | AppRole do Vault com `secret_id` vazado num log de build | **S1** | Componente partilhado com credenciais |
-| `wirePAPER` em baixo para todos os municípios do pool A | **S1** | Indisponibilidade total de produto |
+| `<produto>` em baixo para todos os municípios do pool A | **S1** | Indisponibilidade total de produto |
 | Gem Ruby com CVE crítico em 4 produtos, sem exploração observada | **S2** | Cadeia exposta, sem confirmação |
 | Wazuh alerta acesso anómalo; Fortigate nada viu | **S2** | Regra do sinal ausente |
-| Um município sem `wireDOCS` por falha de disco, com restauro em curso | **S3** | Um tenant, sem comprometimento |
+| Um município sem `<produto>` por falha de disco, com restauro em curso | **S3** | Um tenant, sem comprometimento |
 | Latência 20% acima do normal, dentro do SLA | **S4** | Dentro dos limites |

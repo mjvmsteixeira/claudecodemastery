@@ -2,9 +2,9 @@
 
 **Skill:** `prumo-cliente-dossier` · **Versão:** v0.4.0 · **Última actualização:** 2026-05-19
 
-> Template referenciado pela skill `prumo-cliente-dossier`. Consolida a relação completa Wire ↔
+> Template referenciado pela skill `prumo-cliente-dossier`. Consolida a relação completa <ORG> ↔
 > município: produtos, SLA, incidentes, contratos, conformidade, contactos. Marca `[CONFIRMAR]`
-> campos Wire-specific.
+> campos <ORG>-specific.
 
 O dossier é a **vista única** sobre um município cliente. É consultado antes de reuniões
 comerciais, durante incidentes (contexto rápido), em auditorias, e em renovação contratual.
@@ -28,16 +28,16 @@ Gerado por `/prumo-cliente-dossier <municipio>`.
 ## §1 — Produtos contratados
 
 ```markdown
-## 1. Produtos wire* contratados
+## 1. Produtos os produtos do inventário contratados
 
 | Produto | Versão Rails | Pool | Data activação | Estado | Utilizadores activos |
 |---------|--------------|------|-----------------|--------|----------------------|
-| wirePAPER | 6.1 | A | 2023-03-15 | Activo | [N] |
-| wireFORMS | 6.1 | B | 2024-01-10 | Activo | [N] |
-| wireMEET | 7.1 | B | 2025-06-01 | Activo | [N] |
+| <produto> | 6.1 | A | 2023-03-15 | Activo | [N] |
+| <produto> | 6.1 | B | 2024-01-10 | Activo | [N] |
+| <produto> | 7.1 | B | 2025-06-01 | Activo | [N] |
 
-Produtos NÃO contratados (oportunidade comercial): wireDESK, wireSTUDIO, wireCITYapp,
-wireRECRUIT, wireDOCS, wireVOICE, wireCONNECT.
+Produtos NÃO contratados (oportunidade comercial): <produto>, <produto>, <produto>,
+<produto>, <produto>, <produto>, <produto>.
 ```
 
 ## §2 — SLA (12 meses)
@@ -47,12 +47,12 @@ wireRECRUIT, wireDOCS, wireVOICE, wireCONNECT.
 
 | Produto | Uptime alvo | Uptime real | MTTR alvo | MTTR real | MTTD real | Estado |
 |---------|-------------|-------------|-----------|-----------|-----------|--------|
-| wirePAPER | 99.9% | 99.94% | ≤4h | 1h12m | 6m | ✓ CUMPRIDO |
-| wireFORMS | 99.9% | 99.87% | ≤4h | 2h05m | 14m | ⚠ MARGINAL |
-| wireMEET | 99.5% | 99.98% | ≤4h | 0h45m | 4m | ✓ CUMPRIDO |
+| <produto> | 99.9% | 99.94% | ≤4h | 1h12m | 6m | ✓ CUMPRIDO |
+| <produto> | 99.9% | 99.87% | ≤4h | 2h05m | 14m | ⚠ MARGINAL |
+| <produto> | 99.5% | 99.98% | ≤4h | 0h45m | 4m | ✓ CUMPRIDO |
 
 Detalhe de cálculo: ver sla-calculation.md
-Penalizações contratuais aplicáveis: [SIM/NÃO — wireFORMS abaixo de alvo em [MÊS]]
+Penalizações contratuais aplicáveis: [SIM/NÃO — <produto> abaixo de alvo em [MÊS]]
 ```
 
 ## §3 — Incidentes (12 meses)
@@ -62,13 +62,13 @@ Penalizações contratuais aplicáveis: [SIM/NÃO — wireFORMS abaixo de alvo e
 
 | Incident ID | Data | Severity | Produto | Duração | Impacto neste município | CNPD notificado? |
 |-------------|------|----------|---------|---------|--------------------------|-------------------|
-| wire-ir-2026-0519-002 | 2026-05-19 | S2 | wireFORMS | 47m | IDOR cross-tenant — 18 fichas expostas | SIM (via município) |
-| wire-ir-2025-1103-001 | 2025-11-03 | S3 | wirePAPER | 2h | Degradação latência | NÃO |
+| <prefixo>-ir-2026-0519-002 | 2026-05-19 | S2 | <produto> | 47m | IDOR cross-tenant — 18 fichas expostas | SIM (via município) |
+| <prefixo>-ir-2025-1103-001 | 2025-11-03 | S3 | <produto> | 2h | Degradação latência | NÃO |
 
 Total incidentes: 2 (1× S2, 1× S3)
 Incidentes com impacto em dados pessoais: 1
 Comunicações regulatórias: 1 (CNPD via município, dossier técnico entregue)
-Post-mortems disponíveis: wire-ir-2026-0519-002 (interno + sumário cliente)
+Post-mortems disponíveis: <prefixo>-ir-2026-0519-002 (interno + sumário cliente)
 ```
 
 ## §4 — Contratos
@@ -91,8 +91,8 @@ Post-mortems disponíveis: wire-ir-2026-0519-002 (interno + sumário cliente)
 ## 5. Conformidade
 
 - **DPIA aplicável:** [LISTA de produtos que processam PII em larga escala]
-  - wireFORMS: DPIA v2.1 (2025-09) — risco residual BAIXO-MÉDIO
-  - wirePAPER: DPIA v1.4 (2024-12) — risco residual BAIXO
+  - <produto>: DPIA v2.1 (2025-09) — risco residual BAIXO-MÉDIO
+  - <produto>: DPIA v1.4 (2024-12) — risco residual BAIXO
 - **Auditoria isolamento (último score):** [X]/80 ([%]) — ver prumo-tenant-isolation
 - **Última auditoria:** [DATA]
 - **Próxima auditoria:** [DATA]
@@ -125,10 +125,10 @@ RLS: [N] policies activas — última validação [DATA] — sem bypasses detect
 - **Contacto operacional 24/7:** [CANAL]
 - **Decisor (Vereador/Presidente CM):** [NOME]
 
-### Lado Wire
+### Lado <ORG>
 - **Gestor de conta:** [NOME]
 - **SecOps de referência:** prumo-monitor-01 / [HUMANO de plantão]
-- **DPO Wire:** [NOME]
+- **DPO <ORG>:** [NOME]
 - **Canal de incidente:** [CANAL_CONTRATADO]
 ```
 
@@ -139,9 +139,9 @@ RLS: [N] policies activas — última validação [DATA] — sem bypasses detect
 
 | Data | Tipo | Assunto | Resultado |
 |------|------|---------|-----------|
-| 2026-05-19 | Incident comms | wire-ir-2026-0519-002 (IDOR) | Dossier CNPD entregue |
+| 2026-05-19 | Incident comms | <prefixo>-ir-2026-0519-002 (IDOR) | Dossier CNPD entregue |
 | 2026-02-15 | Renovação DPA | Revisão anual DPA | Assinado |
-| 2025-11-03 | Incident comms | wire-ir-2025-1103-001 | Resolvido, sem PII |
+| 2025-11-03 | Incident comms | <prefixo>-ir-2025-1103-001 | Resolvido, sem PII |
 ```
 
 ## §9 — Acções abertas
@@ -153,8 +153,8 @@ RLS: [N] policies activas — última validação [DATA] — sem bypasses detect
 |-------|-------|-------|------------|
 | Implementar self-service audit export (CTRL-W-T-008) | Product | Q3 2026 | Média |
 | Testar offboarding em sandbox (CTRL-W-T-014) | SecOps | Q3 2026 | Baixa |
-| Follow-up pós-incidente wire-ir-2026-0519-002 (T+30d post-mortem) | SecOps | 2026-06-18 | Alta |
-| Oportunidade comercial: wireDESK | Gestor conta | — | — |
+| Follow-up pós-incidente <prefixo>-ir-2026-0519-002 (T+30d post-mortem) | SecOps | 2026-06-18 | Alta |
+| Oportunidade comercial: <produto> | Gestor conta | — | — |
 ```
 
 ## Sumário executivo (topo, gerado por último)
@@ -163,7 +163,7 @@ RLS: [N] policies activas — última validação [DATA] — sem bypasses detect
 ## Sumário executivo — Município de [NOME]
 
 - **Relação:** cliente desde [ANO], [N] produtos contratados, tier [TIER].
-- **SLA:** [N-1] de [N] produtos a cumprir; wireFORMS marginal em [MÊS].
+- **SLA:** [N-1] de [N] produtos a cumprir; <produto> marginal em [MÊS].
 - **Incidentes 12m:** [N] ([severidades]). 1 com impacto em dados pessoais (resolvido).
 - **Isolamento:** score [%] — postura [sólida/atenção].
 - **Conformidade:** DPA actualizado, DPIA por produto, [N] gaps abertos (não-críticos).
@@ -190,7 +190,7 @@ O dossier completo é **interno**. Se partilhado com o município (ex: review an
 
 - **RGPD Art. 28** — relação responsável ↔ subcontratante.
 - **DL 20/2025** — fornecedor crítico.
-- **WIRE.MTZ.SEC.006** — CTRL-W-T-* + RACI.
+- **<ORG>.MTZ.SEC.006** — CTRL-W-T-* + RACI.
 - Skills relacionadas: `prumo-tenant-isolation`, `prumo-ir-multitenant`, `prumo-compliance-provider`.
 
 ## Como usar este template em sessão Claude Code

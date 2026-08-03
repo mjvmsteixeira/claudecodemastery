@@ -67,6 +67,42 @@ fi
 : "${PRUMO_LOG_DIR:=$HOME/.prumo/log}"
 
 # ─────────────────────────────────────────────────────────────────────────────
+# prumo_org — fallback com guarda PRÓPRIA, não a do bloco de stubs acima.
+#
+# O bloco de stubs está atrás de um único sentinela (`prumo_fail_or_warn`). Um
+# `prumo-base` **antigo** define esse sentinela, o bloco é saltado inteiro, e
+# uma função nova como esta ficaria por definir — o hook chamaria uma função
+# inexistente e falharia por uma razão que nada tem a ver com segurança.
+#
+# `prumo_org` entrou no `prumo-base` v0.11.0. Enquanto houver instalações com
+# 0.10.0 ou anterior, este fallback é o que as mantém a funcionar. Mesmo padrão
+# do `hook_tool_payload` abaixo.
+#
+# O fallback devolve o default do call-site e avisa uma vez por processo: sem
+# identidade da organização, um default genérico é preferível a um erro, mas o
+# silêncio faria parecer que a configuração está lá.
+if ! declare -F prumo_org >/dev/null 2>&1; then
+  prumo_org() {
+    local key="${1:?prumo_org: falta a chave}" default="${2:-}"
+    local envvar val
+    envvar="PRUMO_ORG_$(printf '%s' "$key" | tr '[:lower:]-' '[:upper:]_')"
+    eval "val=\${$envvar:-}"
+    if [ -n "$val" ]; then printf '%s\n' "$val"; return 0; fi
+    if [ -r "$HOME/.prumo/org.json" ] && command -v jq >/dev/null 2>&1; then
+      val=$(jq -r --arg k "$key" '(.[$k] // empty) | if type=="array" then .[] else . end' \
+            "$HOME/.prumo/org.json" 2>/dev/null)
+      if [ -n "$val" ]; then printf '%s\n' "$val"; return 0; fi
+    fi
+    if [ -z "${PRUMO_ORG_FALLBACK_WARNED:-}" ]; then
+      export PRUMO_ORG_FALLBACK_WARNED=1
+      echo "[prumo-secops/_lib] prumo_org em fallback — actualiza o prumo-base para >= 0.11.0" >&2
+    fi
+    [ -n "$default" ] && printf '%s\n' "$default"
+    return 0
+  }
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
 # hook_tool_payload — extrai o "comando/texto" relevante do input do hook.
 #
 # O Claude Code entrega aos hooks de tipo `command` um JSON via STDIN, ex:

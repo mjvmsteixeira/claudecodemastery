@@ -1,4 +1,4 @@
-# Mapping controlos Wire ↔ ISO/IEC 27001:2022 Anexo A
+# Mapping controlos <ORG> ↔ ISO/IEC 27001:2022 Anexo A
 
 > **Estado: esqueleto de framework — a coluna de cobertura está deliberadamente por preencher.**
 >
@@ -13,14 +13,14 @@
 > processo — não o conteúdo da norma.
 >
 > O que o inventário permite agora: quem tiver a norma à frente pode preencher a coluna de
-> controlos Wire sem depender de mais nada. A orientação de onde procurar está na secção
+> controlos <ORG> sem depender de mais nada. A orientação de onde procurar está na secção
 > "Controlos de atenção redobrada" abaixo, que continua válida e ganhou precisão com os IDs reais.
 >
 > Preencher com correspondências plausíveis produziria uma Declaração de Aplicabilidade sem lastro,
 > entregue a auditor externo. Confirmar a numeração contra a norma antes de uso formal; **este
 > ficheiro não substitui o acesso ao texto da ISO/IEC 27001:2022**, que é sujeito a direitos de autor.
 
-## Porquê importa à Wire
+## Porquê importa à organização
 
 A ISO 27001 é, na prática, o referencial pedido em concurso público. A diferença face ao NIS2 é de natureza: o NIS2 é obrigação legal, a ISO é **certificação voluntária que se torna requisito comercial**. O trabalho de mapping serve dois fins distintos que convém não confundir:
 
@@ -44,7 +44,7 @@ Cinco atributos por controlo, usados para filtrar: tipo (preventivo/detectivo/co
 
 Uma linha por controlo do Anexo A. Estrutura a preencher:
 
-| Controlo A.x.y | Título | Aplicável | Controlos Wire | Implementação | Evidência | Lacuna / plano |
+| Controlo A.x.y | Título | Aplicável | Controlos <ORG> | Implementação | Evidência | Lacuna / plano |
 |---|---|---|---|---|---|---|
 | A.5.1 | Políticas de segurança da informação | | | | | |
 | A.5.2 | Papéis e responsabilidades | | | | | |
@@ -55,16 +55,16 @@ Uma linha por controlo do Anexo A. Estrutura a preencher:
 
 ## Controlos de atenção redobrada para um SaaS multi-tenant
 
-Sem antecipar cobertura, há controlos onde a arquitectura da Wire torna a evidência menos óbvia e onde o auditor tipicamente insiste:
+Sem antecipar cobertura, há controlos onde a arquitectura da organização torna a evidência menos óbvia e onde o auditor tipicamente insiste:
 
 - **Segregação em redes partilhadas** — o isolamento multi-tenant é o controlo crítico nº 1 da plataforma. É aqui que a família `CTRL-W-T-*` deve ancorar, e onde o `/prumo-tenant-audit` produz evidência.
-- **Relações com fornecedores e cadeia TIC** — dupla direcção, como no NIS2: o que os municípios exigem à Wire, e o que a Wire exige aos seus sub-subcontratantes.
+- **Relações com fornecedores e cadeia TIC** — dupla direcção, como no NIS2: o que os municípios exigem à <ORG>, e o que a organização exige aos seus sub-subcontratantes.
 - **Desenvolvimento seguro, separação de ambientes, gestão de alterações** — a família `CTRL-W-R-*` e o `/prumo-release-gate` são a evidência natural.
 - **Registo, monitorização e protecção dos registos** — Wazuh como SIEM mestre; a correlação Wazuh ↔ Fortigate exigida pelo `prumo-saas-monitoring` é evidência de monitorização efectiva, não apenas de recolha.
 - **Gestão de informação de autenticação e acesso privilegiado** — Vault como broker, TTLs curtos, SSH CA sem chaves estáticas. Bem posicionado, mas a evidência tem de mostrar o *funcionamento*, não só a configuração.
 - **Cifra** — política de uso, não só existência de algoritmos.
 
-Isto é orientação para onde procurar, **não uma afirmação de que a Wire está conforme**.
+Isto é orientação para onde procurar, **não uma afirmação de que a organização está conforme**.
 
 ## ISO 27017 e 27018
 
@@ -73,11 +73,11 @@ Não são certificáveis autonomamente — estendem a 27001 com orientação par
 - **27017** — perspectiva de fornecedor de serviço cloud: repartição de responsabilidades com o cliente, remoção de activos à cessação, ambiente virtual, administração de operações.
 - **27018** — protecção de PII em cloud, na qualidade de subcontratante. Alinha-se com o RGPD Art. 28 e com o Anexo II do contrato — ver `anexoII-template.md`.
 
-Para a Wire, que é simultaneamente fornecedor cloud e subcontratante de dados de munícipes, as duas são materiais e reforçam a mesma evidência.
+Para a <ORG>, que é simultaneamente fornecedor cloud e subcontratante de dados de munícipes, as duas são materiais e reforçam a mesma evidência.
 
 ## Processo
 
-1. **Âmbito do SGSI** antes de qualquer controlo. Que produtos `wire*`, que infraestrutura, que localizações. Um âmbito mal definido inutiliza o mapping todo.
+1. **Âmbito do SGSI** antes de qualquer controlo. Que produtos `os produtos do inventário`, que infraestrutura, que localizações. Um âmbito mal definido inutiliza o mapping todo.
 2. **Decisão por controlo** — aplicável ou não, com justificação escrita para as exclusões.
 3. **Evidência por controlo aplicável** — o que existe, onde, quem mantém. Evidência é um artefacto verificável, não uma afirmação.
 4. **Lacunas com plano** — acção, responsável, prazo. O princípio *"não inventa cobertura"* aplica-se aqui com particular força: numa auditoria de certificação, cobertura declarada e não demonstrável é pior do que lacuna assumida com plano.

@@ -1,6 +1,6 @@
 # prumo-secops
 
-Plugin Claude Code · SecOps com Agentes IA especializado para a **Wire** enquanto fornecedora SaaS de eGovernment local (170+ autarquias portuguesas).
+Plugin Claude Code · SecOps com Agentes IA especializado para uma organização enquanto fornecedora SaaS de eGovernment local (170+ autarquias portuguesas).
 
 **Versão:** 0.5.0 · **Data:** 2026-07-06 · **Autor:** mjvmst · mjvmst@gmail.com
 
@@ -19,7 +19,7 @@ Recomenda **`prumo-base`** — os hooks deste plugin usam `prumo_log` / `prumo_m
 
 ## Para que serve
 
-A Wire é o fornecedor SaaS por trás de 170+ autarquias portuguesas. Está sujeita à **NIS2** enquanto fornecedor crítico de entidades essenciais (DL 20/2025) e ao **Art. 28 do RGPD** enquanto subcontratante de dados pessoais por conta dos municípios. Este plugin codifica a operação SecOps Wire em seis subagentes especializados, seis skills, slash commands e hooks de aprovação.
+A organização é o fornecedor SaaS por trás de 170+ autarquias portuguesas. Está sujeita à **NIS2** enquanto fornecedor crítico de entidades essenciais (DL 20/2025) e ao **Art. 28 do RGPD** enquanto subcontratante de dados pessoais por conta dos municípios. Este plugin codifica a a operação SecOps em seis subagentes especializados, seis skills, slash commands e hooks de aprovação.
 
 ---
 
@@ -43,7 +43,7 @@ prumo-secops/
 │   ├── prumo-srv-saas-01.md
 │   ├── prumo-deploy-01.md
 │   └── prumo-compliance-01.md
-├── commands/                     # 10 slash commands (todos prefixados wire-)
+├── commands/                     # 10 slash commands (todos prefixados `<prefixo>-`)
 │   ├── prumo-saas-health.md           # operação
 │   ├── prumo-tenant-audit.md          # operação
 │   ├── prumo-incident-spread.md       # operação
@@ -83,7 +83,7 @@ prumo-secops/
 
 ---
 
-## Stack assumido (Wire real)
+## Stack assumido (instalação de referência)
 
 - **Vault HA (Raft, 3 nós)** — broker de credenciais, AppRoles, SSH CA, transit.
 - **Wazuh** — SIEM mestre. Recebe syslog/CEF do Fortigate, logs lograge dos Rails, audit Vault, OTel.
@@ -92,7 +92,7 @@ prumo-secops/
 - **Servidores nativos (VMs)** — pools com múltiplas versões Ruby on Rails (6.1, 7.0, 7.1, 7.2) sobre Puma + systemd + Capistrano. **Sem orquestrador de containers.**
 - **PostgreSQL** — schema-per-tenant com Row-Level Security activa.
 - **GitLab / GitHub** — CI/CD com release gates Capistrano-driven.
-- **OpenTelemetry** — traces/metrics dos serviços wire* Rails.
+- **OpenTelemetry** — traces/metrics dos serviços Rails do inventário.
 
 ---
 
@@ -112,12 +112,12 @@ export VAULT_TOKEN=$(jq -r .root_token ~/vault/vault-init.json)
 /prumo-secops-bootstrap --plan && /prumo-secops-bootstrap --apply       # (prumo-secops) 7 policies + 7 AppRoles + transit/keys/forensics + ssh/config/ca + ssh roles + Keychain
 
 # 3b. (Alternativa pre-v0.3.0 · manual, em vias de ficar legacy)
-# vault write auth/approle/role/wire-monitor   token_ttl=30m token_max_ttl=1h
-# vault write auth/approle/role/wire-ir        token_ttl=15m token_max_ttl=1h
-# vault write auth/approle/role/wire-tenant    token_ttl=15m token_max_ttl=30m
-# vault write auth/approle/role/wire-srv       token_ttl=15m token_max_ttl=30m
-# vault write auth/approle/role/wire-deploy    token_ttl=15m token_max_ttl=30m
-# vault write auth/approle/role/wire-compliance token_ttl=30m token_max_ttl=1h
+# vault write auth/approle/role/<prefixo>-monitor   token_ttl=30m token_max_ttl=1h
+# vault write auth/approle/role/<prefixo>-ir        token_ttl=15m token_max_ttl=1h
+# vault write auth/approle/role/<prefixo>-tenant    token_ttl=15m token_max_ttl=30m
+# vault write auth/approle/role/<prefixo>-srv       token_ttl=15m token_max_ttl=30m
+# vault write auth/approle/role/<prefixo>-deploy    token_ttl=15m token_max_ttl=30m
+# vault write auth/approle/role/<prefixo>-compliance token_ttl=30m token_max_ttl=1h
 ```
 
 ---
@@ -169,7 +169,7 @@ Total: **10 commands** (6 operação · 3 diagnóstico · 1 provisioning).
 
 ## Documentos de referência
 
-- `WIRE.POL.SEC.001` — Política SecOps Wire (a redigir, baseada em GIN.POL.SEC.001 adaptada)
+- `WIRE.POL.SEC.001` — Política SecOps <ORG> (a redigir, baseada em GIN.POL.SEC.001 adaptada)
 - `WIRE.ARQ.SEC.002` — Arquitectura técnica multi-tenant
 - `WIRE.PRC.AUD.004` — Procedimento de auditoria e conformidade
 - `WIRE.PRC.IRT.005` — Procedimento IR multi-tenant
@@ -179,7 +179,7 @@ Total: **10 commands** (6 operação · 3 diagnóstico · 1 provisioning).
 
 ## Notas de adopção
 
-1. **Pensado de raiz para fornecedor SaaS.** Não é adaptação de pacote cliente; é desenhado para a Wire enquanto subcontratante crítico, com foco em multi-tenancy e operações 24x7.
+1. **Pensado de raiz para fornecedor SaaS.** Não é adaptação de pacote cliente; é desenhado para a <ORG> enquanto subcontratante crítico, com foco em multi-tenancy e operações 24x7.
 2. **Cowork em modo confinado** mantém-se: relatórios institucionais e dossiers de cliente são produzidos em `/shared/reports/output/` por `ai-rep-01` (herdado).
 3. **Período de pilotagem recomendado:** 12 semanas (ver roadmap no deck de formação).
 4. **Métricas de sucesso:** MTTD <5min em alertas P1, MTTR <30min em incidentes multi-tenant, 0 incidentes de cross-tenant data leak, 100% de releases gated.

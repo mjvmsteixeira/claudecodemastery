@@ -1,6 +1,6 @@
 ---
 name: prumo-incident-spread
-description: Analisa propagação de incidente entre municípios clientes Wire, identifica blast radius, prepara comunicação coordenada.
+description: Analisa propagação de incidente entre municípios clientes <ORG>, identifica blast radius, prepara comunicação coordenada.
 argument-hint: <incident-id>
 ---
 
@@ -10,10 +10,10 @@ Activa a skill `prumo-ir-multitenant` e o subagent `prumo-ir-saas-01`.
 
 Sequência:
 1. Carrega o incidente `$ARGUMENTS` do Wazuh + ticket interno.
-2. Cruza janela temporal com painel `/prumo-saas-health` para confirmar produtos wire* afectados.
+2. Cruza janela temporal com painel `/prumo-saas-health` para confirmar produtos do inventário afectados.
 3. Identifica:
    - Lista de tenants afectados (UUID + nome do município).
-   - Produtos wire* afectados.
+   - Produtos os produtos do inventário afectados.
    - Tipo de impacto (disponibilidade / integridade / confidencialidade).
    - Cadeia de dependência potencialmente exposta.
 4. Classifica severidade (S1–S4) usando `references/severity-matrix.md`.

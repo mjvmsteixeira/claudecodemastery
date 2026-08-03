@@ -1,14 +1,14 @@
 ---
 name: prumo-ir-multitenant
-description: Resposta a Incidentes (IR) para incidentes que afectam dois ou mais municípios clientes na plataforma Wire, ou que envolvem componentes partilhados (infra, Vault, base de dados central, autenticação, CDN). Usa esta skill quando o incidente tem blast radius cross-tenant, quando há suspeita de cadeia de fornecimento (supply-chain), quando a contenção exige decisão de cortar uma feature ou um produto wire* inteiro, ou quando se preparam notificações simultâneas a múltiplos municípios e ao CNCS. Dispara em "incidente afecta vários", "vazamento entre tenants", "ataque à plataforma", "indisponibilidade generalizada", "supply-chain", "preparar notificação CNCS multi-cliente".
+description: Resposta a Incidentes (IR) para incidentes que afectam dois ou mais municípios clientes na a plataforma, ou que envolvem componentes partilhados (infra, Vault, base de dados central, autenticação, CDN). Usa esta skill quando o incidente tem blast radius cross-tenant, quando há suspeita de cadeia de fornecimento (supply-chain), quando a contenção exige decisão de cortar uma feature ou um produto por inteiro, ou quando se preparam notificações simultâneas a múltiplos municípios e ao CNCS. Dispara em "incidente afecta vários", "vazamento entre tenants", "ataque à plataforma", "indisponibilidade generalizada", "supply-chain", "preparar notificação CNCS multi-cliente".
 ---
 
-# Wire · Resposta a Incidentes Multi-Tenant
+# Resposta a Incidentes Multi-Tenant
 
 ## Pré-requisitos
 
 - `prumo-base` instalado para `V()` (`lib/vault-env.sh`).
-- AppRole Vault `wire-ir` activo (TTL=15m).
+- AppRole Vault `<prefixo>-ir` activo (TTL=15m).
 - Env vars: `${PRUMO_FORENSICS_DIR}` (default `$HOME/forensics`), `${PRUMO_LOG_DIR}`.
 - Referências de progressive disclosure:
   - `references/severity-matrix.md` — decision tree S1/S2/S3/S4.
@@ -36,11 +36,11 @@ curl -s -k -H "X-Vault-Token: $VAULT_TOKEN" \
   "${VAULT_ADDR}/v1/sys/audit-hash/file" | jq -r '.data.hash'
 ```
 
-(O AppRole `wire-ir` tem `update` em `sys/audit-hash/*` per `vault-policies.hcl`.)
+(O AppRole `<prefixo>-ir` tem `update` em `sys/audit-hash/*` per `vault-policies.hcl`.)
 
 > **`CTRL-W-IR-007` é o único da sua família que este repositório conhece — e conhece-o pelo efeito, não pelo enunciado.** Não existe matriz `CTRL-W-IR-*` em lado nenhum do plugin; ver a secção da lacuna em `ctrl-w-inventario.md`. Consequência prática: **nunca afirmar cobertura da família IR** num relatório. Citar o `007` pelo que ele habilita (assinar evidência sem expor o input) é legítimo; dizer "controlos de IR conformes" não é, porque não há contra o que verificar.
 
-A diferença operacional crítica: enquanto um município gere o seu próprio incidente, a Wire pode estar a gerir um incidente que **atinge dezenas em simultâneo**. As decisões têm consequência colectiva e contratual.
+A diferença operacional crítica: enquanto um município gere o seu próprio incidente, a organização pode estar a gerir um incidente que **atinge dezenas em simultâneo**. As decisões têm consequência colectiva e contratual.
 
 ## Critério para activar esta skill
 
@@ -63,7 +63,7 @@ Se for incidente **isolado a um único cliente**, usa `prumo-cliente-dossier` em
 - Cruza com painel `/prumo-saas-health` para confirmar blast radius.
 - Identifica:
   - **Lista de tenants afectados** (UUID + nome do município).
-  - **Produtos wire* afectados** (com versão Rails respectiva).
+  - **Produtos os produtos do inventário afectados** (com versão Rails respectiva).
   - **Tipo de impacto:** disponibilidade / integridade / confidencialidade.
   - **Vector de entrada:** perímetro (Fortigate viu) vs interno (Fortigate não viu, supply chain provável).
   - **Cadeia de dependência exposta** (gems Ruby partilhados entre produtos com mesma versão Rails são vector de propagação).
@@ -78,7 +78,7 @@ Tomar decisão difícil: contenção parcial (cortar uma feature) vs total (desl
 - **Indisponibilidade sem evidência de comprometimento →** mitigar mantendo serviço, escalar à engenharia.
 - **Dúvida razoável de comprometimento →** preservar evidência antes de qualquer reset; assume contenção parcial.
 
-Toda a contenção em produção exige aprovação **N2** explícita do Coordenador SecOps Wire. Operação destrutiva em pipeline ou Vault exige aprovação **N3** (CTO).
+Toda a contenção em produção exige aprovação **N2** explícita do Coordenador SecOps. Operação destrutiva em pipeline ou Vault exige aprovação **N3** (CTO).
 
 ### 3. Erradicação
 
@@ -98,10 +98,10 @@ Toda a contenção em produção exige aprovação **N2** explícita do Coordena
 
 | Destinatário | Quando | O quê |
 |--------------|--------|-------|
-| **Coordenador SecOps + CTO Wire** | T+0 | Alerta interno via canal IR |
+| **Coordenador SecOps + CTO** | T+0 | Alerta interno via canal IR |
 | **Municípios afectados** | T+24h (pelo menos comunicação inicial) | Subcontratante notifica responsável (RGPD Art. 33 §2). Template em `references/template-cliente.md` |
-| **CNCS** | T+24h alerta inicial, T+72h actualização, T+30d relatório final | Wire enquanto fornecedor crítico; cada município notifica como entidade essencial (paralelo) |
-| **CNPD** | T+72h se vazamento de dados pessoais com risco | Cada município notifica como responsável; Wire apoia com factos técnicos |
+| **CNCS** | T+24h alerta inicial, T+72h actualização, T+30d relatório final | a organização enquanto fornecedor crítico; cada município notifica como entidade essencial (paralelo) |
+| **CNPD** | T+72h se vazamento de dados pessoais com risco | Cada município notifica como responsável; <ORG> apoia com factos técnicos |
 | **Parceiros** | Conforme contratos | Caso CDN/IdP terceiros relevantes |
 
 ### 6. Lições aprendidas
@@ -115,8 +115,8 @@ Toda a contenção em produção exige aprovação **N2** explícita do Coordena
 
 ## Cadeia de custódia
 
-- Evidência hashada (SHA-256), guardada em `${PRUMO_FORENSICS_DIR:-$HOME/forensics}/wire-<incident-ID>/`.
-- Toda a evidência referenciada no ticket institucional (GLPI ou equivalente Wire).
+- Evidência hashada (SHA-256), guardada em `${PRUMO_FORENSICS_DIR:-$HOME/forensics}/<prefixo>-<incident-ID>/`.
+- Toda a evidência referenciada no ticket institucional (GLPI ou equivalente <ORG>).
 - Acesso à evidência audit-logado.
 
 ## Princípios não-negociáveis
@@ -141,6 +141,6 @@ Toda a contenção em produção exige aprovação **N2** explícita do Coordena
 - `references/template-cliente.md` — comunicação ao município.
 - `references/cncs-template.md` — notificação ao CNCS.
 - `references/timeline-template.md` — timeline cruzada.
-- WIRE.PRC.IRT.005 — Procedimento IR Wire.
+- <ORG>.PRC.IRT.005 — Procedimento IR <ORG>.
 - DL 20/2025 (NIS2) Art. 21 — notificações.
 - RGPD Art. 33 — notificação de violação.

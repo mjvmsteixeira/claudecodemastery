@@ -2,7 +2,7 @@
 
 > **Estado: convenção definida; o inventário real por preencher.**
 >
-> Os nomes de template `Template-Wire-*` são os que o `SKILL.md` já assume. Os templates oficiais do
+> Os nomes de template `Template-<ORG>-*` são os que o `SKILL.md` já assume. Os templates oficiais do
 > Zabbix (PostgreSQL, FortiGate) variam de nome com a versão — **confirmar contra os templates
 > efectivamente importados** antes de usar como baseline. O inventário de hosts é facto do ambiente
 > e lê-se via API.
@@ -17,7 +17,7 @@ Este ficheiro é essa tabela.
 
 | Tipo de host | Templates obrigatórios | Adicionais | Severidade se faltar |
 |---|---|---|---|
-| **Nó Rails (`wire*`)** | `Template-Wire-Rails-Puma` · `Template OS Linux by Zabbix agent` | Template específico do produto | **Alto** |
+| **Nó Rails (`os produtos do inventário`)** | `Template-<ORG>-Rails-Puma` · `Template OS Linux by Zabbix agent` | Template específico do produto | **Alto** |
 | **PostgreSQL** | `Template DB PostgreSQL by Zabbix agent 2` · items custom `pg_stat` | Replicação, se réplica | **Alto** |
 | **Fortigate** | `Template Fortinet FortiGate SNMP` · triggers de HA, throughput, sessões | — | **Crítico** |
 | **Vault** | Template custom: seal status, HA leader, audit lag | — | **Crítico** |
@@ -28,9 +28,9 @@ Este ficheiro é essa tabela.
 
 Fortigate, Vault e backup são **críticos** pela mesma razão: são pontos únicos cuja falha só se descobre quando são precisos. Um Vault selado sem alerta descobre-se quando o próximo AppRole falhar; um backup a falhar há três semanas descobre-se no restauro.
 
-## Items mínimos por template Wire
+## Items mínimos por template <ORG>
 
-### `Template-Wire-Rails-Puma`
+### `Template-<ORG>-Rails-Puma`
 
 ```
 puma.workers.running        — contagem vs esperado para o pool
@@ -72,7 +72,7 @@ O último é o mais valioso da lista: liga a monitorização activa ao controlo 
 ## Verificação via API
 
 ```bash
-ZBX="${ZABBIX_URL:-https://zabbix.wire.internal/api_jsonrpc.php}"
+ZBX="${ZABBIX_URL:-https://zabbix.$(prumo_org domain)/api_jsonrpc.php}"
 TOKEN=$(V kv get -field=api_token secret/data/observability/zabbix)
 
 # hosts e templates aplicados
@@ -90,7 +90,7 @@ Cruzar a saída com a tabela acima dá directamente a lista de desvios. Hosts qu
 - **Template desactualizado**: aplicado há mais de 12 meses sem revisão. Não é falha por si; é sinal de que a stack pode ter evoluído sem a monitorização acompanhar. Cada versão de Rails nova em produção obriga a rever o template do produto.
 - **Trigger sem acção de notificação** é crítico e não médio: um trigger que dispara e não notifica ninguém dá cobertura aparente, que é pior do que ausência assumida.
 - **Trigger silencioso** (>90 dias sem hit) exige verificação, não remoção automática. Pode estar obsoleto, ou mal escrito e nunca corresponder. A segunda hipótese é a perigosa.
-- **Novo produto `wire*`** implica template dedicado antes de entrar em produção, não depois.
+- **Novo produto `os produtos do inventário`** implica template dedicado antes de entrar em produção, não depois.
 
 ## Limite
 

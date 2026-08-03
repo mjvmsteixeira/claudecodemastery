@@ -38,7 +38,7 @@ Duas regras que evitam a maioria dos erros:
 ```
 PLANO DE CANARY
 Release:     <id> @ <SHA>
-Produto(s):  <wire*>
+Produto(s):  <os produtos do inventário>
 Tipo:        <feature | bugfix | hotfix | migration>
 Autor:       <nome>          Data: <data>
 

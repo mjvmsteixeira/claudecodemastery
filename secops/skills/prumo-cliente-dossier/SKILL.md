@@ -1,13 +1,13 @@
 ---
 name: prumo-cliente-dossier
-description: Gerar dossier consolidado de segurança e operação por município cliente. Compila produtos wire* activos, SLA realizado, histórico de incidentes (12 meses), DPIA aplicáveis, controlos específicos do tenant, escalations e contactos. Usa esta skill quando há reunião com cliente, renovação de contrato, resposta a pedido de evidência por DPO municipal, preparação de QBR (quarterly business review), ou auditoria do Tribunal de Contas que envolve o município. Dispara em "dossier do cliente", "tudo sobre o município X", "preparar QBR", "evidência para o DPO", "renovação cliente", "Tribunal de Contas pediu", "auditoria do município".
+description: Gerar dossier consolidado de segurança e operação por município cliente. Compila produtos do inventário activos, SLA realizado, histórico de incidentes (12 meses), DPIA aplicáveis, controlos específicos do tenant, escalations e contactos. Usa esta skill quando há reunião com cliente, renovação de contrato, resposta a pedido de evidência por DPO municipal, preparação de QBR (quarterly business review), ou auditoria do Tribunal de Contas que envolve o município. Dispara em "dossier do cliente", "tudo sobre o município X", "preparar QBR", "evidência para o DPO", "renovação cliente", "Tribunal de Contas pediu", "auditoria do município".
 ---
 
-# Wire · Dossier de Cliente
+# Dossier de Cliente
 
 ## Pré-requisitos
 
-- AppRole Vault `wire-tenant` (read em `secret/data/tenants/metadata/*`).
+- AppRole Vault `<prefixo>-tenant` (read em `secret/data/tenants/metadata/*`).
 - Subagent `prumo-tenant-01` (capability metadata-fetch — ver agent definition).
 - Referências:
   - `references/dossier-template.md` — skeleton com placeholders por secção.
@@ -16,7 +16,7 @@ description: Gerar dossier consolidado de segurança e operação por município
 ## Padrão de fetch (sem wrappers)
 
 ```bash
-# Metadados do cliente via wire-tenant AppRole
+# Metadados do cliente via <prefixo>-tenant AppRole
 TENANT_NIPC="$1"
 METADATA=$(V kv get -format=json "secret/data/tenants/metadata/$TENANT_NIPC" \
   | jq -r '.data.data')
@@ -39,7 +39,7 @@ Cada município é um cliente, mas também é uma entidade essencial NIS2, com o
 - Pedido directo do cliente (DPO municipal, vereador, técnico).
 - Pedido de auditor (Tribunal de Contas, IGF, CNCS via cliente).
 - Preparação de QBR trimestral.
-- Renovação de contrato ou expansão de produtos wire*.
+- Renovação de contrato ou expansão de produtos do inventário.
 - Antes de uma escalada de incidente onde se prevê comunicação formal.
 - Resposta a "right to access" RGPD canalizado pelo município.
 
@@ -48,25 +48,25 @@ Cada município é um cliente, mas também é uma entidade essencial NIS2, com o
 ### 1. Identificação
 
 - Nome do município, NIPC, contacto institucional, DPO contactável.
-- Tenant UUID na plataforma Wire.
-- Account manager Wire + técnico de referência.
+- Tenant UUID na a plataforma.
+- Account manager <ORG> + técnico de referência.
 
 ### 2. Produtos activos
 
 | Produto | Versão | Data activação | Utilizadores activos | SLA contratado |
 |---------|--------|----------------|----------------------|----------------|
-| wireSTUDIO | 7.2 | 2018-03 | 12 editores | 99.5% |
-| wirePAPER | 5.4 | 2020-09 | 48 utilizadores back-office | 99.5% |
-| wireDESK | 3.1 | 2022-11 | 320 colaboradores | 99.0% |
+| <produto> | 7.2 | 2018-03 | 12 editores | 99.5% |
+| <produto> | 5.4 | 2020-09 | 48 utilizadores back-office | 99.5% |
+| <produto> | 3.1 | 2022-11 | 320 colaboradores | 99.0% |
 | ... | ... | ... | ... | ... |
 
 ### 3. SLA realizado (últimos 12 meses)
 
 ```
 Produto       SLA contratado  SLA realizado  Crédito devido?  Notas
-wireSTUDIO    99.5%           99.94%         Não              -
-wirePAPER     99.5%           99.41%         Sim (0.09%)      Incidente Jan 2026
-wireDESK      99.0%           99.92%         Não              -
+<produto>    99.5%           99.94%         Não              -
+<produto>     99.5%           99.41%         Sim (0.09%)      Incidente Jan 2026
+<produto>      99.0%           99.92%         Não              -
 ```
 
 ### 4. Histórico de incidentes (12 meses)
@@ -75,7 +75,7 @@ Por incidente: ID, data, severidade, produto, impacto, RCA resumido, ligação �
 
 ### 5. Configurações específicas do tenant
 
-- Customizações activas (templates wireSTUDIO, formulários wireFORMS, integrações).
+- Customizações activas (templates <produto>, formulários <produto>, integrações).
 - Integrações externas autorizadas (ex: AMA, autenticação Gov.pt).
 - Restrições de IP / lista de admins privilegiados do tenant.
 - Janelas de manutenção preferenciais comunicadas.
@@ -105,7 +105,7 @@ Por incidente: ID, data, severidade, produto, impacto, RCA resumido, ligação �
 
 - Lista curta (≤5) com plano e responsável.
 
-### 10. Recomendações Wire para o cliente
+### 10. Recomendações <ORG> para o cliente
 
 Linha proactiva: o que o município deveria fazer / melhorar do seu lado (formação, MFA, revisão de acessos), para reduzir risco conjunto.
 
@@ -117,8 +117,8 @@ Linha proactiva: o que o município deveria fazer / melhorar do seu lado (forma�
 4. **Limpa para distribuição.**
    - Remove referências a outros tenants.
    - Garante que nenhum dado de outro cliente vaza.
-   - Tag classification: Confidencial — Wire + Município <nome>.
-5. **Geração formal.** DOCX via Cowork `ai-rep-01`, com cabeçalho/rodapé Wire + identificação do cliente. Saída em `/shared/reports/output/dossier-<municipio>-<YYYY-MM-DD>.docx`.
+   - Tag classification: Confidencial — <ORG> + Município <nome>.
+5. **Geração formal.** DOCX via Cowork `ai-rep-01`, com cabeçalho/rodapé <ORG> + identificação do cliente. Saída em `/shared/reports/output/dossier-<municipio>-<YYYY-MM-DD>.docx`.
 6. **Registo da emissão.** Log no audit trail (quem pediu, quando, a quem foi enviado).
 
 ## Princípios não-negociáveis
@@ -138,6 +138,6 @@ Linha proactiva: o que o município deveria fazer / melhorar do seu lado (forma�
 ## Referências
 
 - `references/dossier-template.md` — template institucional.
-- `references/sla-calculation.md` — fórmula oficial Wire para cálculo de SLA.
+- `references/sla-calculation.md` — fórmula oficial <ORG> para cálculo de SLA.
 - `../prumo-ir-multitenant/references/distribuicao-classificacao.md` — política TLP de classificação e distribuição. **Vive na skill de IR e não é duplicada aqui**: uma segunda cópia divergiria da primeira, e ter duas políticas de distribuição em vigor é pior do que não ter nenhuma.
-- WIRE.PRC.AUD.004 — auditoria e retenção.
+- <ORG>.PRC.AUD.004 — auditoria e retenção.

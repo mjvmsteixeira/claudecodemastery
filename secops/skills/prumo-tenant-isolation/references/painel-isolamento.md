@@ -16,8 +16,8 @@ Serve três leitores com necessidades diferentes: o Coordenador SecOps que quer 
 ## Template
 
 ```
-== Wire · Isolamento Multi-Tenant · YYYY-MM-DD ==
-Âmbito: <parque completo | produto wire* | lista de municípios>
+== <ORG> · Isolamento Multi-Tenant · YYYY-MM-DD ==
+Âmbito: <parque completo | produto | lista de municípios>
 Período auditado: <início> a <fim>
 Auditor: <nome> · Ticket: <ref>
 
@@ -78,6 +78,6 @@ Próxima auditoria: <data>
 
 ## Cadência
 
-Rotina semestral, conforme o `SKILL.md`. Fora disso, dispara com: activação de município novo, incidente que envolva aplicação `wire*`, due-diligence de cliente ou auditor, e dúvida operacional concreta de um município.
+Rotina semestral, conforme o `SKILL.md`. Fora disso, dispara com: activação de município novo, incidente que envolva aplicação `os produtos do inventário`, due-diligence de cliente ou auditor, e dúvida operacional concreta de um município.
 
 Um painel com mais de seis meses não descreve a plataforma actual — descreve a que existia quando foi feito.
