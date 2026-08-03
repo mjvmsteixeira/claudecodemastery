@@ -1,0 +1,24 @@
+{
+  "_comment": "Copiar para ~/.prumo/org.json e preencher. Este ficheiro é um exemplo shipped no plugin; os valores reais são da instalação e NUNCA entram no repositório. Cada chave aceita override por env: PRUMO_ORG_<CHAVE em maiúsculas>.",
+
+  "prefix": "acme",
+  "_prefix": "Prefixo dos AppRoles e policies no Vault (acme-monitor, acme-ir, …). Tem de bater com os objectos que existem de facto no Vault — parametrizar não é renomear.",
+
+  "name": "ACME",
+  "_name": "Nome da organização, para texto de relatórios.",
+
+  "domain": "acme.internal",
+  "_domain": "Domínio interno. Compõe hosts: vault.<domain>, wazuh-manager.<domain>.",
+
+  "control_prefix": "CTRL-A",
+  "_control_prefix": "Prefixo dos identificadores de controlo (CTRL-A-T-001, …).",
+
+  "control_registry": "ACME.MTZ.SEC.006",
+  "_control_registry": "Referência do documento externo onde os controlos são definidos. Sem isto, os comandos de auditoria param em vez de inventar critérios — ver secops/ctrl-w-inventario.md.",
+
+  "products": [
+    "acmePAPER",
+    "acmeDESK"
+  ],
+  "_products": "Inventário de produtos auditados. Vazio significa que os comandos que iteram produtos não têm sobre o que correr, e devem dizê-lo."
+}

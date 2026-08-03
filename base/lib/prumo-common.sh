@@ -16,6 +16,7 @@ PRUMO_LOG_DIR="${PRUMO_HOME}/log"
 PRUMO_SCOPE_FILE="${PRUMO_HOME}/scope"
 PRUMO_MODE_FILE="${PRUMO_HOME}/mode"
 PRUMO_LAB_MARKER="${PRUMO_HOME}/lab-mode"
+PRUMO_ORG_FILE="${PRUMO_HOME}/org.json"
 
 # --- migração one-shot do estado wire → prumo (rebrand 2026-07) ---
 if [ ! -e "$PRUMO_MODE_FILE" ] && [ -f "${HOME}/.wire/mode" ]; then
@@ -283,6 +284,75 @@ prumo_init_dirs() {
 # ────────────────────────────────────────────────────────────────────────────
 PRUMO_COMMON_VERSION="0.2.0"
 prumo_version() { echo "$PRUMO_COMMON_VERSION"; }
+
+# ────────────────────────────────────────────────────────────────────────────
+# prumo_org · identidade da organização, por instalação
+#
+# O `prumo-secops` foi escrito contra uma organização concreta e ficou com o
+# nome dela na estrutura — 876 ocorrências em 70 ficheiros. Isso impedia
+# aplicá-lo a outro cliente sem um find-and-replace, que é a última operação
+# que se deve fazer num plugin cujos hooks de Vault falham fechados.
+#
+# **A identidade é configuração da instalação, não conteúdo de plugin.**
+# Mas os nomes que ela resolve são objectos reais: os AppRoles `<prefix>-*`
+# existem no Vault de produção da instalação. O objectivo não é apagar o nome —
+# é deixar de o ter escrito no plugin. Por isso parametrização, nunca
+# substituição.
+#
+# Precedência por chave:
+#   1) PRUMO_ORG_<CHAVE> em maiúsculas  (ex: PRUMO_ORG_PREFIX)
+#   2) ~/.prumo/org.json
+#   3) o default passado em $2
+#
+# Uso:
+#   prefix=$(prumo_org prefix org)          # → o prefixo da instalação
+#   ref=$(prumo_org control_registry '')    # → referência do registo de controlos
+#   prumo_org products                      # → um produto por linha
+#
+# Um valor em falta devolve o default em silêncio; é a `prumo_org_require` que
+# falha alto quando a ausência importa.
+# ────────────────────────────────────────────────────────────────────────────
+prumo_org() {
+  local key="${1:?prumo_org: falta a chave}" default="${2:-}"
+  local envvar val
+
+  # 1) env — PRUMO_ORG_PREFIX, PRUMO_ORG_CONTROL_REGISTRY, …
+  envvar="PRUMO_ORG_$(printf '%s' "$key" | tr '[:lower:]-' '[:upper:]_')"
+  eval "val=\${$envvar:-}"
+  if [ -n "$val" ]; then printf '%s\n' "$val"; return 0; fi
+
+  # 2) ~/.prumo/org.json
+  if [ -r "$PRUMO_ORG_FILE" ] && command -v jq >/dev/null 2>&1; then
+    # Arrays saem um por linha; escalares saem crus. `empty` para o ausente
+    # não virar a string "null".
+    val=$(jq -r --arg k "$key" '
+      (.[$k] // empty) | if type == "array" then .[] else . end
+    ' "$PRUMO_ORG_FILE" 2>/dev/null)
+    if [ -n "$val" ]; then printf '%s\n' "$val"; return 0; fi
+  fi
+
+  # 3) default
+  [ -n "$default" ] && printf '%s\n' "$default"
+  return 0
+}
+
+# ────────────────────────────────────────────────────────────────────────────
+# prumo_org_require · como prumo_org, mas falha quando a ausência importa
+#
+# Para o que não tem default seguro. Um relatório de conformidade que cite um
+# registo de controlos inventado é pior do que um que pare a dizer que não sabe
+# qual é — é o mesmo princípio da regra de paragem do `ctrl-w-inventario.md`.
+# ────────────────────────────────────────────────────────────────────────────
+prumo_org_require() {
+  local key="${1:?prumo_org_require: falta a chave}" val
+  val=$(prumo_org "$key" "")
+  if [ -z "$val" ]; then
+    echo "[prumo] identidade da organização incompleta: falta '$key'." >&2
+    echo "[prumo] define em ${PRUMO_ORG_FILE} ou exporta PRUMO_ORG_$(printf '%s' "$key" | tr '[:lower:]-' '[:upper:]_')." >&2
+    return 1
+  fi
+  printf '%s\n' "$val"
+}
 
 # ────────────────────────────────────────────────────────────────────────────
 # prumo_plugins · a lista de plugins, derivada em vez de escrita
