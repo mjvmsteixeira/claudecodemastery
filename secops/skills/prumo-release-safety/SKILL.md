@@ -1,6 +1,6 @@
 ---
 name: prumo-release-safety
-description: Gate de segurança e qualidade antes de qualquer deployment em produção dos produtos SaaS (<produto>, <produto>, <produto>, <produto>, <produto>, <produto>, <produto>, <produto>, <produto>, <produto>). Usa esta skill sempre que se pede um "release gate", validação pré-deploy, checklist de release, decisão go/no-go, revisão de impacto multi-tenant de uma alteração, ou avaliação de risco de uma migração de DB/schema. Dispara em "/prumo-release-gate", "vamos fazer deploy", "release v2.3 está pronto?", "validar release", "go/no-go", "migration safety", "rollback plan", "canary".
+description: Gate de segurança e qualidade antes de qualquer deployment em produção dos produtos SaaS (inventário em `~/.prumo/org.json`). Usa esta skill sempre que se pede um "release gate", validação pré-deploy, checklist de release, decisão go/no-go, revisão de impacto multi-tenant de uma alteração, ou avaliação de risco de uma migração de DB/schema. Dispara em "/prumo-release-gate", "vamos fazer deploy", "release v2.3 está pronto?", "validar release", "go/no-go", "migration safety", "rollback plan", "canary".
 ---
 
 # Release Safety Gate

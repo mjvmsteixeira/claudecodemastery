@@ -1,6 +1,6 @@
 ---
 name: prumo-ir-multitenant
-description: Resposta a Incidentes (IR) para incidentes que afectam dois ou mais municípios clientes na a plataforma, ou que envolvem componentes partilhados (infra, Vault, base de dados central, autenticação, CDN). Usa esta skill quando o incidente tem blast radius cross-tenant, quando há suspeita de cadeia de fornecimento (supply-chain), quando a contenção exige decisão de cortar uma feature ou um produto por inteiro, ou quando se preparam notificações simultâneas a múltiplos municípios e ao CNCS. Dispara em "incidente afecta vários", "vazamento entre tenants", "ataque à plataforma", "indisponibilidade generalizada", "supply-chain", "preparar notificação CNCS multi-cliente".
+description: Resposta a Incidentes (IR) para incidentes que afectam dois ou mais municípios clientes na plataforma, ou que envolvem componentes partilhados (infra, Vault, base de dados central, autenticação, CDN). Usa esta skill quando o incidente tem blast radius cross-tenant, quando há suspeita de cadeia de fornecimento (supply-chain), quando a contenção exige decisão de cortar uma feature ou um produto por inteiro, ou quando se preparam notificações simultâneas a múltiplos municípios e ao CNCS. Dispara em "incidente afecta vários", "vazamento entre tenants", "ataque à plataforma", "indisponibilidade generalizada", "supply-chain", "preparar notificação CNCS multi-cliente".
 ---
 
 # Resposta a Incidentes Multi-Tenant

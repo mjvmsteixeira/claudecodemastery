@@ -138,7 +138,7 @@ Convenção `PRUMO_*` + alguns `OLLAMA_*`/`WAZUH_*` legacy aceites. Os defaults 
 | `PRUMO_FORENSICS_DIR` | `$HOME/forensics` | Case files de Incident Response (timeline, artefactos, queries) |
 | `PRUMO_EPHEMERAL_KEY_DIR` | `/dev/shm` (Linux) / `$(mktemp -d)` (macOS) | SSH cert temp storage; auto-fallback macOS |
 | `PRUMO_RAILS_DEPLOY_BASE` | `/var/www` | Capistrano `deploy_to` root. Path final: `${PRUMO_RAILS_DEPLOY_BASE}/<produto>/current/` |
-| `PRUMO_WAZUH_HOST` | `wazuh-manager.$(prumo_org domain)` | Endpoint Wazuh manager (namespace canónico; legacy `WAZUH_HOST` ainda aceite) |
+| `PRUMO_WAZUH_HOST` | `wazuh-manager.<domínio>` | Endpoint Wazuh manager (namespace canónico; legacy `WAZUH_HOST` ainda aceite) |
 | `PRUMO_PII_DISABLE` | (unset) | `=1` desactiva `pre-tool-pii-redact.sh` (telemetria regista `bypass`). NÃO recomendado em prod. Tem de vir do ambiente do Claude Code (`settings.json` → `env`) — um prefixo inline no comando não chega ao hook |
 | `PRUMO_SECOND_OPINION_BYPASS` | (unset) | `=1` salta `pre-tool-second-opinion.sh` se Ollama down. Audit-tracked |
 | `PRUMO_VAULT_AUTO_UP` | (unset) | Auto-up do Vault Docker em prod (override do default off) |

@@ -48,7 +48,7 @@ Cada município é um cliente, mas também é uma entidade essencial NIS2, com o
 ### 1. Identificação
 
 - Nome do município, NIPC, contacto institucional, DPO contactável.
-- Tenant UUID na a plataforma.
+- Tenant UUID na plataforma.
 - Account manager <ORG> + técnico de referência.
 
 ### 2. Produtos activos

@@ -36,8 +36,8 @@ Gerado por `/prumo-cliente-dossier <municipio>`.
 | <produto> | 6.1 | B | 2024-01-10 | Activo | [N] |
 | <produto> | 7.1 | B | 2025-06-01 | Activo | [N] |
 
-Produtos NÃO contratados (oportunidade comercial): <produto>, <produto>, <produto>,
-<produto>, <produto>, <produto>, <produto>.
+Produtos NÃO contratados (oportunidade comercial): os produtos do inventário,
+os produtos do inventário.
 ```
 
 ## §2 — SLA (12 meses)

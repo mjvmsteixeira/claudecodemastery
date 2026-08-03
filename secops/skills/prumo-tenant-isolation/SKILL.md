@@ -1,6 +1,6 @@
 ---
 name: prumo-tenant-isolation
-description: Auditar e validar o isolamento multi-tenant entre municípios clientes na plataforma SaaS multi-tenant (<produto>, <produto>, <produto> e restante família os produtos do inventário). Usa esta skill sempre que o pedido envolva cruzamento de dados entre clientes, due-diligence de novo cliente, validação de chaves de cifra por tenant, auditoria de queries que toquem múltiplos schemas/databases, revisão de logs por suspeita de vazamento cross-tenant, ou preparação de relatório Art. 28 RGPD para um cliente específico. Dispara em pedidos como "audita isolamento", "verifica se há cross-tenant", "Município X consegue ver dados do Município Y", "valida tenant separation", "evidência de isolamento para auditoria".
+description: Auditar e validar o isolamento multi-tenant entre municípios clientes na plataforma SaaS multi-tenant (os produtos do inventário e restantes produtos do inventário). Usa esta skill sempre que o pedido envolva cruzamento de dados entre clientes, due-diligence de novo cliente, validação de chaves de cifra por tenant, auditoria de queries que toquem múltiplos schemas/databases, revisão de logs por suspeita de vazamento cross-tenant, ou preparação de relatório Art. 28 RGPD para um cliente específico. Dispara em pedidos como "audita isolamento", "verifica se há cross-tenant", "Município X consegue ver dados do Município Y", "valida tenant separation", "evidência de isolamento para auditoria".
 ---
 
 # Auditoria de Isolamento Multi-Tenant
