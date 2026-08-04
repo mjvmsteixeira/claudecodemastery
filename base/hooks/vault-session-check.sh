@@ -26,6 +26,33 @@ emit() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Rotação dos logs do prumo · uma verificação por sessão, não por escrita.
+#
+# `prumo_log` e `prumo_telemetry_record` fazem `>>` incondicional — nada rodava.
+# Medido a 2026-08-04: cef.log 28 MB/84 973 linhas, telemetry.tsv 18 MB/373 691.
+# Pôr o teste de tamanho dentro do writer custaria um `stat` por escrita, dezenas
+# de milhares de vezes por dia; aqui custa um por sessão.
+#
+# Corre ANTES do bloco docker de propósito: esse ramo tem `exit 0` a meio e a
+# rotação não pode depender do estado do Vault.
+#
+# Um só nível de histórico (.1). Quem quiser retenção a sério monta newsyslog —
+# o objectivo aqui é ter tecto, não arquivo.
+# ─────────────────────────────────────────────────────────────────────────────
+_prumo_rotate_logs() {
+  local dir="${PRUMO_LOG_DIR:-$HOME/.prumo/log}" max=$((10 * 1024 * 1024)) f sz
+  [ -d "$dir" ] || return 0
+  for f in "$dir"/*.log "$dir"/*.tsv; do
+    [ -f "$f" ] || continue
+    sz=$(stat -f%z "$f" 2>/dev/null || stat -c%s "$f" 2>/dev/null || echo 0)
+    [ "$sz" -gt "$max" ] 2>/dev/null || continue
+    mv -f "$f" "$f.1" 2>/dev/null || true
+    _vlog "rotate" "$(basename "$f") rodado a ${sz} bytes"
+  done
+}
+_prumo_rotate_logs
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Modo docker: se daemon ou container ausentes, decide baseado em modo.
 # ─────────────────────────────────────────────────────────────────────────────
 if [ "$VAULT_MODE" = "docker" ]; then

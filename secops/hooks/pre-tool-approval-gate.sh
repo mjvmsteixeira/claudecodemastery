@@ -113,6 +113,37 @@ if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\|\(|`)rm[[:space:]]+(-[a-zA-Z]*[
   LEVEL="N1"
 fi
 
+# ────────────────────────────────────────────────────────────────────────────
+# Exfiltração e escrita através de pipe.
+#
+# Estes dois padrões viviam no `pre-tool-vault-ttl.sh` — não por regra própria,
+# mas como efeito colateral do desenho "não está na allowlist ⇒ exige token ⇒
+# sem token, bloqueia". Um `curl` hostil era travado por não ter credenciais de
+# Vault, e a mensagem dizia "VAULT_TOKEN ausente". Bloqueava pelo motivo errado
+# e com o texto errado, e só em `prod` — em `dev` limitava-se a avisar.
+#
+# Aqui é um controlo com nome próprio, e o approval-gate bloqueia em `dev` tanto
+# como em `prod` (ver a tabela de modos no secops/CLAUDE.md), portanto a
+# cobertura aumenta em vez de diminuir.
+#
+# Corpus: vt-06 e vt-08, movidos de vault-ttl para approval-gate.
+#
+# N1 e não N2: é destrutivo/exfiltrante local, da mesma classe do `rm -rf`
+# acima. O que se quer é o reconhecimento explícito, não uma escalada.
+# ────────────────────────────────────────────────────────────────────────────
+
+# Dados do pipeline para a rede: `... | curl`, `... | wget`, `... | nc`.
+# Exige o pipe — um `curl https://api/x` a descarregar não é exfiltração.
+if [ -z "$LEVEL" ] && match '\|[[:space:]]*(curl|wget|nc|ncat|socat)([[:space:]]|$)'; then
+  LEVEL="N1"
+fi
+
+# Escrita de ficheiro no fim de um pipeline: `... | tee <path>`.
+# `tee` sem argumento de ficheiro só duplica para stdout — não casa.
+if [ -z "$LEVEL" ] && match '\|[[:space:]]*tee[[:space:]]+(-[a-zA-Z]+[[:space:]]+)*[^-[:space:]]'; then
+  LEVEL="N1"
+fi
+
 # Não-destrutivo → passa
 [ -z "$LEVEL" ] && exit 0
 

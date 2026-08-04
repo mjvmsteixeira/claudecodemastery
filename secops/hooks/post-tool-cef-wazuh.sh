@@ -12,9 +12,13 @@ source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 EVENT=$(cat 2>/dev/null || echo '{}')
 get_field() { printf '%s' "$EVENT" | jq -r "$1 // empty" 2>/dev/null; }
 
-# Default composto a partir do domínio da organização (B6); `PRUMO_WAZUH_HOST`
-# e o legacy `WAZUH_HOST` continuam a ter precedência.
-WAZUH_HOST="${PRUMO_WAZUH_HOST:-${WAZUH_HOST:-wazuh-manager.$(prumo_org domain internal)}}"
+# Sem default composto. O anterior era `wazuh-manager.$(prumo_org domain)`, o que
+# custava um fork de jq por CADA tool call para produzir um host que, numa
+# instalação sem SIEM, é NXDOMAIN — e depois um lookup de DNS falhado (medido:
+# 46 ms) antes de o `nc` desistir. Um destino que ninguém configurou não é um
+# destino: só se envia por rede quando o operador nomeia o colector.
+# O registo local em cef.log continua incondicional.
+WAZUH_HOST="${PRUMO_WAZUH_HOST:-${WAZUH_HOST:-}}"
 WAZUH_PORT="${WAZUH_PORT:-514}"
 TOOL="$(get_field '.tool_name')"; TOOL="${TOOL:-unknown}"
 SESSION="$(get_field '.session_id')"; SESSION="${SESSION:-${CLAUDE_SESSION_ID:-unknown}}"
@@ -41,8 +45,9 @@ HOSTNAME_ESC=$(cef_escape "${HOSTNAME:-unknown}")
 
 CEF="CEF:0|prumo|SecOps-Agents|1.0|toolcall|Claude Code tool call|3|src=$HOSTNAME_ESC suser=$USER_ESC cs1Label=Tool cs1=$TOOL_ESC cs2Label=Agent cs2=$AGENT_ESC cs3Label=Session cs3=$SESSION_ESC cs4Label=InputHash cs4=$INPUT_HASH cn1Label=ExitCode cn1=$EXIT_CODE"
 
-# Envia via nc UDP — fail-soft (não bloqueia operação)
-if command -v nc > /dev/null 2>&1; then
+# Envia via nc UDP — fail-soft (não bloqueia operação).
+# Só com colector nomeado: ver a nota em WAZUH_HOST acima.
+if [ -n "$WAZUH_HOST" ] && command -v nc > /dev/null 2>&1; then
   echo "$CEF" | nc -u -w 1 "$WAZUH_HOST" "$WAZUH_PORT" 2>/dev/null || true
 fi
 

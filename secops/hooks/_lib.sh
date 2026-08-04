@@ -20,8 +20,37 @@
 
 # Se a lib já foi carregada noutro hook desta sessão, não duplicar.
 if ! declare -F prumo_fail_or_warn >/dev/null 2>&1; then
-  PRUMO_BASE_LIB=$(find ~/.claude/plugins/cache -path "*/prumo-base/*/lib/prumo-common.sh" -type f 2>/dev/null \
-                  | sort -V | tail -1)
+  # Resolução em duas etapas. O `find` sozinho percorria a cache INTEIRA
+  # (medido a 2026-08-04: 6 420 ficheiros, 22 ms) e corria em cada invocação de
+  # cada um dos seis hooks que carregam esta lib — cinco deles em todos os
+  # comandos Bash. O caminho directo evita-o no caso normal.
+  #
+  # A prumo-base é irmã da prumo-secops na mesma árvore de cache, portanto
+  # `$CLAUDE_PLUGIN_ROOT/../../prumo-base/*/lib/` resolve sem tocar no disco
+  # além do glob.
+  #
+  # O `sort -V` NÃO é decorativo: a ordenação do shell é lexical e põe `0.9.3`
+  # depois de `0.12.0`, o que faria carregar uma lib antiga sempre que houvesse
+  # mais do que uma versão em cache. Confirmado ao escrever isto — a primeira
+  # versão desta resolução escolheu de facto a 0.9.3 sobre a 0.12.0. O `sort`
+  # aqui corre sobre um punhado de caminhos já em memória, não sobre o disco.
+  #
+  # O `find` continua como fallback: cobre instalações fora da cache e o caso de
+  # CLAUDE_PLUGIN_ROOT não vir definido. A verificação de integridade abaixo
+  # aplica-se aos dois caminhos por igual — é ela que autoriza o source, não a
+  # forma como o candidato foi encontrado.
+  PRUMO_BASE_LIB=""
+  if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+    PRUMO_BASE_LIB=$(
+      for _cand in "$CLAUDE_PLUGIN_ROOT"/../../prumo-base/*/lib/prumo-common.sh; do
+        [ -r "$_cand" ] && printf '%s\n' "$_cand"
+      done | sort -V | tail -1
+    )
+  fi
+  if [ -z "$PRUMO_BASE_LIB" ]; then
+    PRUMO_BASE_LIB=$(find ~/.claude/plugins/cache -path "*/prumo-base/*/lib/prumo-common.sh" -type f 2>/dev/null \
+                    | sort -V | tail -1)
+  fi
   if [ -n "${PRUMO_BASE_LIB:-}" ] && [ -r "$PRUMO_BASE_LIB" ]; then
     # Integridade: mesma preocupação que post-tool-vault-revoke.sh — um
     # ficheiro plantado em qualquer path que bata o padrão find acima seria

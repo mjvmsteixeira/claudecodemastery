@@ -20,9 +20,38 @@
 set -euo pipefail
 # shellcheck source=_lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
-prumo_telemetry_init "prumo-secops" "vault-ttl"
 
 RAW_CMD=$(hook_tool_payload "${1:-}")
+
+# ────────────────────────────────────────────────────────────────────────────
+# EARLY-EXIT · este hook vigia operações de Vault; corria em todos os Bash.
+#
+# Medido a 2026-08-04 sobre 7 dias de telemetria: 24 461 execuções, das quais
+# 22 324 terminaram em warn — não por política violada, mas porque VAULT_TOKEN
+# não existe no ambiente dos hooks e portanto TODO o comando não-allowlisted
+# caía nos dois ramos de falha (token ausente + TTL=0). Um guardrail que falha
+# em tudo não distingue nada, e em `prod` bloquearia ~90% da sessão.
+#
+# A allowlist abaixo resolvia o problema pelo lado errado: enumerava o que é
+# inofensivo, e por isso crescia a cada comando novo que aparecia. Isto inverte
+# a pergunta — o hook só se pronuncia sobre comandos que NOMEIAM o Vault.
+#
+# Fronteira deliberada: casa por texto sobre a forma natural do comando. Um
+# comando que chegue ao Vault sem o nomear (variável expandida em runtime, script
+# intermediário) não é apanhado — o mesmo modelo de confiança que o
+# memory-scope já assume, e pelo qual a barreira real é o prompt de permissão
+# da tool Bash.
+#
+# Antes do prumo_telemetry_init de propósito: o trap regista `allow`, e registar
+# `allow` num comando que o hook nem chegou a avaliar é afirmar uma verificação
+# que não aconteceu.
+# ────────────────────────────────────────────────────────────────────────────
+case "$RAW_CMD" in
+  *vault*|*VAULT_*|*secret/*|*transit/*|*approle*|*AppRole*|*ssh/sign*|*/v1/sys/*) ;;
+  *) exit 0 ;;
+esac
+
+prumo_telemetry_init "prumo-secops" "vault-ttl"
 # Normaliza whitespace (newlines/tabs → espaço) — mirror de pre-tool-approval-gate.sh.
 # Necessário para que a defesa anti-chaining abaixo veja payloads multi-line
 # como uma única string.
@@ -192,36 +221,97 @@ else
 fi
 
 # ────────────────────────────────────────────────────────────────────────────
-# Para tudo o resto · exige VAULT_TOKEN
+# Obter VAULT_TOKEN por AppRole quando o ambiente não o traz.
+#
+# Os hooks PreToolUse correm no processo do Claude Code, e VAULT_TOKEN nunca lá
+# está — pô-lo no `settings.json` seria um segredo em ficheiro (que este plugin
+# proíbe) e um token de 15-30 min ficaria obsoleto em minutos. Logo, o hook
+# obtém-o ele próprio.
+#
+# O AppRole resolve-se pelo nome do projecto (basename do cwd), com fallback
+# para `agent-claude`. A versão anterior desta mensagem mandava ler
+# `<prefixo>-secops` do Keychain — verificado a 2026-08-04: essa entrada não
+# existe, e nenhum AppRole `<prefixo>-*` existe neste Vault. Este é o broker
+# pessoal, com AppRoles por projecto; o parque da organização é outro servidor.
+#
+# Cache com TTL curto para não fazer login a cada comando de Vault. Ficheiro a
+# 0600 em $PRUMO_HOME — mesma classe de segredo que o próprio credentials file.
 # ────────────────────────────────────────────────────────────────────────────
+_vault_creds_file="${PRUMO_VAULT_CREDS:-$HOME/vault/approle-credentials.json}"
+_vault_token_cache="${PRUMO_HOME:-$HOME/.prumo}/token-cache"
+_vault_cache_ttl=600
+
+# Endpoint e CA. TÊM de ser exportados antes de qualquer ramo que devolva um
+# token — incluindo o acerto de cache — porque o `vault token lookup` mais
+# abaixo corre no mesmo processo e sem eles falha com TTL=0, produzindo um aviso
+# de "token expirado" para um token perfeitamente válido.
+_vault_export_env() {
+  export VAULT_ADDR="${VAULT_ADDR:-https://127.0.0.1:8200}"
+  if [ -z "${VAULT_CACERT:-}" ] && [ -r "$HOME/vault/tls/ca.pem" ]; then
+    export VAULT_CACERT="$HOME/vault/tls/ca.pem"
+  fi
+}
+
+_vault_token_from_approle() {
+  command -v vault >/dev/null 2>&1 || return 1
+  command -v jq >/dev/null 2>&1 || return 1
+  [ -r "$_vault_creds_file" ] || return 1
+
+  _vault_export_env
+
+  # Cache ainda fresca?
+  if [ -r "$_vault_token_cache" ]; then
+    local age now mtime
+    now=$(date +%s)
+    mtime=$(stat -f%m "$_vault_token_cache" 2>/dev/null || stat -c%Y "$_vault_token_cache" 2>/dev/null || echo 0)
+    age=$(( now - mtime ))
+    if [ "$age" -lt "$_vault_cache_ttl" ]; then
+      cat "$_vault_token_cache" 2>/dev/null && return 0
+    fi
+  fi
+
+  local role rid sid tok
+  role=$(basename "$PWD")
+  jq -e --arg r "$role" '.[$r].role_id' "$_vault_creds_file" >/dev/null 2>&1 || role="agent-claude"
+  rid=$(jq -r --arg r "$role" '.[$r].role_id // empty' "$_vault_creds_file" 2>/dev/null)
+  sid=$(jq -r --arg r "$role" '.[$r].secret_id // empty' "$_vault_creds_file" 2>/dev/null)
+  [ -n "$rid" ] && [ -n "$sid" ] || return 1
+
+  tok=$(vault write -field=token auth/approle/login \
+          role_id="$rid" secret_id="$sid" 2>/dev/null) || return 1
+  [ -n "$tok" ] || return 1
+
+  ( umask 077; printf '%s' "$tok" > "$_vault_token_cache" ) 2>/dev/null || true
+  printf '%s' "$tok"
+}
+
 if [ -z "${VAULT_TOKEN:-}" ]; then
-  # A conta do Keychain leva o prefixo da organização (B6). O heredoc deixa de
-  # ser quoted para o interpolar — todos os outros `$` são escapados, porque
-  # este texto é para o utilizador copiar e tem de sair literal.
-  _kc_account="$(prumo_org prefix org)-secops"
+  VAULT_TOKEN=$(_vault_token_from_approle) || VAULT_TOKEN=""
+  [ -n "$VAULT_TOKEN" ] && export VAULT_TOKEN
+fi
+
+if [ -z "${VAULT_TOKEN:-}" ]; then
   cat >&2 <<EOF
-[prumo-secops/vault-ttl] VAULT_TOKEN ausente — bloqueia (fail-closed).
+[prumo-secops/vault-ttl] VAULT_TOKEN ausente e login AppRole falhou.
 
 Diagnóstico (não exige token, está em allowlist):
   /prumo-vault-doctor      # verifica server + descobre porque falta token
   /prumo-stack-doctor      # diagnóstico global
 
-Destrancar via AppRole (preferível, TTL curto):
-  export VAULT_ADDR=https://127.0.0.1:8200
-  export VAULT_CACERT=~/.prumo/vault-ca.pem
-  export VAULT_ROLE_ID=\$(security find-generic-password \\
-    -a ${_kc_account} -s vault-role-id -w)
-  export VAULT_SECRET_ID=\$(security find-generic-password \\
-    -a ${_kc_account} -s vault-secret-id -w)
-  export VAULT_TOKEN=\$(vault write -field=token \\
-    auth/approle/login \\
-    role_id="\$VAULT_ROLE_ID" secret_id="\$VAULT_SECRET_ID")
+O que este hook tentou, por esta ordem:
+  1. \$VAULT_TOKEN no ambiente
+  2. cache em ${_vault_token_cache} (TTL ${_vault_cache_ttl}s)
+  3. login AppRole com as credenciais de ${_vault_creds_file},
+     role = basename do cwd, com fallback para 'agent-claude'
+
+Verificar o que falhou:
+  jq 'keys' ${_vault_creds_file}      # que AppRoles existem
+  VAULT_CACERT=\$HOME/vault/tls/ca.pem vault status
 
 Modo dev (formação, Vault em Docker):
   export VAULT_ADDR=http://127.0.0.1:8200
   export VAULT_TOKEN=dev-only-root
 EOF
-  unset _kc_account
   prumo_fail_or_warn "prumo-secops" "vault-ttl" "VAULT_TOKEN ausente"
 fi
 
@@ -229,6 +319,9 @@ fi
 # Valida TTL · só se 'vault' CLI estiver disponível
 # ────────────────────────────────────────────────────────────────────────────
 if command -v vault >/dev/null 2>&1; then
+  # Cobre o caso de VAULT_TOKEN ter vindo do ambiente: aí a função de login nem
+  # chegou a correr e o endpoint/CA continuariam por definir.
+  _vault_export_env
   TTL=$(vault token lookup -format=json 2>/dev/null | jq -r '.data.ttl // 0' 2>/dev/null || echo 0)
 
   if [ "$TTL" -lt 60 ]; then
