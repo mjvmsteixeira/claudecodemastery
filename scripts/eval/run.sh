@@ -98,21 +98,25 @@ run_case() {
   # que um caso que (hipoteticamente) escreva um marker ~/.prumo/* não contamine
   # o caso seguinte. Os classificadores actuais não escrevem, mas isto torna a
   # garantia hermética real e à prova de casos futuros.
-  rm -rf "$SANDBOX/.prumo" "$SANDBOX/.claude"
+  find "$SANDBOX" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
   mkdir -p "$SANDBOX/.claude/plugins/cache"
   if [ "$needs_base" = "true" ]; then
     provision_base "$SANDBOX" || { echo "error:no-base"; return; }
   fi
 
-  # ficheiros semeados no HOME do sandbox (@HOME@ → sandbox). Conteúdos sem
-  # tabs nem backslashes: o @tsv escapa-os.
+  # ficheiros semeados no HOME do sandbox (@HOME@ → sandbox). O conteúdo é escrito
+  # byte-a-byte pelo jq (-j, sem @tsv nem $(...), que apagaria o \n final);
+  # o @HOME@ do conteúdo é trocado pelo próprio jq, dentro da string.
   if [ -n "$seed_json" ] && [ "$seed_json" != "null" ]; then
-    local sp sc
-    while IFS=$'\t' read -r sp sc; do
-      [ -n "$sp" ] || continue
-      sp="${sp//@HOME@/$SANDBOX}"; sc="${sc//@HOME@/$SANDBOX}"
-      mkdir -p "$(dirname "$sp")" && printf '%s' "$sc" > "$sp"
-    done < <(printf '%s' "$seed_json" | jq -r 'to_entries[] | [.key, .value] | @tsv')
+    local sk sp
+    while IFS= read -r sk; do
+      sp="${sk//@HOME@/$SANDBOX}"
+      if ! mkdir -p "$(dirname "$sp")" \
+         || ! printf '%s' "$seed_json" \
+              | jq -j --arg k "$sk" --arg h "$SANDBOX" '.[$k] | gsub("@HOME@"; $h)' > "$sp"; then
+        echo "error:seed"; return
+      fi
+    done < <(printf '%s' "$seed_json" | jq -r 'keys[]')
   fi
 
   # env: as opções -u TÊM de vir antes de qualquer KEY=val (exigência do env(1)).
