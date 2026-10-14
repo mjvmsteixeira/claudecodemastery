@@ -73,7 +73,7 @@ Cada chamada de ferramenta gera uma linha CEF (veredicto `allow`, `deny`, `block
 
 ### run_with_secret
 
-**Desligado por omissão.** Só a pessoa o liga, com `secretExec.enabled: true` no `guard.json`; até lá a ferramenta não é registada e uma chamada é recusada.
+**Experimental e desligado por omissão.** Só a pessoa o liga, com `secretExec.enabled: true` no `guard.json`; até lá a ferramenta não é registada e uma chamada é recusada. Recomendação: manter desligado em loops sem supervisão; ligar só com allowlist explícita em `~/.prumo/secret-exec.json`.
 
 Ferramenta `mcp__prumo-guard__run_with_secret`: corre um comando com segredos do Vault injetados como variáveis de ambiente; o mod não põe o valor na conversa. Entrada: `argv` (comando já partido, sem shell), `secrets` (`NOME_DA_VARIAVEL` → `caminho/kv#campo`) e `cwd` opcional (por omissão, o da sessão).
 
@@ -88,6 +88,14 @@ Um binário aprovado pode correr código com o segredo no ambiente (configuraç�
 - Recusa shells e interpretadores (`bash`, `python`, `node`, `env`, `sudo`, ...) e caminhos em `argv[0]`.
 - Recusa as formas conhecidas com que os clientes correm código, leem configuração de fora ou lêem o ambiente: no `psql` e no `mysql`, qualquer `\!` num argumento, `system`/`source` no início de uma instrução (também colados a `-e`/`--execute=` do mysql), `psql \getenv`, `psql -f` (também em cluster, `-qf`/`-Atf`/`-1f`), `\o |`, `\i`, `mysql source` e `--pager`; `curl -K`/`--config`, `--variable` e `--expand-*` (também abreviados como `--conf`/`--va`, e em cluster como `-aK`/`-sK`); `gh alias|extension` e `gh --jq`/`-q` com a builtin `env`/`$ENV`; e, com `allowRisky`, `git -c`, `--config-env`, `--exec-path`, `--upload-pack`, `ext::` e subcomandos como `config`, `rebase`, `submodule`, `docker run|exec|build|compose|cp` e `--config`, `kubectl exec|run|debug|attach|cp` e `--kubeconfig`. A deteção de cluster pára na primeira opção curta que leva valor, por isso `curl -HKey: v` não é confundido com `-K`.
 - Recusa nomes de variável que mudam o que o processo carrega ou corre (`PATH`, `IFS`, `BASH_ENV`, `ENV`, `HOME`, `LD_*`, `DYLD_*`, `GIT_*`, `NODE_*`, `PRUMO_*`, ...), referências sem `caminho#campo`, e argumentos e `cwd` em `~/.prumo` ou nos `settings.json` do Claude Code.
+
+**Limitações conhecidas.** O único controlo real é a aprovação humana por chamada, de uso único e, com o prumo-guard ativo, não forjável pelo agente (exige o registo em memória **e** o ficheiro; ficheiro sem registo é apagado e recusado). A lista de recusa do `argv` é defesa em profundidade e best effort: uma chamada aprovada a um cliente da allowlist pode ainda correr código com o segredo no ambiente e devolvê-lo em formas que o mascaramento não cobre. Escapes conhecidos, encontrados em revisão:
+
+- `psql`: `-o '|cmd'` e `--output='|cmd'`; opções longas abreviadas (por exemplo `--fil`); `\g (opções) | cmd`.
+- `mysql`: `pager`, `tee`, `\P`, `\T`.
+- `gh`: `api -iq 'env…'` e `-pq` com expressões jq que leem o ambiente; subcomandos que correm `git` no `cwd` (`pr checkout`, `repo sync`, `pr create`) e leem o `.git/config` do repositório.
+
+Aprovar uma chamada é confiar nesse comando com o segredo. Residuais da 1.0.0 no `BACKLOG.md` (B12).
 - Corre os mesmos PreToolUse que um Bash atravessaria, com um payload sintético: `self-guard`, `secret-read` e `workspace` do prumo-base e `agent-readonly` do prumo-secops (com o tipo do subagente; um subagente de tipo desconhecido é recusado). Depois da aprovação da chamada passa pelo `approval-gate`, com a mesma verificação do registo para o ficheiro dele; se o gate pedir a sua aprovação (um comando N1–N3), abre um segundo pedido, e a aprovação da chamada só se gasta quando o comando corre.
 - Todas as recusas e pedidos de aprovação voltam ao modelo como erro (e ao trilho CEF como `deny`), e o comando não corre.
 - Lê cada campo com o `vault-read-field.sh` do prumo-base (prumo-base 1.0.0 ou superior).

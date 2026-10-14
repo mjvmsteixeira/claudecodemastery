@@ -4,7 +4,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento
 
 ## v1.0.0 — 2026-10-14
 
-**Primeira release do prumo-guard.** O `run_with_secret` está desligado por omissão e pede aprovação humana a cada chamada; o travão pausa em cada disparo e só corta o turno acima de 120% do orçamento em USD.
+**Primeira release do prumo-guard.** O `run_with_secret` é experimental, está desligado por omissão e pede aprovação humana a cada chamada; o travão pausa em cada disparo e só corta o turno acima de 120% do orçamento em USD.
+
+**`run_with_secret`: limitações conhecidas.** Experimental; recomenda-se mantê-lo desligado em loops sem supervisão e ligá-lo só com allowlist explícita em `~/.prumo/secret-exec.json`. O único controlo real é a aprovação humana por chamada, de uso único e não forjável enquanto o prumo-guard está ativo (registo em memória e ficheiro; ficheiro sem registo é apagado e recusado). A lista de recusa do `argv` é defesa em profundidade e best effort: uma chamada aprovada a um cliente da allowlist pode correr código com o segredo no ambiente e devolvê-lo em formas que o mascaramento não cobre. Escapes conhecidos: `psql -o '|cmd'`/`--output='|cmd'`, opções longas abreviadas (`--fil`) e `\g (opções) | cmd`; `mysql` `pager`/`tee`/`\P`/`\T`; `gh api -iq 'env…'`/`-pq` com jq que lê o ambiente e subcomandos que correm `git` no `cwd` (`pr checkout`, `repo sync`, `pr create`) e leem o `.git/config`. Aprovar uma chamada é confiar nesse comando com o segredo. Residuais em `BACKLOG.md` (B12).
 
 **Aviso: a API de mods (function hooks) do Claude Code é early access e pode mudar entre versões do Claude Code.** Nomes de eventos, regras do validador e comportamento dos tiers podem exigir ajustes neste mod.
 
