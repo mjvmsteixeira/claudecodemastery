@@ -9,6 +9,8 @@ import { refreshStatus } from './status.ts'
 // O validador só lê átomos declarados no próprio ficheiro quando se escreve (update); a leitura usa o de refs.ts.
 const pending = atom({ plugin: 'prumo-guard', key: 'pending' } as const, PENDING_DEFAULT)
 export const APPROVAL_PANE = 'prumo-guard-approval'
+// O que o painel mostra de um pedido; o run_with_secret recusa uma chamada mais longa do que isto.
+export const SHOWN_MAX = 400
 const ONCE_MS = 5 * 60 * 1000
 const TTL_MS = 10 * 60 * 1000
 
@@ -71,7 +73,7 @@ export function registerApproval(on: On): void {
     return (
       <Box flexDirection="column">
         <Text>O agente quer correr ({p.level}):</Text>
-        <Text bold>{p.command.slice(0, 400)}</Text>
+        <Text bold>{p.command.slice(0, SHOWN_MAX)}</Text>
         {p.agentId ? <Text dimColor>subagente {p.agentId}</Text> : null}
         {list.length > 1 ? <Text dimColor>+{list.length - 1} pedido(s) na fila</Text> : null}
         <Box>

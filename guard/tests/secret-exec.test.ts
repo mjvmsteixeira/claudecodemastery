@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { checkArgv, checkEnvName, maskSecrets, parseSecretRef, protectedArg, protectedDir, shellQuote } from '../hooks/secret-exec.ts'
+import { checkArgv, checkEnvName, maskSecrets, parseSecretRef, protectedArg, protectedDir, secretCallLine, secretCallText, shellQuote } from '../hooks/secret-exec.ts'
 
 const ALLOW = ['psql', 'curl', 'gh']
 
@@ -66,7 +66,7 @@ test('opções e subcomandos que correm código são recusados; os usos comuns p
     ['psql', '-f', 'x.sql'],
     ['mysql', '-e', 'system sh'],
     ['mysql', '--pager=sh'],
-  ]) expect(checkArgv(argv, ALL)).toContain('correr código')
+  ]) expect(checkArgv(argv, ALL, true)).toContain('correr código')
   for (const argv of [
     ['git', 'switch', '-c', 'nova'],
     ['git', '-C', '/p', 'push', '-u', 'origin', 'main'],
@@ -77,7 +77,40 @@ test('opções e subcomandos que correm código são recusados; os usos comuns p
     ['gh', 'api', 'repos/x/alias'],
     ['psql', '-c', 'select 1'],
     ['mysql', '-e', 'select 1'],
-  ]) expect(checkArgv(argv, ALL)).toBe(null)
+  ]) expect(checkArgv(argv, ALL, true)).toBe(null)
+})
+
+test('git, docker, kubectl e mongosh recusam mesmo listados, salvo allowRisky', () => {
+  for (const argv of [['git', 'status'], ['docker', 'ps'], ['kubectl', 'get', 'pods'], ['mongosh', 'db']]) {
+    const bin = argv[0] as string
+    expect(checkArgv(argv, [bin])).toContain('allowRisky')
+    expect(checkArgv(argv, [bin], true)).toBe(null)
+  }
+  expect(checkArgv(['redis-cli', 'ping'], ['redis-cli'])).toBe(null)
+})
+
+test('psql e mysql: qualquer \\! num argumento e system no início de uma instrução recusam', () => {
+  for (const argv of [
+    ['mysql', '-e', 'do 1\\!id'],
+    ['mysql', '--execute=select 1\\!id'],
+    ['psql', '-c', 'select 1\\!id'],
+    ['psql', '-c', 'system id'],
+    ['psql', '-c', 'select 1;\nSYSTEM id'],
+    ['mysql', '-e', 'select 1; system id'],
+  ]) expect(checkArgv(argv, ['psql', 'mysql'])).toContain('correr código')
+  expect(checkArgv(['psql', '-c', 'select system from t'], ['psql'])).toBe(null)
+  expect(checkArgv(['mysql', '-e', 'select systemd from t'], ['mysql'])).toBe(null)
+})
+
+test('texto canónico da chamada: referências por nome, argv e cwd tal como vêm', () => {
+  expect(secretCallText(['psql', '-c', 'a'], { B: 'p#b', A: 'p#a' }, '/p')).toBe(
+    'run_with_secret\n{"argv":["psql","-c","a"],"secrets":[["A","p#a"],["B","p#b"]],"cwd":"/p"}',
+  )
+})
+
+test('linha para a pessoa: argv inteiro em JSON, sem quebras nem caracteres invisíveis', () => {
+  const line = secretCallLine(['psql', '-c', 'a\nb\u202ec\u200bd\u0085'], { B: 'p#b', A: 'p#a' }, '/p')
+  expect(line).toBe('run_with_secret ["psql","-c","a\\nb\\u202ec\\u200bd\\u0085"] · segredos {"A":"p#a","B":"p#b"} · cwd "/p"')
 })
 
 test('nomes de variável que mudam o carregamento ou o comportamento são recusados', () => {

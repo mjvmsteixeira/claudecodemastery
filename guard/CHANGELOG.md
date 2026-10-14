@@ -11,7 +11,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento
 - Painel do loop (iteração do ralph, fase, contexto, custo, subagentes, testes) e ferramenta `loop_phase`.
 - Travão do loop: orçamento USD e de tokens, repetição de chamadas, de falhas de teste e de edições desfeitas, veto ao re-prompt do ralph; `/prumo-guard-resume` e `/prumo-guard-stop`.
 - Trilho CEF com veredicto por chamada, em lote, para `~/.prumo/log/cef.log` e UDP; o secops não duplica quando o mod está ativo.
-- `run_with_secret`: comandos com segredos do Vault por variável de ambiente, output mascarado, allowlist em `secret-exec.json`.
+- `run_with_secret`: comandos com segredos do Vault por variável de ambiente, desligado por omissão (`secretExec.enabled`), com aprovação humana por chamada, output mascarado e allowlist em `secret-exec.json`.
 - Agentes escondidos do modelo (`agents.hidden`) e `/prumo-guard-agents`.
 - Idade das memórias nos resultados do `mempalace_search`.
 - Writer do `friday-state` no processo, desligado por omissão (`friday.enabled`).
@@ -26,6 +26,12 @@ Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento
 - Trilho CEF (D10): o despachante passa a ser o hook mais exterior, por isso as recusas do próprio mod entram no trilho como `deny`. Depois de `/clear` ou resume o marker e as linhas passam para o id novo (também no friday-state). O fim da sessão espera pelo lote em escrita.
 - `redact.json` ilegível ou inválido avisa (toast e `/prumo-guard`) em vez de desligar os padrões da organização em silêncio.
 - Testes: os stubs de `clock.every` recusam o período, em vez de pôr os flushes periódicos em ciclo apertado.
+
+### Security
+- `run_with_secret` desligado por omissão: só corre com `secretExec.enabled: true` no `guard.json` (decisão da pessoa); desligado, a ferramenta não é registada e uma chamada é recusada.
+- `run_with_secret` pede aprovação humana a cada chamada: id = sha256 de `run_with_secret\n` + JSON `{argv, secrets ordenados por nome, cwd}`, ficheiro `approvals/<id>` (N2; `once` apagado quando corre, `ttl` até 10 minutos, o resto apagado e recusado). O painel mostra o `argv` inteiro, as referências e o `cwd`, nunca os valores; uma chamada que não caiba nos 400 caracteres do painel é recusada. O comando corre no `cwd` aprovado, e o approval-gate continua a correr depois.
+- Allowlist por omissão reduzida a `psql`, `mysql`, `curl`, `gh`. `git`, `docker`, `kubectl` e `mongosh` recusam mesmo listados, salvo `"allowRisky": true` no `secret-exec.json`. No `psql` e no `mysql`, qualquer `\!` num argumento e `system` no início de uma instrução recusam.
+- O controlo é a aprovação humana de cada chamada: um binário aprovado pode correr código com o segredo no ambiente, e o mascaramento cobre só a forma crua e a codificada em URL. Antes, `git status` num repositório com `core.fsmonitor`, `mongosh --eval` ou `psql \!` corriam código com o segredo e devolviam-no codificado, sem aprovação.
 
 ### Notes
 - API de mods em early access.

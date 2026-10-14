@@ -95,13 +95,14 @@ Ficheiros em `~/.prumo/` do utilizador final, protegidos contra escrita pelo age
   "friday": { "enabled": false },
   "agents": { "hidden": [] },
   "mempalace": { "staleDays": 90 },
-  "cef": { "enabled": true }
+  "cef": { "enabled": true },
+  "secretExec": { "enabled": false }
 }
 ```
 
 `~/.prumo/redact.json`: padrões de redação da organização, somados aos de base (NIF, IBAN, tokens, etc.). Formato exato do ficheiro: por confirmar na implementação do Task de redação (`guard/hooks`), que ainda não existe nesta ramificação; não se inventa aqui.
 
-`~/.prumo/secret-exec.json`: allowlist de `argv[0]` para `run_with_secret`; o default é `psql`, `mysql`, `curl`, `gh`, `git`, `docker`, `kubectl`, `redis-cli`, `mongosh`, e shells e interpretadores são sempre recusados (spec, D9). Formato exato do ficheiro: por confirmar, pelo mesmo motivo.
+`~/.prumo/secret-exec.json`: allowlist de `argv[0]` para `run_with_secret`, que fica desligado até `secretExec.enabled: true` no `guard.json` e pede aprovação humana a cada chamada. O default é `psql`, `mysql`, `curl`, `gh`; `git`, `docker`, `kubectl` e `mongosh` só correm com `"allowRisky": true`, e shells e interpretadores são sempre recusados. Formato em `guard/README.md` (secção `secret-exec.json`).
 
 ## 4. Verificação
 

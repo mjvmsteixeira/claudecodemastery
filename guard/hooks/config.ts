@@ -8,6 +8,7 @@ export type GuardConfig = {
   agents: { hidden: string[] }
   mempalace: { staleDays: number }
   cef: { enabled: boolean }
+  secretExec: { enabled: boolean }
 }
 
 export const DEFAULTS: GuardConfig = {
@@ -18,6 +19,8 @@ export const DEFAULTS: GuardConfig = {
   agents: { hidden: [] },
   mempalace: { staleDays: 90 },
   cef: { enabled: true },
+  // run_with_secret: desligado até a pessoa o ligar (a ferramenta nem é registada).
+  secretExec: { enabled: false },
 }
 
 export async function prumoHome($: EngineInterface): Promise<string> {
@@ -66,5 +69,6 @@ export async function loadConfig($: EngineInterface): Promise<GuardConfig> {
     agents: section(raw, 'agents'),
     mempalace: section(raw, 'mempalace'),
     cef: section(raw, 'cef'),
+    secretExec: section(raw, 'secretExec'),
   }
 }

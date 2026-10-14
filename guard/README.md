@@ -65,17 +65,22 @@ Cada chamada de ferramenta gera uma linha CEF (veredicto `allow`, `deny`, `block
 
 ### run_with_secret
 
-Ferramenta `mcp__prumo-guard__run_with_secret`: corre um comando com segredos do Vault injetados como variáveis de ambiente; o mod não põe o valor na conversa. Entrada: `argv` (comando já partido, sem shell), `secrets` (`NOME_DA_VARIAVEL` → `caminho/kv#campo`) e `cwd` opcional. O output volta com os valores trocados por `[SEGREDO:NOME]` na forma crua, sem espaço final e codificada em URL; outras transformações (base64, hex, ...) não são mascaradas.
+**Desligado por omissão.** Só a pessoa o liga, com `secretExec.enabled: true` no `guard.json`; até lá a ferramenta não é registada e uma chamada é recusada.
 
-- Recusa shells e interpretadores (`bash`, `python`, `node`, `env`, `sudo`, ...), caminhos em `argv[0]` e comandos fora da allowlist.
-- Recusa as formas conhecidas com que os clientes da allowlist correm código ou leem configuração de fora: `git -c`, `--config-env`, `--exec-path`, `--upload-pack`, `ext::` e subcomandos como `config`, `rebase`, `submodule`; `curl -K`/`--config`; `docker run|exec|build|compose|cp` e `--config`; `kubectl exec|run|debug|attach|cp` e `--kubeconfig`; `gh alias|extension`; `psql -f` e `\!`, `\o |`, `\i`; `mysql system`/`source` e `--pager`.
-- Recusa nomes de variável que mudam o que o processo carrega ou corre (`PATH`, `IFS`, `BASH_ENV`, `ENV`, `HOME`, `LD_*`, `DYLD_*`, `GIT_*`, `NODE_*`, `PRUMO_*`, ...).
-- Recusa argumentos e `cwd` em `~/.prumo` ou nos `settings.json` do Claude Code.
-- Corre os mesmos PreToolUse que um Bash atravessaria, com um payload sintético: `self-guard`, `secret-read` e `workspace` do prumo-base, `agent-readonly` do prumo-secops (com o tipo do subagente; um subagente de tipo desconhecido é recusado) e, no fim, o `approval-gate`. Se o gate pedir aprovação, abre o painel como na aprovação por comando.
-- Todas as recusas voltam ao modelo como erro (e ao trilho CEF como `deny`), e o comando não corre.
+Ferramenta `mcp__prumo-guard__run_with_secret`: corre um comando com segredos do Vault injetados como variáveis de ambiente; o mod não põe o valor na conversa. Entrada: `argv` (comando já partido, sem shell), `secrets` (`NOME_DA_VARIAVEL` → `caminho/kv#campo`) e `cwd` opcional (por omissão, o da sessão).
+
+**O controlo é a aprovação humana de cada chamada.** Cada chamada tem um id: sha256 de `run_with_secret`, uma quebra de linha e o JSON `{argv, secrets, cwd}` (referências ordenadas por nome, `cwd` efetivo). Sem `~/.prumo/approvals/<id>` válido, o mod abre o painel `prumo · aprovação` com um pedido N2 e recusa; o painel mostra o `argv` inteiro em JSON, as referências e o `cwd`, nunca os valores. `Só esta` deixa correr a repetição exata uma vez (o ficheiro é apagado quando corre); `10 minutos` deixa repeti-la durante 10 minutos. Um ficheiro expirado, de outro nível, com `expires` para lá de 10 minutos ou com outro `scope` é apagado e não serve. Uma chamada mais longa do que os 400 caracteres que o painel mostra é recusada. A aprovação vale também em modo `lab`, e o comando corre no `cwd` aprovado.
+
+Um binário aprovado pode correr código com o segredo no ambiente (configuração do repositório ou do utilizador, meta-comandos, plugins), e o que ele imprimir volta à conversa. O mascaramento troca o valor por `[SEGREDO:NOME]` só na forma crua (com ou sem a quebra de linha final) e na codificada em URL; base64, hex e outras transformações passam. As recusas abaixo são defesa em profundidade e não substituem a aprovação.
+
+- Allowlist por omissão: `psql`, `mysql`, `curl`, `gh`. O `secret-exec.json` pode alargá-la (decisão da pessoa).
+- `git`, `docker`, `kubectl` e `mongosh` são recusados mesmo listados em `allow`, salvo `"allowRisky": true` no `secret-exec.json`: correm código a partir de configuração que o agente consegue escrever (`core.fsmonitor` no `.git/config` do `cwd`, `--eval`, plugins).
+- Recusa shells e interpretadores (`bash`, `python`, `node`, `env`, `sudo`, ...) e caminhos em `argv[0]`.
+- Recusa as formas conhecidas com que os clientes correm código ou leem configuração de fora: no `psql` e no `mysql`, qualquer `\!` num argumento e `system` no início de uma instrução, `psql -f`, `\o |`, `\i`, `mysql source` e `--pager`; `curl -K`/`--config`; `gh alias|extension`; e, com `allowRisky`, `git -c`, `--config-env`, `--exec-path`, `--upload-pack`, `ext::` e subcomandos como `config`, `rebase`, `submodule`, `docker run|exec|build|compose|cp` e `--config`, `kubectl exec|run|debug|attach|cp` e `--kubeconfig`.
+- Recusa nomes de variável que mudam o que o processo carrega ou corre (`PATH`, `IFS`, `BASH_ENV`, `ENV`, `HOME`, `LD_*`, `DYLD_*`, `GIT_*`, `NODE_*`, `PRUMO_*`, ...), referências sem `caminho#campo`, e argumentos e `cwd` em `~/.prumo` ou nos `settings.json` do Claude Code.
+- Corre os mesmos PreToolUse que um Bash atravessaria, com um payload sintético: `self-guard`, `secret-read` e `workspace` do prumo-base e `agent-readonly` do prumo-secops (com o tipo do subagente; um subagente de tipo desconhecido é recusado). Depois da aprovação da chamada passa pelo `approval-gate`; se o gate pedir a sua aprovação (um comando N1–N3), abre um segundo pedido, e a aprovação da chamada só se gasta quando o comando corre.
+- Todas as recusas e pedidos de aprovação voltam ao modelo como erro (e ao trilho CEF como `deny`), e o comando não corre.
 - Lê cada campo com o `vault-read-field.sh` do prumo-base (0.14.0 ou superior).
-
-Limite: a allowlist confia nos clientes. Um cliente pode correr código por configuração que já exista no disco (aliases e hooks de um repositório git, `~/.curlrc`, credential helpers do docker), e o `mongosh` corre JavaScript. O mod fecha as formas que se veem no `argv`; a garantia para o resto é o approval-gate e a pessoa.
 
 ### Agentes escondidos
 
@@ -123,6 +128,7 @@ Caminho: `$PRUMO_HOME/guard.json` (`~/.prumo/guard.json` por omissão). Cada sec
 | `agents.hidden` | `[]` | Agentes escondidos do modelo |
 | `mempalace.staleDays` | `90` | Idade a partir da qual uma memória é marcada como antiga |
 | `cef.enabled` | `true` | Trilho CEF |
+| `secretExec.enabled` | `false` | Liga o `run_with_secret` (só com `true`) |
 
 O `self-guard` do prumo-base bloqueia as escritas do agente neste ficheiro (no Bash, best effort: indirecções em vários passos escapam-lhe); quem o altera é a pessoa, ou `/prumo-guard-agents` pela pessoa.
 
@@ -138,15 +144,16 @@ Padrões extra de redação:
 
 ### `~/.prumo/secret-exec.json`
 
-Configura o `run_with_secret`; todos os campos são opcionais:
+Configura o `run_with_secret` (que só corre com `secretExec.enabled: true` no `guard.json`); todos os campos são opcionais:
 
 | Campo | Default |
 |---|---|
-| `allow` | `psql`, `mysql`, `curl`, `gh`, `git`, `docker`, `kubectl`, `redis-cli`, `mongosh` (ficheiro ausente) |
+| `allow` | `psql`, `mysql`, `curl`, `gh` (ficheiro ausente) |
+| `allowRisky` | `false`; com `true`, `git`, `docker`, `kubectl` e `mongosh` listados em `allow` passam a correr |
 | `readerPath` | `lib/vault-read-field.sh` da versão mais recente do prumo-base na cache |
 | `gatePath` | `hooks/pre-tool-approval-gate.sh` da versão mais recente do prumo-secops na cache |
 
-Ficheiro ilegível, JSON inválido ou `allow` que não seja uma lista de nomes: o `run_with_secret` recusa tudo até a pessoa o corrigir (com um aviso), em vez de cair na allowlist por omissão.
+Ficheiro ilegível, JSON inválido, `allow` que não seja uma lista de nomes ou `allowRisky` que não seja `true`/`false`: o `run_with_secret` recusa tudo até a pessoa o corrigir (com um aviso), em vez de cair nos defaults.
 
 ## O que o `/prumo-mod-audit` mostra
 

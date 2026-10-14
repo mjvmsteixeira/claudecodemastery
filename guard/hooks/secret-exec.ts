@@ -15,6 +15,13 @@ const GIT_SUBS = new Set([
 const DOCKER_SUBS = new Set(['run', 'exec', 'create', 'build', 'buildx', 'compose', 'container', 'cp', 'plugin', 'debug'])
 const KUBECTL_SUBS = new Set(['exec', 'run', 'debug', 'attach', 'cp', 'plugin'])
 const GH_SUBS = new Set(['alias', 'extension', 'ext'])
+// Correm código a partir de configuração que o agente consegue escrever ou de uma opção que se
+// confunde com um uso normal (core.fsmonitor no .git/config do cwd, --eval do mongosh, plugins do
+// docker e do kubectl). Ficam de fora mesmo listados em `allow`, salvo "allowRisky": true.
+const RISKY = new Set(['git', 'docker', 'kubectl', 'mongosh'])
+// Mais largo do que as formas abaixo, de propósito: o meta-comando de shell do psql e do mysql.
+// Qualquer `\!` num argumento, e `system` no início de uma instrução.
+const shellMeta = (a: string) => a.includes('\\!') || /(^|[;\n])\s*system(\s|;|$)/i.test(a)
 
 function gitEscape(args: string[]): string | null {
   let i = 0
@@ -47,20 +54,23 @@ function escapeOf(bin: string, args: string[]): string | null {
     case 'gh':
       return args[0] !== undefined && GH_SUBS.has(args[0]) ? `gh ${args[0]}` : null
     case 'psql':
-      return args.find(a => /^(-f|--file)/.test(a) || /\\!|\\(o|out|g|gx|w|write)\s*\||\\(i|ir|include|include_relative)\b|\\copy\b.*\bprogram\b/i.test(a)) ?? null
+      return args.find(a => shellMeta(a) || /^(-f|--file)/.test(a) || /\\!|\\(o|out|g|gx|w|write)\s*\||\\(i|ir|include|include_relative)\b|\\copy\b.*\bprogram\b/i.test(a)) ?? null
     case 'mysql':
-      return args.find(a => /^--(pager|tee|defaults-file|defaults-extra-file|plugin-dir)(=|$)/.test(a) || /(^|[\s;])(system|source|\\!|\\\.)(\s|$)/i.test(a)) ?? null
+      return args.find(a => shellMeta(a) || /^--(pager|tee|defaults-file|defaults-extra-file|plugin-dir)(=|$)/.test(a) || /(^|[\s;])(system|source|\\!|\\\.)(\s|$)/i.test(a)) ?? null
     default:
       return null
   }
 }
 
-export function checkArgv(argv: string[], allow: string[]): string | null {
+export function checkArgv(argv: string[], allow: string[], allowRisky = false): string | null {
   if (argv.length === 0 || !argv[0]) return 'argv vazio'
   const bin = base(argv[0])
   if (NEVER.has(bin) || /^python\d/.test(bin)) return `${bin} é um shell ou interpretador e nunca corre com segredos`
   if (argv[0].includes('/')) return `${argv[0]} usa um caminho; só são aceites nomes simples de comandos (resolvidos pelo PATH)`
   if (!allow.includes(bin)) return `${bin} não está na allowlist (~/.prumo/secret-exec.json → allow)`
+  if (RISKY.has(bin) && !allowRisky) {
+    return `${bin} corre código a partir de configuração que o agente pode escrever; só corre com segredos se a pessoa puser "allowRisky": true em ~/.prumo/secret-exec.json`
+  }
   const esc = escapeOf(bin, argv.slice(1))
   if (esc) return `${esc} faz o ${bin} correr código ou ler configuração de fora, e nunca corre com segredos`
   return null
@@ -119,4 +129,23 @@ export function parseSecretRef(ref: string): { path: string; field: string } | n
 
 export function shellQuote(argv: string[]): string {
   return argv.map(a => (/^[A-Za-z0-9_@%+=:,./-]+$/.test(a) ? a : `'${a.replace(/'/g, `'"'"'`)}'`)).join(' ')
+}
+
+const byName = (refs: Record<string, string>) => Object.entries(refs).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+
+// O que a pessoa aprova numa chamada: argv, referências (por nome) e o diretório onde corre. A
+// quebra de linha depois do nome separa estes ids dos do approval-gate, que troca as quebras por
+// espaços antes do hash: nenhum comando Bash chega ao id de uma chamada.
+export function secretCallText(argv: string[], refs: Record<string, string>, cwd: string): string {
+  return `run_with_secret\n${JSON.stringify({ argv, secrets: byName(refs), cwd })}`
+}
+
+// Controlo, bidi e largura zero: num terminal escondem ou reordenam texto.
+const HIDDEN = /[\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/g
+const visible = (v: unknown) => JSON.stringify(v).replace(HIDDEN, c => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`)
+
+// A linha do pedido de aprovação: argv inteiro, referências e cwd, cada um em JSON (fronteiras
+// dos argumentos à vista, sem quebras); nunca os valores.
+export function secretCallLine(argv: string[], refs: Record<string, string>, cwd: string): string {
+  return `run_with_secret ${visible(argv)} · segredos ${visible(Object.fromEntries(byName(refs)))} · cwd ${visible(cwd)}`
 }

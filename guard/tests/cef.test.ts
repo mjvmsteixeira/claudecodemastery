@@ -153,8 +153,11 @@ test('uma recusa do próprio prumo-guard (guarda de marcadores) fica no trilho c
   expect(out).toContain('cs5=deny cs6Label=Hook cs6=plugin')
 })
 
+const SECRET_ON = '{"secretExec":{"enabled":true}}'
+const DIRS = [{ name: '0.14.0', kind: 'dir' as const, size: 0, mtimeMs: 0, isLink: false }]
+
 test('uma recusa do run_with_secret fica no trilho como deny', async ($, on) => {
-  const seen = base(on, null)
+  const seen = base(on, SECRET_ON)
   await $.session.start(START)
   const r = await $.tool.call({ tool: 'mcp__prumo-guard__run_with_secret', argv: ['bash', '-c', 'x'], secrets: {} } as never)
   expect(r.deny).toContain('interpretador')
@@ -162,6 +165,33 @@ test('uma recusa do run_with_secret fica no trilho como deny', async ($, on) => 
   const out = logged(seen)
   expect(out).toContain('cs1=mcp__prumo-guard__run_with_secret')
   expect(out).toContain('cs5=deny')
+})
+
+// Com os plugins na cache, os guards e o gate a deixar passar e o Vault a responder, a chamada
+// correria e ficava como allow: só a recusa do próprio mod a põe como deny.
+test('run_with_secret desligado: a recusa fica no trilho como deny', async ($, on) => {
+  const seen = base(on, null)
+  on('fs.list', () => ({ value: DIRS }))
+  await $.session.start(START)
+  const r = await $.tool.call({ tool: 'mcp__prumo-guard__run_with_secret', argv: ['psql'], secrets: { P: 'secret/x#y' } } as never)
+  expect(r.deny).toContain('desligado')
+  await $.session.end(END)
+  expect(logged(seen)).toContain('cs1=mcp__prumo-guard__run_with_secret')
+  expect(logged(seen)).toContain('cs5=deny')
+})
+
+test('run_with_secret sem aprovação por chamada: o pedido fica no trilho como deny', async ($, on) => {
+  const seen = base(on, SECRET_ON)
+  on('fs.list', () => ({ value: DIRS }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('ui.notify', () => ({ value: { isSent: true, channel: 'terminal_bell' } }))
+  await $.session.start(START)
+  const r = await $.tool.call({ tool: 'mcp__prumo-guard__run_with_secret', argv: ['psql'], secrets: { P: 'secret/x#y' } } as never)
+  expect(r.deny).toContain('aprovação')
+  await $.session.end(END)
+  expect(logged(seen)).toContain('cs1=mcp__prumo-guard__run_with_secret')
+  expect(logged(seen)).toContain('|5|')
+  expect(logged(seen)).toContain('cs5=deny')
 })
 
 test('depois de um /clear o trilho passa para o id novo: marker novo e cs3 novo', async ($, on) => {

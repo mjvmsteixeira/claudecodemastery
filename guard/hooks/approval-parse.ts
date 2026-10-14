@@ -3,12 +3,15 @@ import type { PrumoGuardLevel } from '../types'
 const LEVEL_RE = /\[prumo-secops\/approval-gate\] Operação (N[123]) detectada:/
 const ID_RE = /approval-id: ([0-9a-f]{64})/g
 
+export async function sha256Hex(text: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
 // O id que o approval-gate dá a um comando: sha256 do comando como o hook o vê. O `$(...)` do bash
 // tira as quebras de linha finais e o `tr '\n\t' '  '` troca as restantes e os tabs por espaços.
 export async function approvalIdOf(command: string): Promise<string> {
-  const norm = command.replace(/\n+$/, '').replace(/[\n\t]/g, ' ')
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(norm))
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('')
+  return sha256Hex(command.replace(/\n+$/, '').replace(/[\n\t]/g, ' '))
 }
 
 // Só se confia no nível do banner. O id escreve-se a partir do comando que a pessoa vê (`id`), e o
