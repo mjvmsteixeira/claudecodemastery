@@ -21,7 +21,7 @@ export async function requestApproval(
   await update($, pending, list =>
     [...(list ?? []).filter(p => p.id !== req.id), { ...req, requestedAt }].slice(-20),
   )
-  void $.ui.open({ id: APPROVAL_PANE, title: 'prumo · aprovação', focus: true, closeOnEscape: true })
+  void $.ui.open({ id: APPROVAL_PANE, title: 'prumo · aprovação', focus: true, closeOnEscape: true, rows: 10 })
   void $.ui.notify(`Aprovação ${req.level} pedida: ${req.command.slice(0, 80)}`, { title: 'prumo-guard' })
 }
 
