@@ -1,5 +1,6 @@
 import type { Register } from 'claude-code'
 import { registerApproval } from './approval.tsx'
+import { startAuditTrail } from './audit-trail.ts'
 import { registerBrake, startBrake } from './brake.ts'
 import { registerCommands, startCommands } from './commands.ts'
 import { registerRedaction, startRedaction } from './redact.ts'
@@ -23,6 +24,7 @@ export const register: Register = on => {
     await startCommands($)
     await startPanel($)
     await startBrake($)
+    await startAuditTrail($)
     await refreshStatus($)
     return next(e)
   })
