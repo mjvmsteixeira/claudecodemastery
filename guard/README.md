@@ -4,6 +4,18 @@ Mod Claude Code (function hooks em TypeScript) · guardrails do kit prumo · v0.
 
 Aprovação humana por comando, redação de segredos e PII antes do modelo, painel do loop autónomo e travão de orçamento. Recomenda `prumo-base` e `prumo-secops` (usa os seus hooks como classificadores).
 
+## Instalação
+
+```
+/plugin install prumo-guard@prumo
+```
+
+Equivalente na shell:
+
+```bash
+claude plugin install prumo-guard@prumo
+```
+
 ## Estrutura
 
 - `hooks/hooks.json` → `{ "modules": ["./register.tsx"] }`
