@@ -2,17 +2,22 @@
 # prumo-base · PreToolUse · secret-read
 #
 # Impede que o conteúdo de ficheiros de segredos chegue ao contexto do modelo:
-# Read e Grep sobre o ficheiro, e no Bash os verbos que mostram conteúdo
-# (cat, head, grep, ...) numa cláusula que nomeia um ficheiro de segredos.
+# Read e Grep sobre o ficheiro e, no Bash, qualquer palavra do comando que
+# nomeie um ficheiro de segredos (varredura do comando inteiro, incluindo
+# $(...), subshells, bash -c, ciclos e globs), excepto em cláusulas cujo verbo
+# não mostra conteúdo (ls, stat, source, wc, chmod, ...).
 # `source .env` passa (carrega sem mostrar); `cut -d= -f1 .env` passa (nomes).
 #
 # Bloqueia em prod e dev; em lab passa e fica registado — excepção ao
 # prumo_fail_or_warn, como o approval-gate (FAILCLOSED_EXEMPT do validate.sh).
-# Risco residual: `grep -r` sobre um diretório que contém um .env; a redação
-# do prumo-guard cobre os valores com forma de token.
 #
-# Caminhos comparados em minúsculas (APFS é case-insensitive); palavras do
-# Bash sem aspas e com `//` e `/./` colapsados antes do teste.
+# Risco residual: symlinks para ficheiros de segredos não são resolvidos nas
+# palavras do Bash; `grep -r` sobre um diretório que contém um .env; nomes
+# montados em runtime (`cat $(echo .e)nv`). A redação do prumo-guard cobre os
+# valores com forma de token.
+#
+# Caminhos comparados em minúsculas (APFS é case-insensitive); o comando é
+# normalizado (sem aspas, `//` e `/./` colapsados) antes da varredura.
 set -uo pipefail
 
 HELPER="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/lib/prumo-common.sh"
@@ -30,25 +35,41 @@ PLUGIN="prumo-base"
 HOOK="secret-read"
 
 # Todas as regex assumem o caminho já em minúsculas.
-SECRET_RE='(^|/)\.env(\.[a-z0-9_-]+)?$|(^|/)(vault-init\.json|approle-credentials\.json|token-cache|\.netrc|\.pgpass|\.npmrc)$|(^|/)\.aws/credentials$|(^|/)\.docker/config\.json$|(^|/)\.ssh/(id_[a-z0-9_]+|[^/]*_key)$|(^|/)[^/]*\.key$|(^|/)[^/]*private[^/]*\.pem$'
+SECRET_RE='(^|/)\.env(\.[a-z0-9_-]+)?$|(^|/)\.envrc$|(^|/)(vault-init\.json|approle-credentials\.json|token-cache|\.netrc|\.pgpass|\.npmrc)$|(^|/)\.aws/credentials$|(^|/)\.docker/config\.json$|(^|/)\.ssh/(id_[a-z0-9_]+|[^/]*_key)$|(^|/)[^/]*\.key$|(^|/)[^/]*private[^/]*\.pem$'
 SAFE_RE='(^|/)\.env\.(example|sample|template|dist|defaults)$'
-CUT_KEYS_RE="-d[[:space:]]*['\"]?=['\"]?[[:space:]]*-f[[:space:]]*1([[:space:]]|$)"
+CUT_KEYS_RE="-d[[:space:]]*=[[:space:]]*-f[[:space:]]*1([[:space:]]|$)"
+SECRET_NAMES=".env .env.local .env.production .env.development .env.test .envrc id_rsa id_ed25519 id_ecdsa vault-init.json approle-credentials.json token-cache .netrc .pgpass .npmrc credentials"
 
 lower() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
+
+# Palavra com glob cujo basename, como padrão, apanha um nome de segredo.
+glob_secret() {
+  local base cand g
+  base=$(lower "${1##*/}")
+  case "$base" in *[\*\?\[]*) ;; *) return 1 ;; esac
+  # só metacaracteres (`*`, `?`) não é sinal suficiente
+  case "${base//[\*\?\[\]]/}" in "") return 1 ;; esac
+  g="$base"
+  for cand in $SECRET_NAMES; do
+    # shellcheck disable=SC2053  # glob sem aspas de propósito
+    [[ "$cand" == $g ]] && return 0
+  done
+  return 1
+}
 
 is_secret() {
   local p
   p=$(lower "$1")
   [ -n "$p" ] || return 1
   [[ "$p" =~ $SAFE_RE ]] && return 1
-  [[ "$p" =~ $SECRET_RE ]]
+  [[ "$p" =~ $SECRET_RE ]] && return 0
+  glob_secret "$p"
 }
 
-normalize_word() {
+normalize_cmd() {
   local w="$1"
   w="${w//\"/}"
   w="${w//\'/}"
-  w="${w#<}"
   while [[ "$w" == *//* ]]; do w="${w//\/\//\/}"; done
   while [[ "$w" == */./* ]]; do w="${w//\/.\//\/}"; done
   printf '%s' "$w"
@@ -95,7 +116,7 @@ case "$TOOL" in
     GP=$(jq -r '.tool_input.path // empty' <<<"$INPUT")
     GG=$(jq -r '.tool_input.glob // empty' <<<"$INPUT")
     is_secret "$GP" && deny "$GP"
-    case "$(lower "$GG")" in .env|.env.*|.env\*|*/.env|*/.env.*|*/.env\*) deny "$GG" ;; esac
+    is_secret "$GG" && deny "$GG"
     exit 0
     ;;
   Bash) ;;
@@ -104,27 +125,50 @@ esac
 
 CMD=$(jq -r '.tool_input.command // empty' <<<"$INPUT" | tr '\n\t' '  ')
 [ -n "$CMD" ] || exit 0
+CMD=$(normalize_cmd "$CMD")
 
+# Alvos de redireção de saída não são leituras; o resto parte-se em cláusulas
+# em ; | & ( ) e crase (cobre também $( ).
 while IFS= read -r clause; do
-  [ -n "$clause" ] || continue
+  clause="${clause//</ }"; clause="${clause//>/ }"
+  clause="${clause//\{/ }"; clause="${clause//\}/ }"
   set -f
   # shellcheck disable=SC2206  # split por palavras intencional
   words=($clause)
   set +f
-  first=""
+  [ "${#words[@]}" -gt 0 ] || continue
+
+  # primeiro verbo, saltando palavras-chave de controlo e prefixos
+  first=""; start=0; i=0
   for w in "${words[@]}"; do
-    case "$w" in sudo|command|env|*=*) continue ;; esac
-    first="${w##*/}"; break
+    i=$((i+1))
+    case "$w" in do|then|else|elif|'!'|sudo|command|env|time|nohup|exec|*=*) continue ;; esac
+    first="${w##*/}"; start=$((i-1)); break
   done
+
   case "$first" in
-    cat|less|more|head|tail|bat|strings|xxd|hexdump|od|nl|grep|egrep|fgrep|rg|ag|awk|sed|base64|tac|sort|uniq|jq|yq|diff|cmp|vi|vim|nvim|nano|tr|cut|paste|column|python|python3|perl|ruby|node) ;;
-    *) continue ;;
+    source|.|ls|stat|test|'['|'[['|file|du|wc|chmod|chown|rm|touch) continue ;;
+    cut) [[ "$clause" =~ $CUT_KEYS_RE ]] && continue ;;
   esac
-  if [ "$first" = "cut" ] && [[ "$clause" =~ $CUT_KEYS_RE ]]; then continue; fi
+
+  skip_pat=0
+  case "$first" in grep|egrep|fgrep|rg|ag) skip_pat=1 ;; esac
+  j=0
   for w in "${words[@]}"; do
-    w=$(normalize_word "$w")
+    j=$((j+1))
+    [ "$j" -gt "$start" ] || continue
+    if [ "$skip_pat" = 1 ] && [ "$j" -gt $((start+1)) ]; then
+      case "$w" in
+        -e|-f|--regexp|--file) skip_pat=0 ;;
+        -*) ;;
+        *) skip_pat=0; continue ;;
+      esac
+    fi
     is_secret "$w" && deny "$w"
   done
-done < <(printf '%s' "$CMD" | awk '{ gsub(/&&|\|\||;|\|/, "\n"); print }')
+done < <(printf '%s' "$CMD" | awk '{
+  gsub(/&?[0-9]*>>?[|&]?[ ]*[^ ;|&()<>`]+/, " ")
+  gsub(/&&|\|\||[;|&()`]/, "\n")
+  print }')
 
 exit 0
