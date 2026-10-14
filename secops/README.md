@@ -2,7 +2,7 @@
 
 Plugin Claude Code · SecOps com Agentes IA especializado para uma organização enquanto fornecedora SaaS de eGovernment local (170+ autarquias portuguesas).
 
-**Versão:** 0.5.0 · **Data:** 2026-07-06 · **Autor:** mjvmst · mjvmst@gmail.com
+**Versão:** 1.0.0 · **Data:** 2026-07-06 · **Autor:** mjvmst · mjvmst@gmail.com
 
 ---
 
@@ -187,4 +187,4 @@ Total: **10 commands** (6 operação · 3 diagnóstico · 1 provisioning).
 
 ---
 
-© 2026 prumo · Uso interno · Versão 0.5.0
+© 2026 prumo · Uso interno · Versão 1.0.0

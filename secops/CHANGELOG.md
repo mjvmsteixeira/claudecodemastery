@@ -2,7 +2,18 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
-## v0.11.0 — 2026-10-14
+## v1.0.0 — 2026-10-14
+
+### Mudanças que bloqueiam
+
+Comportamentos novos que podem parar fluxos existentes. Lê antes de actualizar.
+
+- **`agent-readonly` bloqueia em prod** mudanças de estado feitas por agentes read-only (`prumo_org readonly_agents`): escritas, redirecções, SQL de escrita, `curl`/`wget` de mutação, `find -delete`, `sudo`, `timeout`...; em dev avisa.
+- **`approval-gate` ganha aprovação por comando** (`~/.prumo/approvals/<id>`, registo `via=approval-file`). O `PRUMO_APPROVE` continua a funcionar, mas autoriza o nível inteiro na sessão: recomenda-se removê-lo dos settings e usar a aprovação por comando.
+- **Dependência do `prumo-base` 1.0.0:** o `self-guard` do base impede o agente de editar `PRUMO_APPROVE`, o modo e `~/.prumo/approvals/` em todos os modos.
+
+### Detalhe da fase 0 (ex-v0.11.0)
+
 
 **Fase 0 do prumo-guard — dois ganchos novos no secops.**
 

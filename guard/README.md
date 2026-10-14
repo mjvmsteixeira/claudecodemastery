@@ -1,6 +1,6 @@
 # prumo-guard
 
-Mod Claude Code (function hooks em TypeScript) · guardrails do kit prumo · v0.1.0
+Mod Claude Code (function hooks em TypeScript) · guardrails do kit prumo · v1.0.0
 
 **Aviso: a API de mods do Claude Code é early access.** Os nomes de eventos, as regras do validador e o comportamento dos tiers podem mudar entre versões do Claude Code; cada mudança pode exigir ajustes neste mod. Os hooks de eventos `classic.*` não correm em plugins instalados por uma pessoa quando uma organização gere o Claude Code (ver `docs/instalacao-gerida.md`).
 

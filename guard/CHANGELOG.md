@@ -2,6 +2,12 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.0.0 — 2026-10-14
+
+**Primeira release do prumo-guard.** Inclui tudo o que estava na 0.1.0 (abaixo).
+
+**Aviso: a API de mods (function hooks) do Claude Code é early access e pode mudar entre versões do Claude Code.** Nomes de eventos, regras do validador e comportamento dos tiers podem exigir ajustes neste mod.
+
 ## v0.1.0 — 2026-10-14
 
 ### Added
