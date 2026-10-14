@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/vault-session-check.sh",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/vault-session-check.sh\"",
             "timeout": 8,
             "statusMessage": "Vault check..."
           }
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-self-guard.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-self-guard.sh\"",
             "timeout": 3
           }
         ]
@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-audit-guard.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-audit-guard.sh\"",
             "timeout": 3
           }
         ]
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-workspace.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-workspace.sh\"",
             "timeout": 3
           }
         ]
@@ -49,7 +49,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-memory-scope.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-memory-scope.sh\"",
             "timeout": 3
           }
         ]
@@ -59,7 +59,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-secret-read.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-secret-read.sh\"",
             "timeout": 3
           }
         ]

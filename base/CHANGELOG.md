@@ -2,6 +2,18 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.14.0 — 2026-10-14
+
+**Fase 0 do prumo-guard — três hooks PreToolUse que fecham o que passava em silêncio.** Medido antes desta versão (spec `prumo-guard-design`): o agente auto-escalava para `lab`, editava `PRUMO_APPROVE` nos settings, fazia `Read .env` e escrevia fora do projecto sem que nenhum hook reagisse.
+
+- **`pre-tool-self-guard.sh` — bloqueia em todos os modos.** O agente deixa de poder escrever `~/.prumo/{mode,lab-mode,audit-active,org.json,guard.json,redact.json,secret-exec.json}` e `~/.prumo/approvals/`, ou mudar `env.PRUMO_*`, `enabledPlugins` `prumo-*`, `permissions.defaultMode` e `disableAllHooks` em qualquer `.claude/settings*.json`. Porquê: quem define o modo não pode ser quem o pede. O `/prumo-mode` deixou de escrever e passa a mostrar os caminhos para o humano.
+- **`pre-tool-secret-read.sh` — bloqueia em prod e dev; em lab o bypass fica registado.** Cobre `Read`, `Grep` e a exibição via `Bash` de ficheiros de segredos (`.env*`, `.envrc`, chaves, `vault-init.json`, `token-cache`, ...). Porquê: o `.env` lido entra no contexto do modelo e sai para a API.
+- **`pre-tool-workspace.sh` — respeita o modo.** Escritas só dentro das raízes de trabalho e de `~/.prumo/guard.json` → `workspace.extraRoots`. Porquê: um `Write` fora do projecto não tinha qualquer barreira.
+- **`prumo_real_path`** na `prumo-common.sh` (v0.3.0), resolvida com `/bin/pwd -P`, que devolve a caixa canónica em APFS; sem isto, `Dir` e `dir` eram dois caminhos para o mesmo sítio.
+- **Fail-closed intencional:** `self-guard` e `secret-read` entram em `FAILCLOSED_EXEMPT` do `validate.sh`, a par do `approval-gate`.
+- **Harness de eval:** os casos do corpus aceitam `payload` (qualquer tool), `seed` byte-exact e `@HOME@`, com sandbox limpo por caso; o resumo "Por hook" passa a listar os quatro hooks novos.
+- **`hooks.json`:** `${CLAUDE_PLUGIN_ROOT}` entre aspas em todos os comandos, para um caminho com espaços não partir o comando.
+
 ## v0.12.0 — 2026-08-03
 
 **B6 fase 3f — o resto da identidade, e a distinção que faltava ao ratchet.** O `/prumo-onboard`, o `prumo-context-pack`, os comandos de Vault e os READMEs migraram para `prumo_org`.

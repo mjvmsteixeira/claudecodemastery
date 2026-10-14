@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/check-recommends.sh",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/check-recommends.sh\"",
             "timeout": 3,
             "statusMessage": "secops · check-recommends"
           }
@@ -20,22 +20,22 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-vault-ttl.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-vault-ttl.sh\"",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-pii-redact.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-pii-redact.sh\"",
             "timeout": 3
           },
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-approval-gate.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-approval-gate.sh\"",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-second-opinion.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-second-opinion.sh\"",
             "timeout": 20
           }
         ]
@@ -45,7 +45,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-pii-redact.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-pii-redact.sh\"",
             "timeout": 3
           }
         ]
@@ -55,7 +55,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-agent-readonly.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-agent-readonly.sh\"",
             "timeout": 3
           }
         ]
@@ -67,7 +67,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/post-tool-cef-wazuh.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/post-tool-cef-wazuh.sh\"",
             "timeout": 5
           }
         ]
@@ -78,7 +78,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/post-tool-vault-revoke.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/post-tool-vault-revoke.sh\"",
             "timeout": 5
           }
         ]

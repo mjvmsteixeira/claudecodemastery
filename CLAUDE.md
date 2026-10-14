@@ -44,6 +44,7 @@ Precedente já existente no plugin: `PRUMO_WAZUH_HOST`, `PRUMO_RAILS_DEPLOY_BASE
 ## Convenções
 
 - **Modo operacional** (`PRUMO_OPERATING_MODE` ou `~/.prumo/mode`; default `prod`): `prod` fail-closed (`exit 2`), `dev` warn-only, `lab` bypass (requer `~/.prumo/lab-mode`). Gerir com `/prumo-mode`.
+- **Exceções fail-closed** (`FAILCLOSED_EXEMPT` no `validate.sh`): `pre-tool-approval-gate.sh` (negação humana), `pre-tool-self-guard.sh` (protege os ficheiros que definem o modo — bloqueia em todos os modos) e `pre-tool-secret-read.sh` (bloqueia em prod e dev, bypass registado em lab).
 - Hooks devem bloquear via `prumo_fail_or_warn`/`prumo_require` (respeitam o modo), excepto negação humana explícita no approval-gate (fail-closed intencional).
 - **Fail-closed com allowlist de diagnóstico** no `pre-tool-vault-ttl.sh` — preservar sempre (remover cria diagnose-deadlock).
 - **Vault é o broker de credenciais** — nunca introduzir segredos estáticos ou `.env` em conteúdo de plugin.

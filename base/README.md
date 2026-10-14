@@ -32,6 +32,9 @@ Plugin foundacional. 15 commands e 11 skills que assentam em convenções partil
 | **lib/prumo-common.sh** | bash lib | `prumo_mode`, `prumo_scope`, `prumo_log`, `prumo_backup`, `prumo_fail_or_warn` — source-able por outros plugins |
 | **lib/vault-env.sh** | bash lib | `V` (native/docker abstraction), `vault_ready`, `vault_unseal`, `vault_container_up`, `vault_arrange_up` |
 | **hooks/pre-tool-audit-guard.sh** | PreToolUse hook | Defense-in-depth para o `prumo-devkit`: bloqueia operações destrutivas (`rm` fora de `/tmp`, `git rm`, SQL `DROP/ALTER/TRUNCATE`, Edit/Write a `.gitignore`/`.env*`/`config/initializers/`/`spec/`/`test/`/workflows CI/`filter_parameter_logging.rb`) durante contexto de audit (marker `~/.prumo/audit-active` ou `PRUMO_AUDIT_ACTIVE=1`) a menos que a skill aprove com `PRUMO_AUDIT_APPLY=1`. Em prod fail-closed, em dev warn-only. Silencioso fora de contexto de audit. |
+| **hooks/pre-tool-self-guard.sh** | PreToolUse hook | Bloqueia em **todos os modos**: o agente não escreve `~/.prumo/{mode,lab-mode,audit-active,org.json,guard.json,redact.json,secret-exec.json}` nem `~/.prumo/approvals/`, nem muda `env.PRUMO_*`, `enabledPlugins` `prumo-*`, `permissions.defaultMode` ou `disableAllHooks` nos `.claude/settings*.json`. |
+| **hooks/pre-tool-secret-read.sh** | PreToolUse hook | `Read`/`Grep`/`Bash` sobre ficheiros de segredos (`.env*`, `.envrc`, chaves, `vault-init.json`, `token-cache`, ...). Bloqueia em prod e dev; em lab o bypass fica registado. |
+| **hooks/pre-tool-workspace.sh** | PreToolUse hook | Escritas só dentro das raízes de trabalho e de `~/.prumo/guard.json` → `workspace.extraRoots`. Respeita o modo. |
 
 Os três domínios são **independentes** mas **conscientes uns dos outros** — cada SKILL.md tem secção "Ver também" e "Integração" que evita duplicação e dirige o utilizador à ferramenta certa.
 
@@ -143,9 +146,12 @@ base/
 │   ├── prumo-common.sh                  # mode, scope, log, backup, require, fail-or-warn
 │   └── vault-env.sh                   # V(), vault_ready, vault_unseal, vault_arrange_up
 ├── hooks/
-│   ├── hooks.json                     # SessionStart → vault-session-check.sh; PreToolUse → pre-tool-audit-guard.sh
+│   ├── hooks.json                     # SessionStart → vault-session-check.sh; PreToolUse → self-guard, audit-guard, workspace, memory-scope, secret-read
 │   ├── vault-session-check.sh         # auto-unseal + context injection
-│   └── pre-tool-audit-guard.sh        # defense-in-depth para prumo-devkit (bloqueia destrutivos sem PRUMO_AUDIT_APPLY=1)
+│   ├── pre-tool-audit-guard.sh        # defense-in-depth para prumo-devkit (bloqueia destrutivos sem PRUMO_AUDIT_APPLY=1)
+│   ├── pre-tool-self-guard.sh         # o agente não muda modo, aprovações nem PRUMO_* (todos os modos)
+│   ├── pre-tool-secret-read.sh        # Read/Grep/Bash de ficheiros de segredos
+│   └── pre-tool-workspace.sh          # escrita só dentro das raízes de trabalho
 ├── commands/                          # 15 commands
 │   ├── vault-audit.md                 # /vault-audit
 │   ├── vault-backup.md                # /vault-backup

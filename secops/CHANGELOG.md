@@ -2,6 +2,14 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v0.11.0 — 2026-10-14
+
+**Fase 0 do prumo-guard — dois ganchos novos no secops.**
+
+- **`pre-tool-agent-readonly.sh` — respeita o modo.** Os agentes read-only (`prumo_org readonly_agents`) deixam de poder mutar estado (escritas, redirecções, SQL de escrita, `curl`/`wget` de mutação, `find -delete`, `sudo`, `timeout`...). Porquê: "read-only" era só texto na descrição do agente; nada o impunha.
+- **`pre-tool-approval-gate.sh` — segundo canal por comando.** Além do `PRUMO_APPROVE` (que autoriza o nível inteiro na sessão), um ficheiro `~/.prumo/approvals/<id>` autoriza um único comando; o `approval-id:` vem na mensagem de bloqueio e o registo em `approvals.log` fica `via=approval-file`. Antes não existia aprovação por comando, e `PRUMO_APPROVE` era editável pelo próprio agente (agora fechado pelo `self-guard` do prumo-base).
+- **`hooks.json`:** `${CLAUDE_PLUGIN_ROOT}` entre aspas em todos os comandos.
+
 ## v0.9.3 — 2026-08-03
 
 **Segunda passagem às descrições, depois de as ler outra vez no reload.** A v0.9.2 corrigiu a gramática e deixou dois defeitos de sentido que só se vêem com o texto à frente:

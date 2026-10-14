@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/check-recommends.sh",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/check-recommends.sh\"",
             "timeout": 3,
             "statusMessage": "devkit · check-recommends"
           }

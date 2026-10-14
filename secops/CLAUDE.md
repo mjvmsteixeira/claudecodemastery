@@ -163,6 +163,8 @@ Convenção `PRUMO_*` + alguns `OLLAMA_*`/`WAZUH_*` legacy aceites. Os defaults 
 
 Em `prod`/`dev` só o `env` autoriza, e autoriza o nível inteiro na sessão, não um comando. Em `lab` os três passam — decisão explícita do dono, assente em que estes níveis sempre foram *speed-bumps* e audit-log, não barreira técnica (ver "Modelo de confiança"). O que se assume: o N3 cobre 4 padrões irreversíveis, um dos quais destrói evidência de IR, e o marker `~/.prumo/lab-mode` é a única fronteira — um ficheiro que o agente consegue criar. `lab` é uma decisão humana sobre a máquina, não uma garantia.
 
+**Segundo canal, por comando.** A mensagem de bloqueio traz `approval-id: <id>`; o humano cria `~/.prumo/approvals/<id>` e autoriza só esse comando (`approvals.log`: `via=approval-file`). O agente não escreve nesse directório (`self-guard` do prumo-base). O `pre-tool-agent-readonly.sh` impede os agentes read-only de mutar estado e respeita o modo.
+
 **O modo `lab` sem o marker degrada para `prod`** — o mais restritivo, de propósito. Até 2026-08-01 fazia-o em silêncio, e quem exportava `PRUMO_OPERATING_MODE=lab` à mão levava bloqueios de prod sem explicação. Agora avisa em stderr, uma vez por processo.
 
 **Auditoria:** `PRUMO_APPROVE`, `PRUMO_PII_DISABLE`, `PRUMO_SECOND_OPINION_BYPASS` são audit-tracked em `${PRUMO_LOG_DIR}/` — `approvals.log` para o approval-gate, decisão `bypass` em `telemetry.tsv` para os outros dois.

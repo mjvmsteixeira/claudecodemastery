@@ -1,6 +1,6 @@
 # eval-harness — regressão dos hooks de segurança
 
-Rede de segurança para os hooks (audit-guard, vault-ttl, pii-redact, approval-gate).
+Rede de segurança para os hooks (audit-guard, vault-ttl, pii-redact, approval-gate, second-opinion, memory-scope, self-guard, secret-read, workspace, agent-readonly).
 Uma lista de comandos com a resposta certa (bloquear/passar) + um programa que
 confere se cada hook faz o que devia. Corre a cada alteração; um erro fica
 vermelho e nomeia o caso. Nasceu porque nesta base as correções de segurança
@@ -41,7 +41,7 @@ Os hooks nunca executam o comando; só o classificam (pre-execution).
  "reason":"sed -i escreve ficheiro (nao e filtro)"}
 ```
 
-- `hook` ∈ `audit-guard | vault-ttl | pii-redact | approval-gate | second-opinion`
+- `hook` ∈ `audit-guard | vault-ttl | pii-redact | approval-gate | second-opinion | memory-scope | self-guard | secret-read | workspace | agent-readonly`
 - `env` — variáveis aplicadas ao correr. As sensíveis (`VAULT_TOKEN`, `PRUMO_APPROVE`,
   `PRUMO_AUDIT_APPLY`, `PRUMO_PII_DISABLE`, `PRUMO_AUDIT_ACTIVE`, `PRUMO_OPERATING_MODE`)
   são desligadas por defeito; o caso religa só as que precisa.

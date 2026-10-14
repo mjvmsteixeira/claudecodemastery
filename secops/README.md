@@ -54,12 +54,13 @@ prumo-secops/
 │   ├── prumo-vault-doctor.md          # diagnóstico · Vault
 │   ├── prumo-ollama-doctor.md         # diagnóstico · Ollama
 │   └── prumo-secops-bootstrap.md      # provisioning · 7 policies + 7 AppRoles + transit + ssh + Keychain (v0.3.0)
-├── hooks/                        # 4 pre + 1 post + 1 stop + 1 SessionStart (+ _lib.sh shim)
+├── hooks/                        # 5 pre + 1 post + 1 stop + 1 SessionStart (+ _lib.sh shim)
 │   ├── hooks.json
 │   ├── pre-tool-vault-ttl.sh         # PreToolUse · gate TTL Vault (allowlist diagnósticos)
-│   ├── pre-tool-approval-gate.sh     # PreToolUse · PRUMO_APPROVE=N1/N2/N3 em ops destrutivas
+│   ├── pre-tool-approval-gate.sh     # PreToolUse · PRUMO_APPROVE=N1/N2/N3 ou ficheiro ~/.prumo/approvals/<id> (por comando)
 │   ├── pre-tool-pii-redact.sh        # PreToolUse · fail-closed em PII (NIF/IBAN/CC/email/tel PT)
 │   ├── pre-tool-second-opinion.sh    # PreToolUse · Ollama qwen3-coder valida ops destrutivas
+│   ├── pre-tool-agent-readonly.sh    # PreToolUse · agentes read-only não mudam estado (respeita o modo)
 │   ├── post-tool-cef-wazuh.sh        # PostToolUse · CEF → Wazuh
 │   ├── post-tool-vault-revoke.sh     # Stop · revoga token + limpa keys efémeras
 │   └── check-recommends.sh           # SessionStart · hint se prumo-base ausente

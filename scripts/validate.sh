@@ -269,7 +269,7 @@ for p in "${PLUGINS[@]}"; do
       [ -z "$cmd" ] && continue
       # primeiro token (executável); ignora 'bash' / args
       first_tok=$(echo "$cmd" | awk '{print $1}')
-      path_tok=$(echo "$cmd" | grep -oE '\${CLAUDE_PLUGIN_ROOT}[^ ]*')
+      path_tok=$(echo "$cmd" | grep -oE '\${CLAUDE_PLUGIN_ROOT}[^ "\\]*')
       [ -z "$path_tok" ] && path_tok="$first_tok"
       resolved="${path_tok/\$\{CLAUDE_PLUGIN_ROOT\}/$p}"
       if [ ! -f "$resolved" ]; then
