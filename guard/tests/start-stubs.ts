@@ -4,9 +4,9 @@ const RAN = { exitCode: 0, stdout: 'host', stderr: '', isStdoutTruncated: false,
 
 // Respostas do motor às chamadas que o arranque do mod faz (registos, relógio, processos);
 // quem testa o session.start liga isto e depois acrescenta os stubs que interessam ao caso.
-export function stubStart(on: On, seen: { commands: string[] } = { commands: [] }): void {
+export function stubStart(on: On, seen: { commands: string[]; tools?: unknown[] } = { commands: [] }): void {
   on('command.register', (_$, e) => { seen.commands.push(e.name); return { value: { command: e.name } } })
-  on('tool.register', () => ({ value: { tool: 'x' } }))
+  on('tool.register', (_$, e) => { seen.tools?.push(e); return { value: { tool: 'x' } } })
   on('session.id', () => ({ value: 'sid-test' }))
   on('session.cwd', () => ({ value: '/p' }))
   on('clock.every', () => ({ value: undefined }))

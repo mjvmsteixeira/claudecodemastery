@@ -1,5 +1,6 @@
 import { test, expect, mock } from 'claude-code/testing'
 import type { On } from 'claude-code'
+import { stubStart } from './start-stubs.ts'
 import type { PrumoGuardPending } from '../types'
 
 const GATE_DENIAL = `[prumo-secops/approval-gate] Operação N2 detectada:\n  x\n\napproval-id: ${'d'.repeat(64)}\n`
@@ -79,10 +80,7 @@ test('caminho em argv[0] recusado sem tocar no Vault', async ($, on) => {
 test('session.start regista a tool run_with_secret', async ($, on) => {
   mock.env(on, { HOME: '/h' })
   const regs: Array<{ name: string; isDeferred?: boolean; inputSchema: { required?: string[] } }> = []
-  on('tool.register', (_$, e) => {
-    regs.push(e as never)
-    return { value: undefined } as never
-  })
+  stubStart(on, { commands: [], tools: regs })
   on('fs.read', () => ({ deny: 'ENOENT' }))
   on('ui.status', () => ({ value: undefined }))
   on('session.start', (_$, e) => ({ cwd: e.cwd }))

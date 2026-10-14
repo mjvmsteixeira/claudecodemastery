@@ -1,5 +1,6 @@
 import { test, expect, mock } from 'claude-code/testing'
 import type { On } from 'claude-code'
+import { stubStart } from './start-stubs.ts'
 
 const HIDDEN = '{"agents":{"hidden":["prumo-secops:prumo-ir-saas-01"]},"brake":{"usdBudget":7}}'
 const run = (args: string, origin: object) => ({ command: 'prumo-guard-agents', args, origin, presentation: { layout: 'main', columns: 80 } }) as never
@@ -33,7 +34,7 @@ test('sem guard.json todos os agentes são oferecidos', async ($, on) => {
 test('start regista o comando prumo-guard-agents', async ($, on) => {
   setup(on)
   const names: string[] = []
-  on('command.register', (_$, e) => { names.push(e.name); return { value: { command: e.name } } })
+  stubStart(on, { commands: names })
   on('ui.status', () => ({ value: undefined }))
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   await $.session.start({ cwd: '/h', surface: null, isInteractive: false })
