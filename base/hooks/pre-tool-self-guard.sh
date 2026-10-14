@@ -17,6 +17,10 @@
 # e só assim se apanha. No Bash não há simulação: um verbo de escrita numa
 # cláusula que nomeie um ficheiro protegido bloqueia (best effort; `cd ~/.prumo
 # && rm mode` escapa e fica como risco residual documentado).
+#
+# Riscos residuais (best effort, não se tenta fechar):
+#   · indirecção por variável: `P=$HOME/.prumo; echo lab > $P/mode`
+#   · `cd ~/.prumo && rm mode` (caminho relativo ao directório corrente)
 set -uo pipefail
 
 HELPER="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/lib/prumo-common.sh"
@@ -68,14 +72,17 @@ PRUMO_DIR_REAL=$(prumo_real_path "${PRUMO_HOME:-$HOME/.prumo}")
 PROTECTED_NAMES="mode lab-mode audit-active org.json guard.json redact.json secret-exec.json"
 
 is_protected_file() {
-  local f="$1" n
-  case "$f" in "$PRUMO_DIR_REAL/approvals"|"$PRUMO_DIR_REAL/approvals/"*) return 0 ;; esac
-  for n in $PROTECTED_NAMES; do [ "$f" = "$PRUMO_DIR_REAL/$n" ] && return 0; done
+  # APFS é case-insensitive: ~/.prumo/Mode é o mesmo ficheiro.
+  local f d n
+  f=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+  d=$(printf '%s' "$PRUMO_DIR_REAL" | tr '[:upper:]' '[:lower:]')
+  case "$f" in "$d/approvals"|"$d/approvals/"*) return 0 ;; esac
+  for n in $PROTECTED_NAMES; do [ "$f" = "$d/$n" ] && return 0; done
   return 1
 }
 
 is_settings_file() {
-  case "$1" in */.claude/settings.json|*/.claude/settings.local.json) return 0 ;; esac
+  case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in */.claude/settings.json|*/.claude/settings.local.json) return 0 ;; esac
   return 1
 }
 
@@ -136,26 +143,64 @@ case "$TOOL" in
     ;;
 esac
 
-re_escape() { printf '%s' "$1" | sed 's/[][().*+?{}|^$\\]/\\&/g'; }
+# Escapa para ERE depois de colapsar '//' (o NORM também as colapsa; um TMPDIR
+# com barra final dava HOME=.../T//x que nunca casaria).
+re_escape() { printf '%s' "$1" | sed -E 's#/+#/#g' | sed 's/[][().*+?{}|^$\\]/\\&/g'; }
 
+# Cópia normalizada da linha: sem aspas, sem /./ nem // repetidos, com /seg/../
+# colapsado e sem redirecções inócuas (>/dev/null, 2>&1, >&2). O original fica
+# para as mensagens.
+NORM=$(printf '%s' "$CMD" | sed -E \
+  -e "s/[\"']//g" \
+  -e 's#[0-9]*>>?[[:space:]]*/dev/null##g' \
+  -e 's#[0-9]*>&[0-9-]*##g')
+for _ in 1 2 3 4 5 6; do
+  NORM=$(printf '%s' "$NORM" | sed -E -e 's#/+#/#g' -e 's#/\./#/#g' -e 's#/[^/ ]+/\.\./#/#')
+done
+
+# shellcheck disable=SC2016,SC2088  # regex literal: ~ e $HOME casam-se como texto na linha de comando
 DIRS='~/\.prumo|\$HOME/\.prumo|\$\{HOME\}/\.prumo'
 DIRS="$DIRS|$(re_escape "$HOME")/\\.prumo"
+HOME_REAL=$(cd "$HOME" 2>/dev/null && pwd -P)
+[ -n "$HOME_REAL" ] && [ "$HOME_REAL" != "$HOME" ] && DIRS="$DIRS|$(re_escape "$HOME_REAL")/\\.prumo"
 [ "$PRUMO_DIR_REAL" != "$HOME/.prumo" ] && DIRS="$DIRS|$(re_escape "$PRUMO_DIR_REAL")"
 [ -n "${PRUMO_HOME:-}" ] && DIRS="$DIRS|$(re_escape "$PRUMO_HOME")"
 NAMES='(mode|lab-mode|audit-active|org\.json|guard\.json|redact\.json|secret-exec\.json)([^A-Za-z0-9._-]|$)|approvals([^A-Za-z0-9._-]|$)'
 PROT_RE="(${DIRS})/(${NAMES})"
 SETTINGS_RE='\.claude/settings(\.local)?\.json'
-WRITE_RE='(^|[[:space:]/\\(`])(rm|mv|cp|ln|touch|unlink|truncate|install|tee|chmod|chown|dd|python[0-9.]*|perl|ruby|node|osascript)([[:space:]]|$)|sed[[:space:]]+(-[a-zA-Z]*i|--in-place)|>'
+REDIR_PROT_RE=">[[:space:]]*(${DIRS})/(${NAMES})"
+REDIR_SETTINGS_RE=">[[:space:]]*[^[:space:]]*${SETTINGS_RE}"
+VERB_RE='(^|[[:space:]/\\(`])(rm|mv|cp|ln|touch|unlink|truncate|install|tee|chmod|chown|dd|python[0-9.]*|perl|ruby|node|osascript)([[:space:]]|$)|sed[[:space:]]+(-[a-zA-Z]*i|--in-place)'
+INTERP_RE='(^|[[:space:]/\\(`])(python[0-9.]*|perl|ruby|node|osascript)([[:space:]]|$)|(^|[[:space:]/])(sh|bash|zsh)[[:space:]]+-[a-z]*c'
+
+# Interpretador + ficheiro protegido em qualquer ponto da linha: um ';' dentro
+# de aspas parte a linha em cláusulas e separa o verbo do caminho.
+if printf '%s' "$NORM" | grep -qiE "$INTERP_RE"; then
+  if printf '%s' "$NORM" | grep -qiE "$PROT_RE"; then
+    deny "interpretador numa linha que nomeia um ficheiro protegido de ~/.prumo: ${CMD:0:120}"
+  fi
+  if printf '%s' "$NORM" | grep -qiE "$SETTINGS_RE"; then
+    deny "interpretador numa linha que nomeia um settings do Claude Code: ${CMD:0:120}"
+  fi
+fi
 
 while IFS= read -r clause; do
   [ -n "$clause" ] || continue
-  printf '%s' "$clause" | grep -qE "$WRITE_RE" || continue
-  if printf '%s' "$clause" | grep -qE "$PROT_RE"; then
+  # Redirecção para um alvo protegido, ou verbo de escrita + alvo na cláusula.
+  # Ler um ficheiro protegido para outro (cat mode > /tmp/x) é leitura.
+  if printf '%s' "$clause" | grep -qiE "$REDIR_PROT_RE"; then
     deny "comando que escreve num ficheiro protegido de ~/.prumo: ${clause:0:120}"
   fi
-  if printf '%s' "$clause" | grep -qE "$SETTINGS_RE"; then
+  if printf '%s' "$clause" | grep -qiE "$REDIR_SETTINGS_RE"; then
     deny "comando que escreve num settings do Claude Code: ${clause:0:120}"
   fi
-done < <(printf '%s' "$CMD" | awk '{ gsub(/&&|\|\||;|\|/, "\n"); print }')
+  printf '%s' "$clause" | grep -qE "$VERB_RE" || continue
+  if printf '%s' "$clause" | grep -qiE "$PROT_RE"; then
+    deny "comando que escreve num ficheiro protegido de ~/.prumo: ${clause:0:120}"
+  fi
+  if printf '%s' "$clause" | grep -qiE "$SETTINGS_RE"; then
+    deny "comando que escreve num settings do Claude Code: ${clause:0:120}"
+  fi
+done < <(printf '%s' "$NORM" | awk '{ gsub(/&&|\|\||;|\|/, "\n"); print }')
 
 exit 0

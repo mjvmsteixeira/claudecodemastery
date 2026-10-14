@@ -279,6 +279,7 @@ prumo_init_dirs() {
 # ────────────────────────────────────────────────────────────────────────────
 prumo_real_path() {
   local p="$1" base="${2:-$PWD}" d rest=""
+  # shellcheck disable=SC2088  # padrão literal "~/" (til recebido como texto), não expansão
   case "$p" in
     "~") p="$HOME" ;;
     "~/"*) p="$HOME/${p#\~/}" ;;

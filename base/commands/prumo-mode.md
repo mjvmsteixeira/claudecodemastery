@@ -51,8 +51,16 @@ Alterar o modo é uma ação humana: o hook `self-guard` bloqueia escritas do ag
 case "$ARGUMENTS" in
   ""|status) : ;;  # apenas mostrar; já feito no Passo 1
   prod|dev|lab)
-    echo "Alterar o modo é uma ação humana (self-guard). Corre no teu terminal:"
-    echo "  /prumo-guard-mode $ARGUMENTS   (se o prumo-guard estiver instalado)"
+    echo "Alterar o modo é uma ação humana (self-guard bloqueia o agente)."
+    echo
+    echo "Dentro do Claude Code (prumo-guard instalado):"
+    echo "  /prumo-guard-mode $ARGUMENTS"
+    echo
+    echo "Ou no terminal, fora do Claude Code:"
+    case "$ARGUMENTS" in
+      prod|dev) echo "  echo $ARGUMENTS > ~/.prumo/mode && rm -f ~/.prumo/lab-mode" ;;
+      lab)      echo "  echo lab > ~/.prumo/mode && touch ~/.prumo/lab-mode   # lab faz bypass dos hooks" ;;
+    esac
     ;;
   *)
     echo "Valor inválido: $ARGUMENTS"

@@ -24,6 +24,11 @@ expect "Write via symlink para ~/.prumo/mode" 2 "$SG" \
   "{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$SANDBOX/link/mode\",\"content\":\"lab\"},\"cwd\":\"$SANDBOX/proj\"}"
 expect "Write com .. até ~/.prumo/mode" 2 "$SG" \
   "{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$SANDBOX/proj/../.prumo/mode\",\"content\":\"lab\"},\"cwd\":\"$SANDBOX/proj\"}"
+expect "Write com maiúsculas ~/.prumo/Mode (APFS)" 2 "$SG" \
+  "{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$SANDBOX/.Prumo/Mode\",\"content\":\"lab\"},\"cwd\":\"$SANDBOX/proj\"}"
+mkdir -p "$SANDBOX/My Dir"
+expect "Write com espaço no caminho e .. até ~/.prumo/mode" 2 "$SG" \
+  "{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$SANDBOX/My Dir/../.prumo/mode\",\"content\":\"lab\"},\"cwd\":\"$SANDBOX/proj\"}"
 expect "stdin vazio" 0 "$SG" ""
 expect "JSON sem tool_input" 0 "$SG" '{"tool_name":"Bash"}'
 
