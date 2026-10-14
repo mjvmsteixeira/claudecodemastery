@@ -62,9 +62,16 @@ else
 fi
 
 # ── sandbox HOME (hermético) ─────────────────────────────────────────────────
-SANDBOX="$(mktemp -d "${TMPDIR:-/tmp}/prumo-eval.XXXXXX")"
+# Fora de /tmp e do TMPDIR: são raízes permitidas pelo hook workspace, e um
+# sandbox lá dentro fazia os casos ws-* passar pela raiz dos temporários (no
+# Linux o mktemp cria em /tmp; foi assim que o CI apanhou ws-02 e ws-06).
+SANDBOX="$(mktemp -d "${PRUMO_EVAL_ROOT:-$HOME}/.prumo-eval.XXXXXX")"
 # cache vazio para o `find` dos hooks secops não falhar sob set -e (→ fallback stubs)
 mkdir -p "$SANDBOX/.claude/plugins/cache"
+# FS sem distinção de maiúsculas? (casos com "requires": "case-insensitive-fs")
+CASE_INSENSITIVE_FS=0
+: > "$SANDBOX/.case-probe" && [ -e "$SANDBOX/.CASE-PROBE" ] && CASE_INSENSITIVE_FS=1
+rm -f "$SANDBOX/.case-probe"
 # shellcheck disable=SC2329  # invocado indirectamente pelo trap abaixo
 cleanup() { rm -rf "$SANDBOX"; }
 trap cleanup EXIT
@@ -170,8 +177,17 @@ while IFS= read -r line; do
   needs_base="$(jq -r '.needs_base // false' <<<"$line")"
   payload="$(jq -c '.payload // empty' <<<"$line")"
   seed="$(jq -c '.seed // empty' <<<"$line")"
+  requires="$(jq -r '.requires // empty' <<<"$line")"
 
   [ -n "$FILTER_HOOK" ] && [ "$hook" != "$FILTER_HOOK" ] && continue
+
+  # Casos que só fazem sentido num FS que não distingue maiúsculas (APFS por
+  # omissão). Num FS sensível a maiúsculas o comportamento esperado é outro, e
+  # o caso salta com aviso em vez de falhar ou passar pela razão errada.
+  if [ "$requires" = "case-insensitive-fs" ] && [ "$CASE_INSENSITIVE_FS" != 1 ]; then
+    [ "$OUT_JSON" = 0 ] && printf '  %s-%s %-8s %-14s %ssaltado: FS distingue maiúsculas%s\n' "$C_Y" "$C_0" "$id" "$hook" "$C_DIM" "$C_0"
+    continue
+  fi
 
   if [ "$LIST_ONLY" = 1 ]; then
     printf '%-8s %-14s %-8s %-9s %s\n' "$id" "$hook" "$exp" "$cat" "$cmd"
