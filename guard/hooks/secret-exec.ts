@@ -49,22 +49,79 @@ const curlLongPrefix = (a: string) => {
   return name.length >= 4 && ['--config', '--variable'].some(o => o.startsWith(name))
 }
 
+// Num aglomerado de opções curtas (`-abc`), a primeira que leva valor consome o resto como valor
+// dela, por isso o varrimento pára aí. Procura a flag `target` (nunca um value-taker, senão nunca
+// seria flag) entre as que são de facto flags. Fecha os clusters que o regex de letras fixas
+// deixava passar: `-aK`, `-BK`, `-qf`, `-Atf`, `-1f`. Não casa com `-HKey:v` (H leva valor).
+function clusterHasFlag(arg: string, valueTakers: string, target: string): boolean {
+  if (!/^-[A-Za-z0-9]/.test(arg)) return false
+  for (const ch of arg.slice(1)) {
+    if (ch === target) return true
+    if (valueTakers.includes(ch)) return false
+  }
+  return false
+}
+
+// Value-takers (excluída a flag-alvo): opções curtas que levam um valor a seguir.
+const CURL_VALUE = 'AbcCdDeEFHmoPrtTuUwxyz'
+const PSQL_VALUE = 'cdFhLoPpRUv'
+
+// gojq (o jq do gh) tem a builtin `env`/`$ENV`, que lê o ambiente: com `--jq`/`-q` o segredo sai
+// codificado fora das formas mascaradas. `.env`/`.environment` (acesso a campo) não bate — só a
+// builtin no início ou depois de algo que não seja `.` nem letra.
+const jqReadsEnv = (expr: string) => /(^|[^.\w])(env|\$ENV)\b/.test(expr)
+const ghJqExpr = (args: string[], i: number): string | undefined => {
+  const a = args[i] as string
+  if (a === '--jq' || a === '-q') return args[i + 1]
+  if (a.startsWith('--jq=')) return a.slice(5)
+  if (a.startsWith('-q') && a.length > 2) return a.slice(2)
+  return undefined
+}
+
 function escapeOf(bin: string, args: string[]): string | null {
   switch (bin) {
     case 'git':
       return gitEscape(args)
     case 'curl':
-      return args.find(a => curlLongPrefix(a) || /^--expand-/.test(a) || /^-[sSLfikvnNqIgGjJlOpRZ#0-6]*K/.test(a)) ?? null
+      return args.find(a => curlLongPrefix(a) || /^--expand-/.test(a) || clusterHasFlag(a, CURL_VALUE, 'K')) ?? null
     case 'docker':
       return args.find(a => DOCKER_SUBS.has(a) || /^--config(=|$)/.test(a)) ?? null
     case 'kubectl':
       return args.find(a => KUBECTL_SUBS.has(a) || /^--kubeconfig(=|$)/.test(a)) ?? null
-    case 'gh':
-      return args[0] !== undefined && GH_SUBS.has(args[0]) ? `gh ${args[0]}` : null
+    case 'gh': {
+      if (args[0] !== undefined && GH_SUBS.has(args[0])) return `gh ${args[0]}`
+      for (let i = 0; i < args.length; i++) {
+        const expr = ghJqExpr(args, i)
+        if (expr !== undefined && jqReadsEnv(expr)) return 'gh --jq/-q com env (lê o ambiente)'
+      }
+      return null
+    }
     case 'psql':
-      return args.find(a => shellMeta(a) || /^(-f|--file)/.test(a) || /\\!|\\(o|out|g|gx|w|write)\s*\||\\(i|ir|include|include_relative)\b|\\copy\b.*\bprogram\b/i.test(a)) ?? null
-    case 'mysql':
-      return args.find(a => shellMeta(a) || /^--(pager|tee|defaults-file|defaults-extra-file|plugin-dir)(=|$)/.test(a) || /(^|[\s;])(system|source|\\!|\\\.)(\s|$)/i.test(a)) ?? null
+      // `\getenv` traz uma variável de ambiente (o segredo) para uma variável do psql, que o SQL
+      // seguinte pode emitir codificada. `-f`/`--file`, incluindo em cluster (`-qf`, `-Atf`, `-1f`).
+      return (
+        args.find(
+          a =>
+            shellMeta(a) ||
+            /^--file(=|$)/.test(a) ||
+            clusterHasFlag(a, PSQL_VALUE, 'f') ||
+            /\\getenv\b/i.test(a) ||
+            /\\!|\\(o|out|g|gx|w|write)\s*\||\\(i|ir|include|include_relative)\b|\\copy\b.*\bprogram\b/i.test(a),
+        ) ?? null
+      )
+    case 'mysql': {
+      // `-e`/`--execute=` trazem a instrução colada ao argumento; tira-se o prefixo para ver o
+      // verbo (`system`/`source`) no início, que doutro modo fica depois de `=` ou da letra `e`.
+      const sql = (a: string) => a.replace(/^(--execute=|-e)/, '')
+      return (
+        args.find(
+          a =>
+            shellMeta(sql(a)) ||
+            /^--(pager|tee|defaults-file|defaults-extra-file|plugin-dir)(=|$)/.test(a) ||
+            /(^|[\s;])(system|source|\\!|\\\.)(\s|$)/i.test(sql(a)),
+        ) ?? null
+      )
+    }
     default:
       return null
   }
@@ -140,10 +197,29 @@ export function protectedDir(dir: string, prumoHome: string): boolean {
   return /\/\.(prumo|claude)(\/|$)/.test(x) || (home !== '' && (x === home || x.startsWith(`${home}/`)))
 }
 
+// Codificações contíguas do segredo que são triviais de pedir a um cliente (hex, base64). Não
+// cobrem transformações (invertido, aos pedaços): a barreira contra exfiltração codificada é o
+// checkArgv, que recusa as opções/subcomandos que correm código; isto é defesa em profundidade.
+function encodedForms(raw: string): string[] {
+  const bytes = new TextEncoder().encode(raw)
+  const hex = [...bytes].map(b => b.toString(16).padStart(2, '0')).join('')
+  const forms = [hex, hex.toUpperCase()]
+  try {
+    let bin = ''
+    for (const b of bytes) bin += String.fromCharCode(b)
+    forms.push(btoa(bin))
+  } catch {
+    // btoa indisponível no runtime: fica a máscara do valor cru e do hex.
+  }
+  return forms
+}
+
 export function maskSecrets(text: string, secrets: Record<string, string>): string {
   let out = text
   for (const [name, raw] of Object.entries(secrets)) {
-    for (const v of new Set([raw, raw.trimEnd(), encodeURIComponent(raw)])) {
+    const trimmed = raw.trimEnd()
+    const forms = new Set([raw, trimmed, encodeURIComponent(raw), ...encodedForms(raw), ...encodedForms(trimmed)])
+    for (const v of forms) {
       if (v.length < 4) continue
       out = out.split(v).join(`[SEGREDO:${name}]`)
     }

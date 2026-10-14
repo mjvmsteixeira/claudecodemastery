@@ -30,3 +30,16 @@ export function parseGateDenial(text: string, id: string): { id: string; level: 
 export function quoteCommand(command: string): string {
   return command.replace(/`/g, "'").replace(/\s+/g, ' ').trim().slice(0, 200)
 }
+
+// O que o painel mostra de um comando. O id cobre o comando inteiro, por isso uma cauda escondida
+// seria aprovada sem a pessoa a ver: acima do limite mostra o início E o fim, com o meio marcado
+// como omitido. A pessoa vê sempre as duas pontas; a linha de contagem diz quanto fica de fora.
+export function displayCommand(command: string, max: number): { text: string; omitted: number } {
+  if (command.length <= max) return { text: command, omitted: 0 }
+  const marker = ' […N omitidos…] '
+  const keep = Math.max(16, Math.floor((max - marker.length) / 2))
+  const omitted = command.length - 2 * keep
+  const head = command.slice(0, keep)
+  const tail = command.slice(command.length - keep)
+  return { text: `${head} […${omitted} caracteres omitidos…] ${tail}`, omitted }
+}

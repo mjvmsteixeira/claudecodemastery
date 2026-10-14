@@ -285,7 +285,9 @@ test('o id que o hook procura é o do approval-gate, com tabs e quebras a meio d
   const gate = '7aae1665e26d1f470e07d3ff49b3f19ff810cd97b74de801fdb6a403aafe87b8'
   const seen = stubs(on, () => '', () => OK)
   await $.tool.call({ tool: 'Bash', command })
-  expect(seen.stats).toEqual([`/h/.prumo/approvals/${gate}`])
+  // A verificação do hook usa o id do gate; a varredura pós-execução volta a olhar o mesmo caminho.
+  expect(seen.stats[0]).toBe(`/h/.prumo/approvals/${gate}`)
+  expect(seen.stats.every(s => s === `/h/.prumo/approvals/${gate}`)).toBe(true)
 })
 
 test('uma falha antes do next (o rm do ficheiro forjado) recusa o comando em vez de o deixar passar', async ($, on) => {
@@ -293,4 +295,53 @@ test('uma falha antes do next (o rm do ficheiro forjado) recusa o comando em vez
   const r = await $.tool.call(BASH)
   expect(String(r.deny)).toContain('nada correu')
   expect(seen.reached).toBe(0)
+})
+
+// --- TOCTOU: um ficheiro que surge na janela entre a verificação e a leitura do gate (item 3) ---
+
+test('um ficheiro sem registo que aparece durante o next é apagado depois e o modelo é avisado', async ($, on) => {
+  const files: Record<string, string> = {}
+  // Na verificação do hook o ficheiro ainda não existe; uma escrita concorrente cria-o durante o
+  // next (aqui, no stub que faz de gate+execução), sem registo humano.
+  const seen = stubs(on, () => DENIAL, () => {
+    files[FILE] = 'level=N1\nexpires=1500\nscope=ttl\n'
+    return OK
+  }, { files })
+  const r = await $.tool.call(BASH)
+  expect(r.deny).toBeUndefined()
+  expect(String(r.context ?? '')).toContain('escrita concorrente')
+  expect(seen.removed).toEqual([`rm -f ${FILE}`])
+  expect(files[FILE]).toBeUndefined()
+})
+
+test('a varredura pós-execução não apaga um ficheiro com registo (aprovação de 10 minutos legítima)', async ($, on) => {
+  let approved = false
+  const files: Record<string, string> = {}
+  const seen = stubs(on, () => DENIAL, () => (approved ? OK : { result: '', text: DENIAL, isError: true }), { files })
+  // Aprovar 10 minutos grava o registo + o ficheiro; a chamada seguinte corre e a varredura vê o registo.
+  await $.tool.call(BASH)
+  const ui = await $.ui.mount(MOUNT)
+  await ui.press({ key: 'ttl' })
+  await ui.unmount()
+  approved = true
+  const r = await $.tool.call(BASH)
+  expect(r.deny).toBeUndefined()
+  expect(String(r.context ?? '')).not.toContain('escrita concorrente')
+  expect(files[FILE]).toBeDefined()
+  expect(seen.removed).toEqual([])
+})
+
+// --- painel: um comando longo não esconde a cauda aprovada (item 4) ---
+
+test('um comando longo mostra o início e o fim e a contagem; a cauda aprovada fica visível', async ($, on) => {
+  const command = `echo ${'A'.repeat(500)} && rm -rf /forensics/evidencia`
+  const id = await approvalIdOf(command)
+  const seen = stubs(on, () => denial('x', id))
+  await $.tool.call({ tool: 'Bash', command })
+  expect(seen.pending[0]?.command).toBe(command)
+  const ui = await $.ui.mount(MOUNT)
+  expect(await ui.find({ text: /forensics\/evidencia/ })).toBeDefined()
+  expect(await ui.find({ text: /caracteres omitidos/ })).toBeDefined()
+  expect(await ui.find({ text: /a aprovação cobre-o inteiro/ })).toBeDefined()
+  await ui.unmount()
 })

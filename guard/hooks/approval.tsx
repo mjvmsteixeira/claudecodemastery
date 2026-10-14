@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import { APPROVALS_DEFAULT, PENDING_DEFAULT } from './refs.ts'
 import type { EngineInterface, On } from 'claude-code'
 import type { PrumoGuardApproval, PrumoGuardLevel, PrumoGuardPending } from '../types'
-import { approvalIdOf, parseGateDenial, quoteCommand } from './approval-parse.ts'
+import { approvalIdOf, displayCommand, parseGateDenial, quoteCommand } from './approval-parse.ts'
 import { prumoHome } from './config.ts'
 import { refreshStatus } from './status.ts'
 
@@ -23,6 +23,16 @@ const MODEL_NOTE =
 
 export const FORGED_NOTE = 'aprovação não reconhecida: o ficheiro não foi criado pelo diálogo do prumo-guard'
 const STALE_NOTE = 'aprovação expirada ou já usada'
+
+// Depois de um comando correr: um approvals/<id> que apareceu durante o `next` (uma escrita
+// concorrente na janela entre esta verificação e a leitura do approval-gate, noutro processo) e que
+// não tem registo humano foi uma aprovação forjada. O mod apaga-o e avisa o modelo — a barreira
+// efetiva para o comando que já correu é o prompt de permissão do Bash.
+export const FORGED_RACE_NOTE =
+  'prumo-guard: surgiu um ficheiro de aprovação sem registo humano durante a execução deste comando ' +
+  '(uma escrita concorrente entre a verificação do mod e a leitura do approval-gate). Foi apagado para não ' +
+  'autorizar mais nada. O comando pode ter corrido sem aprovação do humano — não o repitas; pede à pessoa ' +
+  'para decidir no diálogo.'
 
 export async function requestApproval(
   $: EngineInterface,
@@ -111,13 +121,30 @@ export async function checkApprovalFile($: EngineInterface, id: string): Promise
   return `prumo-guard: ${why}; o ficheiro approvals/${id.slice(0, 12)}… foi apagado e o comando não correu. Não o contornes: repete o comando e a pessoa decide no diálogo.`
 }
 
+// Varre, depois do comando correr, um approvals/<id> forjado (sem registo humano) que tenha surgido
+// na janela entre a verificação do hook e a leitura do gate. Não toca num ficheiro com registo (uma
+// aprovação de 10 minutos legítima fica). Só lê o átomo e, quando apaga, corre um `rm`.
+export async function sweepForgedFile($: EngineInterface, id: string): Promise<boolean> {
+  const file = `${await prumoHome($)}/approvals/${id}`
+  if (!(await $.fs.stat(file).then(() => true, () => false))) return false
+  if ((await read($, approvals)).some(r => r.id === id)) return false
+  await $.process.run(['rm', '-f', file])
+  return true
+}
+
 export function registerApproval(on: On): void {
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const id = await approvalIdOf(e.command)
     const refused = await checkApprovalFile($, id)
     if (refused) return { deny: refused }
     const ran = await next(e)
-    if (ran.deny !== undefined || ran.isError !== true) return ran
+    if (ran.deny !== undefined) return ran
+    if (ran.isError !== true) {
+      // O comando correu (ou foi autorizado). Varre um ficheiro forjado que tenha aparecido na
+      // janela entre a verificação acima e a leitura do gate: assim não sobrevive para autorizar o
+      // próximo comando, e o modelo fica avisado.
+      return (await sweepForgedFile($, id)) ? { ...ran, context: [FORGED_RACE_NOTE] } : ran
+    }
     const req = parseGateDenial(ran.text ?? '', id)
     if (!req) return ran
     await requestApproval($, { ...req, command: e.command, ...(e.agentId ? { agentId: e.agentId } : {}) })
@@ -129,10 +156,14 @@ export function registerApproval(on: On): void {
     const list = await read($, pending)
     const p = list[list.length - 1]
     if (!p) return <Text dimColor>Sem aprovações pendentes.</Text>
+    const shown = displayCommand(p.command, SHOWN_MAX)
     return (
       <Box flexDirection="column">
         <Text>O agente quer correr ({p.level}):</Text>
-        <Text bold>{p.command.slice(0, SHOWN_MAX)}</Text>
+        <Text bold>{shown.text}</Text>
+        {shown.omitted > 0 ? (
+          <Text dimColor>comando com {p.command.length} caracteres; mostra-se o início e o fim, a aprovação cobre-o inteiro</Text>
+        ) : null}
         {p.agentId ? <Text dimColor>subagente {p.agentId}</Text> : null}
         {p.singleUse ? <Text dimColor>run_with_secret: a aprovação serve uma só chamada, também com 10 minutos.</Text> : null}
         {list.length > 1 ? <Text dimColor>+{list.length - 1} pedido(s) na fila</Text> : null}

@@ -122,6 +122,65 @@ test('nomes de variável que mudam o carregamento ou o comportamento são recusa
   expect(checkEnvName('GH_TOKEN')).toBe(null)
 })
 
+test('curl: clusters de opções curtas que acabam em K recusam; os que levam valor antes do K passam', () => {
+  for (const argv of [
+    ['curl', '-aK', 'cfg', 'https://x'],
+    ['curl', '-BK', 'cfg', 'https://x'],
+    ['curl', '-MK', 'cfg', 'https://x'],
+    ['curl', '-hK', 'cfg', 'https://x'],
+    ['curl', '-VK', 'cfg', 'https://x'],
+    ['curl', '-K', 'cfg', 'https://x'],
+  ]) expect(checkArgv(argv, ['curl'])).toContain('correr código')
+  // -H leva valor: o `K` colado é o valor do cabeçalho, não a flag --config.
+  expect(checkArgv(['curl', '-HKey: v', 'https://x'], ['curl'])).toBe(null)
+  expect(checkArgv(['curl', '-sSL', 'https://x'], ['curl'])).toBe(null)
+})
+
+test('psql: -f em cluster (-qf, -Atf, -1f) e \\getenv recusam; usos comuns passam', () => {
+  for (const argv of [
+    ['psql', '-qf', 'x.sql'],
+    ['psql', '-Atf', 'x.sql'],
+    ['psql', '-1f', 'x.sql'],
+    ['psql', '-c', '\\getenv v PGPASSWORD'],
+    ['psql', '-c', 'select 1 \\getenv x HOME'],
+  ]) expect(checkArgv(argv, ['psql'])).toContain('correr código')
+  expect(checkArgv(['psql', '-c', 'select 1'], ['psql'])).toBe(null)
+  expect(checkArgv(['psql', '-At', '-c', 'select 1'], ['psql'])).toBe(null)
+})
+
+test('mysql: system/source depois de -e ou --execute= recusam; select systemd passa', () => {
+  for (const argv of [
+    ['mysql', '--execute=system id'],
+    ['mysql', '-esystem id'],
+    ['mysql', '--execute=source /tmp/f'],
+    ['mysql', '-esource /tmp/f'],
+  ]) expect(checkArgv(argv, ['mysql'])).toContain('correr código')
+  expect(checkArgv(['mysql', '-e', 'select 1'], ['mysql'])).toBe(null)
+  expect(checkArgv(['mysql', '--execute=select systemd'], ['mysql'])).toBe(null)
+})
+
+test('gh: --jq/-q que lê o ambiente recusa; acesso a campo e jq normal passam', () => {
+  for (const argv of [
+    ['gh', 'api', 'user', '--jq', 'env.GH_TOKEN'],
+    ['gh', 'api', 'user', '--jq=env.GH_TOKEN|@base64'],
+    ['gh', 'api', 'user', '-q', 'env'],
+    ['gh', 'api', 'user', '-qenv.GH_TOKEN'],
+    ['gh', 'api', 'user', '--jq', '.foo | env'],
+  ]) expect(checkArgv(argv, ['gh'])).toContain('correr código')
+  expect(checkArgv(['gh', 'api', 'user', '--jq', '.environment.name'], ['gh'])).toBe(null)
+  expect(checkArgv(['gh', 'api', 'user', '--jq', '.login'], ['gh'])).toBe(null)
+  expect(checkArgv(['gh', 'api', 'repos/x/alias'], ['gh'])).toBe(null)
+})
+
+test('mascara o segredo também codificado em hex e base64 (defesa em profundidade)', () => {
+  const raw = 'p4ssw0rd-secreto'
+  const hex = [...new TextEncoder().encode(raw)].map(b => b.toString(16).padStart(2, '0')).join('')
+  let bin = ''
+  for (const b of new TextEncoder().encode(raw)) bin += String.fromCharCode(b)
+  const b64 = btoa(bin)
+  expect(maskSecrets(`cru=${raw} hex=${hex} b64=${b64}`, { T: raw })).toBe('cru=[SEGREDO:T] hex=[SEGREDO:T] b64=[SEGREDO:T]')
+})
+
 test('caminhos protegidos em argumentos e em cwd', () => {
   expect(protectedArg(['-o', '/u/.prumo/mode'], '/u/.prumo')).toBe('/u/.prumo/mode')
   expect(protectedArg(['--output=/U/.Prumo/approvals/x'], '/u/.prumo')).toBe('--output=/U/.Prumo/approvals/x')

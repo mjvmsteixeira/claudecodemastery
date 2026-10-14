@@ -588,6 +588,20 @@ test('curl --variable, --expand-*, --config e -K (também abreviados ou juntos) 
   expect(s.runs).toEqual([])
 })
 
+test('gh --jq com env e psql \\getenv são recusados pelo run_with_secret sem tocar no Vault', async ($, on) => {
+  const s = stubs(on)
+  for (const argv of [
+    ['gh', 'api', 'user', '--jq', 'env.GH_TOKEN|@base64'],
+    ['psql', '-c', '\\getenv v PGPASSWORD'],
+    ['curl', '-sK', 'agent.conf', 'https://x'],
+    ['mysql', '--execute=system id'],
+  ]) {
+    const r = await $.tool.call(call(argv, { T: 'secret/x#y' }))
+    expect(r.deny).toContain('correr código')
+  }
+  expect(s.runs).toEqual([])
+})
+
 test('o diretório temporário sai mesmo quando o cliente não arranca; nada volta como resultado', async ($, on) => {
   const s = stubs(on, 0, { clientFails: true })
   const r = await $.tool.call(call(['curl', 'https://x'], { T: 'secret/x#y' }))
