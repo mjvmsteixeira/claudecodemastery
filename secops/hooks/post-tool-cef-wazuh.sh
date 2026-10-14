@@ -22,6 +22,11 @@ WAZUH_HOST="${PRUMO_WAZUH_HOST:-${WAZUH_HOST:-}}"
 WAZUH_PORT="${WAZUH_PORT:-514}"
 TOOL="$(get_field '.tool_name')"; TOOL="${TOOL:-unknown}"
 SESSION="$(get_field '.session_id')"; SESSION="${SESSION:-${CLAUDE_SESSION_ID:-unknown}}"
+# O prumo-guard (mod) regista esta sessão com veredicto e em lote; não duplicar.
+case "$SESSION" in
+  *[!A-Za-z0-9-]*|"") ;;
+  *) [ -e "${PRUMO_HOME:-$HOME/.prumo}/run/cef-mod.$SESSION" ] && exit 0 ;;
+esac
 AGENT="${CLAUDE_AGENT_NAME:-unknown}"
 USER="${USER:-unknown}"
 EXIT_CODE="$(get_field '.exit_code')"; EXIT_CODE="${EXIT_CODE:-0}"
