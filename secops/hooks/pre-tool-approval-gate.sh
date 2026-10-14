@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # prumo-secops · pre-tool · Approval gate (N1/N2/N3)
 #
-# Env-var-based — NÃO interactivo. A aprovação lê-se do ambiente do próprio hook
-# (settings.json → env.PRUMO_APPROVE), nunca de um prefixo inline no comando:
-# o hook corre antes do comando e num processo diferente.
+# Dois canais de autorização, ambos lidos antes do comando correr (nunca de um
+# prefixo inline no comando: o hook corre antes dele e num processo diferente):
+#   - por nível: ambiente do próprio hook (settings.json → env.PRUMO_APPROVE);
+#   - por comando: ficheiro ~/.prumo/approvals/<sha256 do comando normalizado>,
+#     escrito por acção humana (prumo-guard), com level/expires/scope.
 #
 # Robustez (v0.4.0):
 #   - $CMD é normalizado: newlines→espaços, tabs→espaços. Defesa contra payloads
@@ -21,6 +23,17 @@ prumo_telemetry_init "prumo-secops" "approval-gate"
 # oriented veja o comando como uma única linha. Idempotente em comandos curtos.
 RAW_CMD=$(hook_tool_payload "${1:-}")
 CMD=$(printf '%s' "$RAW_CMD" | tr '\n\t' '  ')
+
+# Id da aprovação por comando: sha256 do comando normalizado. Contrato com o
+# prumo-guard, que lê "approval-id:" da mensagem de bloqueio e escreve
+# ~/.prumo/approvals/<id>. Mesmo fallback do pii-redact: shasum é perl.
+if command -v shasum >/dev/null 2>&1; then
+  APPROVAL_ID=$(printf '%s' "$CMD" | shasum -a 256 | awk '{print $1}')
+elif command -v sha256sum >/dev/null 2>&1; then
+  APPROVAL_ID=$(printf '%s' "$CMD" | sha256sum | awk '{print $1}')
+else
+  APPROVAL_ID=""
+fi
 
 LEVEL=""
 
@@ -185,7 +198,27 @@ fi
 # Gate
 # ────────────────────────────────────────────────────────────────────────────
 
-if [ -z "$LAB_BYPASS" ] && [ "${PRUMO_APPROVE:-}" != "$LEVEL" ]; then
+# ────────────────────────────────────────────────────────────────────────────
+# Aprovação por comando · ficheiro escrito por ação humana (prumo-guard)
+# ────────────────────────────────────────────────────────────────────────────
+# O agente não consegue escrever aqui: ~/.prumo/approvals/ é protegido pelo
+# self-guard do prumo-base em todos os modos. Expirado ou de outro nível não
+# serve e é limpo.
+APPROVED_BY_FILE=""
+APPROVAL_FILE="${PRUMO_HOME:-$HOME/.prumo}/approvals/${APPROVAL_ID}"
+if [ -z "$LAB_BYPASS" ] && [ "${PRUMO_APPROVE:-}" != "$LEVEL" ] && [ -n "$APPROVAL_ID" ] && [ -r "$APPROVAL_FILE" ]; then
+  AF_LEVEL=$(sed -n 's/^level=//p' "$APPROVAL_FILE" | head -1)
+  AF_EXP=$(sed -n 's/^expires=//p' "$APPROVAL_FILE" | head -1)
+  AF_SCOPE=$(sed -n 's/^scope=//p' "$APPROVAL_FILE" | head -1)
+  if [ "$AF_LEVEL" = "$LEVEL" ] && [[ "$AF_EXP" =~ ^[0-9]+$ ]] && [ "$AF_EXP" -gt "$(date +%s)" ]; then
+    APPROVED_BY_FILE=1
+    [ "$AF_SCOPE" = "once" ] && rm -f "$APPROVAL_FILE"
+  else
+    rm -f "$APPROVAL_FILE"
+  fi
+fi
+
+if [ -z "$LAB_BYPASS" ] && [ "${PRUMO_APPROVE:-}" != "$LEVEL" ] && [ -z "$APPROVED_BY_FILE" ]; then
   CMD_PREVIEW=$(printf '%s' "$CMD" | head -c 100)
   # `PRUMO_APPROVE=Nx <comando>` era a instrução antiga e é impossível de seguir:
   # este hook corre no ambiente do Claude Code, não no do comando, por isso um
@@ -197,15 +230,14 @@ if [ -z "$LAB_BYPASS" ] && [ "${PRUMO_APPROVE:-}" != "$LEVEL" ]; then
 [prumo-secops/approval-gate] Operação ${LEVEL} detectada:
   ${CMD_PREVIEW}
 
-Para autorizar (acção do humano — um prefixo inline não chega a este hook):
-  settings.json → env.PRUMO_APPROVE = ${LEVEL}
+approval-id: ${APPROVAL_ID:-indisponível}
 
-Atenção à granularidade: isso autoriza TODAS as operações ${LEVEL} da sessão, não
-esta. Não há canal por-comando, e a aprovação tem de existir antes de o hook
-correr. Em modo 'lab' (com o marker ~/.prumo/lab-mode) os três níveis passam,
-registados em approvals.log com via=lab-bypass; em prod e dev o gate é
-fail-closed e só o env autoriza.
-Retirar do settings.json quando a operação terminar.
+Para autorizar só este comando (ação do humano):
+  · com o prumo-guard: responde ao diálogo de aprovação (1: só esta · 2: 10 minutos)
+Para autorizar todas as operações ${LEVEL} da sessão:
+  · settings.json → env.PRUMO_APPROVE = ${LEVEL} (retirar no fim)
+Em modo 'lab' (com o marker ~/.prumo/lab-mode) os três níveis passam e ficam
+registados em approvals.log com via=lab-bypass.
 
 Níveis (prumo-secops):
   N1 = destrutivo local
@@ -246,7 +278,9 @@ s/(-w)([[:space:]]+[^[:space:]]+)?/\1 ***/g
   # um audit log com dois formatos é mais difícil de ler e de parsear.
   # Condicional simples, não `${V:+a}${V:-b}`: com V=1 o segundo devolve o VALOR
   # ("1"), não o default, e a concatenação sai "lab-bypass1". Verificado.
-  if [ -n "$LAB_BYPASS" ]; then VIA="lab-bypass"; else VIA="approve-env"; fi
+  if [ -n "$LAB_BYPASS" ]; then VIA="lab-bypass"
+  elif [ -n "$APPROVED_BY_FILE" ]; then VIA="approval-file"
+  else VIA="approve-env"; fi
   echo "$(date -u +%FT%TZ) | level=$LEVEL | via=$VIA | user=${USER:-unknown} | cmd=${CMD_LOG}" \
     >> "$LOG_DIR/approvals.log" 2>/dev/null || true
 fi
@@ -256,7 +290,7 @@ if [ -n "$LAB_BYPASS" ]; then
   PRUMO_TM_RECORDED=1
   echo "[prumo-secops/approval-gate] ${LEVEL} IGNORADO — modo lab. Registado em approvals.log." >&2
 else
-  echo "[prumo-secops/approval-gate] ${LEVEL} authorised by PRUMO_APPROVE env var · logged." >&2
+  echo "[prumo-secops/approval-gate] ${LEVEL} autorizado (${VIA}) · registado." >&2
 fi
 
 exit 0
