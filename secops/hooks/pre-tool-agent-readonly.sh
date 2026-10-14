@@ -21,8 +21,7 @@
 #      `>| f` são. O `>` dentro de aspas não conta.
 #
 # Risco residual (não coberto): python -c, perl -i, awk -i inplace, e
-# `docker exec` / `kubectl exec` a correr outro escritor; wrappers com flags que
-# levam argumento (sudo -u x rm).
+# `docker exec` / `kubectl exec` a correr outro escritor.
 set -uo pipefail
 # shellcheck source=_lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
@@ -82,20 +81,32 @@ fi
 # Segmento em posição de comando: salta wrappers e VAR=valor.
 cmd_position() {
   local -a w
-  local i=0 x wrap=0
+  local i=0 x wn="" skip=0 dur=0 out
   read -ra w <<<"$1"
   while [ "$i" -lt "${#w[@]}" ]; do
     x="${w[$i]}"
-    case "$x" in
-      sudo|xargs|time|nohup|exec|env|command|nice) wrap=1 ;;
-      -*) [ "$wrap" -eq 1 ] || break ;;
-      [A-Za-z_]*=*) ;;
-      *) break ;;
-    esac
     i=$((i + 1))
+    if [ "$skip" -eq 1 ]; then skip=0; continue; fi
+    case "$x" in
+      then|do|else|elif|if|while|until|'!'|'{'|'}') ;;
+      sudo|xargs|time|nohup|exec|env|command|nice) wn="$x" ;;
+      timeout|gtimeout) wn=timeout; dur=1 ;;
+      --) ;;
+      -*)
+        [ -n "$wn" ] || { i=$((i - 1)); break; }
+        case "$wn:$x" in
+          sudo:-[ughpCDrtU]|sudo:--user|sudo:--group|sudo:--host|sudo:--prompt|sudo:--chdir|sudo:--role|sudo:--type) skip=1 ;;
+          xargs:-[nILPsdEa]|timeout:-s|timeout:-k|timeout:--signal|timeout:--kill-after) skip=1 ;;
+        esac ;;
+      [A-Za-z_]*=*) ;;
+      *)
+        if [ "$dur" -eq 1 ] && [[ "$x" =~ ^[0-9.]+[smhd]?$ ]]; then dur=0; continue; fi
+        i=$((i - 1)); break ;;
+    esac
   done
   [ "$i" -lt "${#w[@]}" ] || return 0
-  printf '%s' "${w[*]:$i}"
+  out="${w[*]:$i}"
+  printf '%s' "${out#\\}"
 }
 
 mutates() {
@@ -134,10 +145,14 @@ while IFS= read -r seg; do
   [ -n "${seg//[[:space:]]/}" ] || continue
   mutates "$seg" && block "$seg"
 done < <(printf '%s' "$NORM" | awk -v SEP="$SEP" -v SQ="$SQ" -v DQ="$DQ" '{
-  out = ""; q = ""; n = length($0)
+  out = ""; q = ""; inner = 0; saved = ""; n = length($0)
   for (i = 1; i <= n; i++) {
     c = substr($0, i, 1)
-    if (c == SEP) { out = out "\n"; continue }
+    if (c == SEP) {
+      out = out "\n"
+      if (inner == 0) { saved = q; q = ""; inner = 1 } else { q = saved; inner = 0 }
+      continue
+    }
     if (q != "") { if (c == q) q = ""; out = out c; continue }
     if (c == DQ || c == SQ) { q = c; out = out c; continue }
     if (c == ";" || c == "|" || c == "&" || c == "(" || c == ")" || c == "`") { out = out "\n"; continue }
