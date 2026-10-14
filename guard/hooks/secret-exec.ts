@@ -41,12 +41,20 @@ function gitEscape(args: string[]): string | null {
   return null
 }
 
+// `--config` lê um ficheiro de opções; `--variable` e as `--expand-*` põem uma variável de ambiente
+// (o segredo, codificado como o ficheiro quiser) num URL, cabeçalho ou corpo. Um prefixo único
+// também vale nos curl que aceitam opções abreviadas.
+const curlLongPrefix = (a: string) => {
+  const name = a.split('=')[0] as string
+  return name.length >= 4 && ['--config', '--variable'].some(o => o.startsWith(name))
+}
+
 function escapeOf(bin: string, args: string[]): string | null {
   switch (bin) {
     case 'git':
       return gitEscape(args)
     case 'curl':
-      return args.find(a => /^--config(=|$)/.test(a) || /^-[sSLfikvnNqIgGjJlOpRZ#0-6]*K/.test(a)) ?? null
+      return args.find(a => curlLongPrefix(a) || /^--expand-/.test(a) || /^-[sSLfikvnNqIgGjJlOpRZ#0-6]*K/.test(a)) ?? null
     case 'docker':
       return args.find(a => DOCKER_SUBS.has(a) || /^--config(=|$)/.test(a)) ?? null
     case 'kubectl':
@@ -82,7 +90,7 @@ const ENV_DENY = new Set([
   'PATH', 'IFS', 'BASH_ENV', 'ENV', 'SHELL', 'SHELLOPTS', 'BASHOPTS', 'CDPATH', 'GLOBIGNORE', 'PS4',
   'PROMPT_COMMAND', 'HOME', 'TMPDIR', 'ZDOTDIR', 'EDITOR', 'VISUAL', 'PAGER', 'MANPAGER', 'LESSOPEN',
   'KUBECONFIG', 'DOCKER_CONFIG', 'DOCKER_HOST', 'CURL_HOME', 'WGETRC', 'PSQLRC', 'MYSQL_HOME',
-  'SSL_CERT_FILE', 'SSL_CERT_DIR', 'GH_CONFIG_DIR', 'XDG_CONFIG_HOME',
+  'SSL_CERT_FILE', 'SSL_CERT_DIR', 'GH_CONFIG_DIR', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME',
 ])
 const ENV_DENY_PREFIX = ['LD_', 'DYLD_', 'GIT_', 'BASH_FUNC_', 'PRUMO_', 'CLAUDE_', 'NODE_', 'PYTHON', 'PERL', 'RUBY', 'JAVA_TOOL', 'MALLOC_']
 
@@ -92,6 +100,28 @@ export function checkEnvName(name: string): string | null {
     return `${name} muda o que o processo carrega ou corre e não recebe segredos`
   }
   return null
+}
+
+// O argv que corre: a configuração do cliente fica de fora mesmo que exista (`curl -q` e
+// `mysql --no-defaults` só valem como primeiro argumento). É o que o painel mostra e o que se aprova.
+export function clientArgv(argv: string[]): string[] {
+  const [bin, ...rest] = argv
+  if (bin === 'curl') return ['curl', '-q', ...rest]
+  if (bin === 'psql') return ['psql', '-X', ...rest]
+  if (bin === 'mysql') return ['mysql', '--no-defaults', ...rest]
+  return argv
+}
+
+// O ambiente por cima do do processo: HOME e XDG num diretório temporário vazio, para o cliente
+// não ler ~/.curlrc, ~/.psqlrc, ~/.my.cnf, ~/.mylogin.cnf nem os aliases e extensões do gh.
+export function isolatedEnv(bin: string, dir: string): Record<string, string> {
+  return {
+    HOME: dir,
+    XDG_CONFIG_HOME: dir,
+    XDG_DATA_HOME: dir,
+    ...(bin === 'psql' ? { PSQLRC: '/dev/null' } : {}),
+    ...(bin === 'gh' ? { GH_CONFIG_DIR: `${dir}/gh` } : {}),
+  }
 }
 
 // Os ficheiros que só a pessoa muda (D2): ~/.prumo e os settings do Claude Code.

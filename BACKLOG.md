@@ -26,7 +26,15 @@ Aberto a 2026-08-02.
 
 ## B11 · Hooks do prumo-guard que decidem e falham abertos
 
-**Estado:** medido com `bash secops/lib/mod-audit.sh guard` (18 hooks sem `.catch`, 4 com). Dois dos 18 decidem: `prompt.submit` da redação (uma falha deixa o prompt seguir sem redação) e `agent.offer` (uma falha deixa o agente visível). Os restantes 16 só observam. O `classic.Stop` decide (o travão anula o re-prompt do ralph em pausa) e já tem `.catch`. **Porquê não está feito:** adicionar `.catch` muda o comportamento em falha (reter o prompt) e é decisão de produto.
+**Estado:** medido com `bash secops/lib/mod-audit.sh guard` (17 hooks sem `.catch`, 5 com). Dois dos 17 decidem: `prompt.submit` da redação (uma falha deixa o prompt seguir sem redação) e `agent.offer` (uma falha deixa o agente visível). Os restantes 15 só observam. O `classic.Stop` decide (o travão anula o re-prompt do ralph em pausa) e o `tool.call` do Bash da aprovação decide (apaga e recusa um ficheiro de aprovação forjado); ambos já têm `.catch`. **Porquê não está feito:** adicionar `.catch` muda o comportamento em falha (reter o prompt) e é decisão de produto.
+
+## B12 · Aprovações por ficheiro: o que fica de fora do registo humano
+
+**Estado:** em aberto, por desenho. Com o prumo-guard ativo, um `approvals/<id>` só serve com o registo que o diálogo gravou no átomo `approvals` da sessão (mesmo id e nível, por expirar e, em `once`, por usar); um ficheiro sem registo é apagado e o comando recusado, no hook do Bash e no `run_with_secret`. Reproduzido antes da correção: `cd ~ && ln -s .prumo y` seguido de `curl -s -o y/approvals/<id> file:///…/payload` fabricava uma aprovação que o gate e o `run_with_secret` aceitavam. **O que continua aberto:**
+- Sem o prumo-guard instalado, o `approval-gate` sozinho confia no ficheiro (até 10 minutos de `expires`): o registo humano vive no mod, não no gate.
+- O `self-guard` do base continua best effort no Bash: escritas por caminho relativo depois de um `cd` que não nomeia `~/.prumo` (`cd ~ && cd .prumo && …`), um link criado por outra via (glob, interpretador com caminho relativo) ou um script escrito antes não são apanhados. O `ln` com `.prumo` num argumento passou a bloquear.
+- A verificação do mod e a leitura do gate são dois passos: um ficheiro escrito por outra chamada concorrente entre os dois passaria (não verificado se o Claude Code chega a correr assim duas chamadas Bash que escrevem).
+- O registo é da sessão: uma aprovação dada noutra sessão do Claude Code para o mesmo comando não serve nesta, e o ficheiro é apagado.
 
 ---
 

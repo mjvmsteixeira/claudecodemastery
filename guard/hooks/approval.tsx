@@ -1,13 +1,16 @@
 import { atom, read, update } from 'claude-code'
-import { PENDING_DEFAULT } from './refs.ts'
+import { APPROVALS_DEFAULT, PENDING_DEFAULT } from './refs.ts'
 import type { EngineInterface, On } from 'claude-code'
-import type { PrumoGuardLevel, PrumoGuardPending } from '../types'
+import type { PrumoGuardApproval, PrumoGuardLevel, PrumoGuardPending } from '../types'
 import { approvalIdOf, parseGateDenial, quoteCommand } from './approval-parse.ts'
 import { prumoHome } from './config.ts'
 import { refreshStatus } from './status.ts'
 
 // O validador só lê átomos declarados no próprio ficheiro quando se escreve (update); a leitura usa o de refs.ts.
 const pending = atom({ plugin: 'prumo-guard', key: 'pending' } as const, PENDING_DEFAULT)
+// As decisões da pessoa no diálogo. Este ficheiro é o dono: o run_with_secret lê-as e gasta-as
+// pelas funções exportadas abaixo.
+const approvals = atom({ plugin: 'prumo-guard', key: 'approvals' } as const, APPROVALS_DEFAULT)
 export const APPROVAL_PANE = 'prumo-guard-approval'
 // O que o painel mostra de um pedido; o run_with_secret recusa uma chamada mais longa do que isto.
 export const SHOWN_MAX = 400
@@ -18,9 +21,12 @@ const MODEL_NOTE =
   'prumo-guard: foi aberto um pedido de aprovação ao humano. Não reformules nem contornes o comando. ' +
   'Continua com outro trabalho; quando for decidido recebes uma mensagem, e só então repetes exatamente este comando.'
 
+export const FORGED_NOTE = 'aprovação não reconhecida: o ficheiro não foi criado pelo diálogo do prumo-guard'
+const STALE_NOTE = 'aprovação expirada ou já usada'
+
 export async function requestApproval(
   $: EngineInterface,
-  req: { id: string; level: PrumoGuardLevel; command: string; agentId?: string },
+  req: { id: string; level: PrumoGuardLevel; command: string; agentId?: string; singleUse?: boolean },
 ): Promise<void> {
   const requestedAt = await $.clock.now()
   await update($, pending, list =>
@@ -50,20 +56,73 @@ async function decide($: EngineInterface, p: PrumoGuardPending, choice: 'once' |
     return
   }
   const expires = Math.floor(((await $.clock.now()) + (choice === 'ttl' ? TTL_MS : ONCE_MS)) / 1000)
+  // O registo entra antes do ficheiro: um ficheiro sem registo é tratado como forjado e apagado.
+  const record: PrumoGuardApproval = { id: p.id, level: p.level, scope: choice, expires, used: false }
+  await update($, approvals, list => [...(list ?? []).filter(r => r.id !== p.id), record].slice(-50))
   await $.fs.write(`${await prumoHome($)}/approvals/${p.id}`, `level=${p.level}\nexpires=${expires}\nscope=${choice}\n`)
-  const span = choice === 'ttl' ? 'durante 10 minutos' : 'uma vez'
+  const span = p.singleUse ? 'uma vez (o run_with_secret gasta-a na primeira chamada)' : choice === 'ttl' ? 'durante 10 minutos' : 'uma vez'
   await tell($, `prumo-guard: aprovado ${p.level} ${span} para \`${shown}\` (citado numa só linha). Podes repetir exatamente o comando que foi bloqueado.`, p.agentId)
+}
+
+// Um registo serve com o mesmo id e nível, por expirar e, se só vale uma vez, por usar. Os do
+// run_with_secret (`singleUse`) valem uma vez qualquer que seja o scope.
+function usable(r: PrumoGuardApproval, id: string, level: string, now: number, singleUse: boolean): boolean {
+  return r.id === id && r.level === level && r.expires > now && !(r.used && (singleUse || r.scope === 'once'))
+}
+
+export type HumanRecord = 'ok' | 'stale' | 'unknown'
+
+// Há uma decisão da pessoa para este id e nível? `stale` quando a houve mas já expirou ou foi
+// gasta; `unknown` quando o diálogo nunca a gravou. Só lê.
+export async function humanRecord($: EngineInterface, id: string, level: string, singleUse: boolean): Promise<HumanRecord> {
+  const now = Math.floor((await $.clock.now()) / 1000)
+  const list = await read($, approvals)
+  if (list.some(r => usable(r, id, level, now, singleUse))) return 'ok'
+  return list.some(r => r.id === id) ? 'stale' : 'unknown'
+}
+
+// Gasta a decisão: marca usado o registo de uma só vez (ou qualquer um, com `singleUse`). De duas
+// chamadas em paralelo só uma o gasta: o update repete a leitura quando a versão mudou.
+export async function spendHumanRecord($: EngineInterface, id: string, level: string, singleUse: boolean): Promise<HumanRecord> {
+  const now = Math.floor((await $.clock.now()) / 1000)
+  let got = 'unknown' as HumanRecord
+  await update($, approvals, list => {
+    const all = list ?? []
+    const i = all.findIndex(r => usable(r, id, level, now, singleUse))
+    got = i >= 0 ? 'ok' : all.some(r => r.id === id) ? 'stale' : 'unknown'
+    if (i < 0) return all
+    return all.map((r, j) => (j === i && (singleUse || r.scope === 'once') ? { ...r, used: true } : r))
+  })
+  return got
+}
+
+// O lado do gate: antes de um comando chegar ao approval-gate, um approvals/<id> (o id que o gate
+// lhe dá) só fica se o diálogo o gravou. Sem registo é apagado e o comando recusado; com um
+// registo de uma vez, este fica gasto e o gate apaga o ficheiro quando o aceita.
+export async function checkApprovalFile($: EngineInterface, id: string): Promise<string | null> {
+  const file = `${await prumoHome($)}/approvals/${id}`
+  if (!(await $.fs.stat(file).then(() => true, () => false))) return null
+  const text = await $.fs.read(file).catch(() => '')
+  const level = /^level=(.*)$/m.exec(text)?.[1] ?? ''
+  const got = await spendHumanRecord($, id, level, false)
+  if (got === 'ok') return null
+  await $.process.run(['rm', '-f', file])
+  const why = got === 'stale' ? STALE_NOTE : FORGED_NOTE
+  return `prumo-guard: ${why}; o ficheiro approvals/${id.slice(0, 12)}… foi apagado e o comando não correu. Não o contornes: repete o comando e a pessoa decide no diálogo.`
 }
 
 export function registerApproval(on: On): void {
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    const id = await approvalIdOf(e.command)
+    const refused = await checkApprovalFile($, id)
+    if (refused) return { deny: refused }
     const ran = await next(e)
     if (ran.deny !== undefined || ran.isError !== true) return ran
-    const req = parseGateDenial(ran.text ?? '', await approvalIdOf(e.command))
+    const req = parseGateDenial(ran.text ?? '', id)
     if (!req) return ran
     await requestApproval($, { ...req, command: e.command, ...(e.agentId ? { agentId: e.agentId } : {}) })
     return { ...ran, context: [MODEL_NOTE] }
-  })
+  }).catch(($, e, next) => (next.called ? next(e) : { deny: 'prumo-guard: a verificação da aprovação falhou antes de o comando correr; nada correu.' }))
 
   on('ui.render', { component: 'Pane', requestId: APPROVAL_PANE }, async ($, e) => {
     const { Box, Text, Button } = $.ui.resolve(e)
@@ -75,6 +134,7 @@ export function registerApproval(on: On): void {
         <Text>O agente quer correr ({p.level}):</Text>
         <Text bold>{p.command.slice(0, SHOWN_MAX)}</Text>
         {p.agentId ? <Text dimColor>subagente {p.agentId}</Text> : null}
+        {p.singleUse ? <Text dimColor>run_with_secret: a aprovação serve uma só chamada, também com 10 minutos.</Text> : null}
         {list.length > 1 ? <Text dimColor>+{list.length - 1} pedido(s) na fila</Text> : null}
         <Box>
           <Button key="once" hotkey="1" variant="primary" label="Só esta" onPress={() => void decide($, p, 'once')} />

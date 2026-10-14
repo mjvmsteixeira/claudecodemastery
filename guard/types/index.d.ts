@@ -6,6 +6,18 @@ export type PrumoGuardPending = {
   command: string
   requestedAt: number
   agentId?: string
+  // run_with_secret: a aprovação serve uma só chamada, também com "10 minutos".
+  singleUse?: boolean
+}
+
+// O que a pessoa decidiu no diálogo, guardado pelo mod: um approvals/<id> só serve com o registo
+// correspondente (mesmo id e nível, por expirar e, se for de uma vez, por usar).
+export type PrumoGuardApproval = {
+  id: string
+  level: PrumoGuardLevel
+  scope: 'once' | 'ttl'
+  expires: number
+  used: boolean
 }
 
 export type PrumoGuardLoop = { active: boolean; iteration: number | null; maxIterations: number | null }
@@ -27,6 +39,7 @@ declare module 'claude-code' {
   interface PluginState {
     'prumo-guard': {
       pending: PrumoGuardPending[]
+      approvals: PrumoGuardApproval[]
       redactOn: boolean
       redactHits: number
       loop: PrumoGuardLoop

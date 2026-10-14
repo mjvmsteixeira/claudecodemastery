@@ -19,13 +19,17 @@
 #     nomeie um ficheiro protegido ou o próprio ~/.prumo, ou redirecção para lá;
 #   · `cd`/`pushd` para ~/.prumo ou approvals/, ou uma variável com esse
 #     caminho ou com o de um ficheiro protegido, numa linha que escreva (verbo
-#     ou `>`); o mesmo para .claude quando a linha nomeia um settings.json.
+#     ou `>`); o mesmo para .claude quando a linha nomeia um settings.json;
+#   · `ln` (quaisquer opções) com um argumento que contenha `.prumo`, relativo
+#     ou absoluto (`cd ~ && ln -s .prumo y`): o symlink deixava escrever em
+#     ~/.prumo por um caminho que não o nomeia.
 #
 # Riscos residuais (best effort, não se tenta fechar): indirecções que não
 # nomeiam o caminho na própria linha — `cd ~ && cd .prumo`, um symlink criado
-# antes, `for f in ~/.prumo/*`, um script que o agente escreveu e depois corre.
-# Contra estas a barreira é o prompt de permissão do Bash; o approval-gate
-# limita uma aprovação forjada a 10 minutos.
+# por outra via (glob, interpretador com caminho relativo), `for f in
+# ~/.prumo/*`, um script que o agente escreveu e depois corre. Contra estas a
+# barreira é o prompt de permissão do Bash; com o prumo-guard ativo, um
+# approvals/<id> que o diálogo não gravou é apagado e recusado.
 set -uo pipefail
 
 HELPER="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/lib/prumo-common.sh"
@@ -191,6 +195,8 @@ CD_CLAUDE_RE='(^|[[:space:];&|(])(cd|pushd)[[:space:]]+[^[:space:];&|]*\.claude/
 VAR_CLAUDE_RE='(^|[[:space:];&|(])[A-Za-z_][A-Za-z0-9_]*=[^[:space:];&|]*\.claude(/?([[:space:];&|)]|$)|/settings(\.local)?\.json)'
 SETTINGS_NAME_RE='(^|[^A-Za-z0-9_.-])settings(\.local)?\.json'
 INTERP_RE='(^|[[:space:]/\\(`])(python[0-9.]*|perl|ruby|node|osascript)([[:space:]]|$)|(^|[[:space:]/])(sh|bash|zsh)[[:space:]]+-[a-z]*c'
+# `ln` seguido, na mesma cláusula, de um argumento com `.prumo` (relativo ou absoluto).
+LN_PRUMO_RE='(^|[[:space:]/\\(`])ln[[:space:]].*\.prumo'
 
 # Interpretador + ficheiro protegido em qualquer ponto da linha: um ';' dentro
 # de aspas parte a linha em cláusulas e separa o verbo do caminho.
@@ -222,6 +228,9 @@ while IFS= read -r clause; do
   fi
   if printf '%s' "$clause" | grep -qiE "$REDIR_SETTINGS_RE"; then
     deny "comando que escreve num settings do Claude Code: ${clause:0:120}"
+  fi
+  if printf '%s' "$clause" | grep -qiE "$LN_PRUMO_RE"; then
+    deny "ln com um argumento em .prumo (um link para ~/.prumo contorna esta proteção): ${clause:0:120}"
   fi
   printf '%s' "$clause" | grep -qE "$VERB_RE" || continue
   if printf '%s' "$clause" | grep -qiE "$PROT_RE|$PROT_DIR_RE"; then

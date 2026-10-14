@@ -31,6 +31,12 @@ test('approvalIdOf normaliza como o gate: quebras finais saem, tabs e quebras vi
   expect(await approvalIdOf('npm test')).toBe('328e123c63857fd8473bd4bd3581e655b08b7440d7f5d2c31cc375607582f539')
 })
 
+test('approvalIdOf dá o approval-id que o gate do repo imprime (tab e quebra a meio, espaços duplos)', async () => {
+  // secops/hooks/pre-tool-approval-gate.sh num sandbox, com este comando no payload:
+  // "approval-id: 7aae…" (= printf '%s' 'echo a b c | tee  out.txt' | shasum -a 256).
+  expect(await approvalIdOf('echo a\tb\nc | tee  out.txt\n\n')).toBe('7aae1665e26d1f470e07d3ff49b3f19ff810cd97b74de801fdb6a403aafe87b8')
+})
+
 test('quoteCommand: uma linha, sem crases, no máximo 200 caracteres', () => {
   expect(quoteCommand('a`b\n\nc\td')).toBe("a'b c d")
   expect(quoteCommand('x'.repeat(300)).length).toBe(200)

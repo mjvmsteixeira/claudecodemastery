@@ -1,12 +1,13 @@
 import { atom, read } from 'claude-code'
-import type { EngineInterface, On } from 'claude-code'
-import { requestApproval, SHOWN_MAX } from './approval.tsx'
+import type { EngineInterface, On, ProcessRunResult } from 'claude-code'
+import { checkApprovalFile, FORGED_NOTE, humanRecord, requestApproval, SHOWN_MAX, spendHumanRecord } from './approval.tsx'
 import { approvalIdOf, parseGateDenial, sha256Hex } from './approval-parse.ts'
 import { loadConfig, prumoHome, readJsonFile } from './config.ts'
 import { latestPluginDir } from './plugin-paths.ts'
 import { AGENTS_DEFAULT } from './refs.ts'
 import {
-  checkArgv, checkEnvName, maskSecrets, parseSecretRef, protectedArg, protectedDir, secretCallLine, secretCallText, shellQuote,
+  checkArgv, checkEnvName, clientArgv, isolatedEnv, maskSecrets, parseSecretRef, protectedArg, protectedDir, secretCallLine, secretCallText,
+  shellQuote,
 } from './secret-exec.ts'
 
 const agentsRef = atom({ plugin: 'prumo-guard', key: 'agents' } as const, AGENTS_DEFAULT)
@@ -68,7 +69,8 @@ export async function startSecretTool($: EngineInterface): Promise<void> {
     description:
       'Corre um comando com segredos do Vault injetados como variáveis de ambiente; o mod não põe o valor na conversa. ' +
       'argv é o comando já partido (sem shell); secrets mapeia NOME_DA_VARIAVEL → "caminho/kv#campo". ' +
-      'Cada chamada precisa de aprovação humana: sem ela o mod abre o pedido e recusa, e depois da aprovação repetes exatamente a mesma chamada (argv, secrets e cwd). ' +
+      'Cada chamada precisa de aprovação humana, e cada aprovação serve uma só chamada: sem ela o mod abre o pedido e recusa, e depois da aprovação repetes exatamente a mesma chamada (argv, secrets e cwd). ' +
+      'O cliente corre sem a sua configuração (curl -q, psql -X, mysql --no-defaults, HOME vazio). ' +
       'O output volta com o valor trocado por [SEGREDO:NOME] na forma crua, sem espaço final e codificada em URL (outras codificações não são mascaradas). ' +
       'Só aceita os clientes da allowlist (psql, mysql, curl e gh por omissão); recusa shells, interpretadores e as opções conhecidas com que os clientes correm código; ' +
       'passa pelos mesmos guards do Bash e pelo approval-gate.',
@@ -112,24 +114,25 @@ async function runGuards($: EngineInterface, cfg: ExecCfg, payload: string): Pro
   return null
 }
 
-// A aprovação desta chamada em approvals/<id>, validada como o approval-gate valida a sua: nível
-// N2, expires no futuro e no máximo 10 minutos à frente, scope once ou ttl. Outra coisa é apagada.
-async function callApproval($: EngineInterface, file: string): Promise<'once' | 'ttl' | null> {
+// A aprovação desta chamada: o ficheiro approvals/<id>, validado como o approval-gate valida o seu
+// (nível N2, expires no futuro e no máximo 10 minutos à frente, scope once ou ttl), e o registo
+// que o diálogo gravou, por gastar. Um ficheiro inválido ou sem registo é apagado.
+async function callApproval($: EngineInterface, id: string, file: string): Promise<'ok' | 'none' | 'forged'> {
   let text: string
   try {
     text = await $.fs.read(file)
   } catch {
-    return null
+    return 'none'
   }
   const field = (key: string) => new RegExp(`^${key}=(.*)$`, 'm').exec(text)?.[1] ?? ''
   const [level, expires, scope] = [field('level'), field('expires'), field('scope')]
   const now = Math.floor((await $.clock.now()) / 1000)
   const exp = Number(expires)
-  if (level === 'N2' && /^[0-9]{1,12}$/.test(expires) && exp > now && exp <= now + APPROVAL_MAX_TTL_S && (scope === 'once' || scope === 'ttl')) {
-    return scope
-  }
+  const valid = level === 'N2' && /^[0-9]{1,12}$/.test(expires) && exp > now && exp <= now + APPROVAL_MAX_TTL_S && (scope === 'once' || scope === 'ttl')
+  const human = valid ? await humanRecord($, id, 'N2', true) : 'unknown'
+  if (human === 'ok') return 'ok'
   await $.process.run(['rm', '-f', file])
-  return null
+  return valid ? 'forged' : 'none'
 }
 
 export function registerSecretTool(on: On): void {
@@ -152,6 +155,8 @@ export function registerSecretTool(on: On): void {
 
     const refusal = checkArgv(argv, cfg.allow, cfg.allowRisky)
     if (refusal) return deny(`${refusal}.`)
+    // Daqui em diante, o argv que corre (com as opções que deixam de fora a configuração do cliente).
+    const runArgv = clientArgv(argv)
     for (const [name, ref] of Object.entries(refs)) {
       const bad = checkEnvName(name)
       if (bad) return deny(`${bad}.`)
@@ -168,7 +173,7 @@ export function registerSecretTool(on: On): void {
     // O diretório faz parte do que se aprova (um .git/config ou um .psqlrc dependem dele), por
     // isso fixa-se aqui e o comando corre nele, mesmo que a sessão mude de diretório entretanto.
     const runCwd = cwd ?? (await $.session.cwd())
-    const line = secretCallLine(argv, refs, runCwd)
+    const line = secretCallLine(runArgv, refs, runCwd)
     if (line.length > SHOWN_MAX) {
       return deny(`a chamada tem ${line.length} caracteres e o painel de aprovação mostra ${SHOWN_MAX}; a pessoa tem de a ver inteira.`)
     }
@@ -178,7 +183,7 @@ export function registerSecretTool(on: On): void {
       agentType = (await read($, agentsRef)).find(a => a.id === input.agentId)?.type
       if (!agentType) return deny('subagente de tipo desconhecido; o agent-readonly não o pode avaliar.')
     }
-    const command = shellQuote(argv)
+    const command = shellQuote(runArgv)
     const payload = JSON.stringify({
       tool_name: 'Bash',
       tool_input: { command },
@@ -188,13 +193,15 @@ export function registerSecretTool(on: On): void {
     const blocked = await runGuards($, cfg, payload)
     if (blocked) return deny(blocked)
 
-    // O controlo do run_with_secret: a pessoa aprova cada chamada (argv, referências e cwd). A
-    // aprovação só se gasta depois do approval-gate; se o gate pedir a sua, esta fica para a repetição.
-    const id = await sha256Hex(secretCallText(argv, refs, runCwd))
+    // O controlo do run_with_secret: a pessoa aprova cada chamada (argv, referências e cwd), e cada
+    // aprovação serve uma só chamada, também com "10 minutos". Só se gasta depois do approval-gate;
+    // se o gate pedir a sua, esta fica para a repetição.
+    const id = await sha256Hex(secretCallText(runArgv, refs, runCwd))
     const file = `${home}/approvals/${id}`
-    const approval = await callApproval($, file)
-    if (!approval) {
-      await requestApproval($, { id, level: 'N2', command: line, ...(input.agentId ? { agentId: input.agentId } : {}) })
+    const approval = await callApproval($, id, file)
+    if (approval === 'forged') return deny(`${FORGED_NOTE}; o ficheiro foi apagado e nada correu. Repete a chamada para a pessoa decidir no diálogo.`)
+    if (approval === 'none') {
+      await requestApproval($, { id, level: 'N2', command: line, singleUse: true, ...(input.agentId ? { agentId: input.agentId } : {}) })
       return {
         deny:
           'run_with_secret: cada chamada precisa de aprovação humana e o pedido foi aberto. Não a reformules nem a contornes; ' +
@@ -203,9 +210,13 @@ export function registerSecretTool(on: On): void {
     }
 
     if (!cfg.gatePath) return deny('approval-gate do prumo-secops não encontrado.')
+    // O gate corre aqui fora da tool Bash: a mesma verificação do ficheiro dele que o hook do Bash faz.
+    const gateId = await approvalIdOf(command)
+    const gateRefused = await checkApprovalFile($, gateId)
+    if (gateRefused) return { deny: gateRefused }
     const gate = await $.process.run(['bash', cfg.gatePath], { stdin: payload, env: { CLAUDE_PLUGIN_ROOT: cfg.secopsDir as string }, timeoutMs: 5000 })
     if (gate.exitCode === 2) {
-      const req = parseGateDenial(gate.stderr, await approvalIdOf(command))
+      const req = parseGateDenial(gate.stderr, gateId)
       if (req) {
         await requestApproval($, { ...req, command, ...(input.agentId ? { agentId: input.agentId } : {}) })
         return { deny: 'run_with_secret: pedido de aprovação aberto ao humano. Repete exatamente esta chamada depois da aprovação.' }
@@ -214,8 +225,9 @@ export function registerSecretTool(on: On): void {
     }
     if (gate.exitCode !== 0) return deny(`approval-gate saiu com ${gate.exitCode}.`)
 
-    // `rm` sem -f: de duas chamadas iguais em paralelo, só uma apaga o ficheiro e corre.
-    if (approval === 'once' && (await $.process.run(['rm', file])).exitCode !== 0) {
+    // De duas chamadas iguais em paralelo, só uma gasta o registo; o ficheiro sai com ele (`rm` sem
+    // -f: se já não estiver lá, também não corre).
+    if ((await spendHumanRecord($, id, 'N2', true)) !== 'ok' || (await $.process.run(['rm', file])).exitCode !== 0) {
       return deny('a aprovação desta chamada já foi usada; nada correu.')
     }
 
@@ -228,7 +240,17 @@ export function registerSecretTool(on: On): void {
       values[name] = got.stdout
     }
 
-    const run = await $.process.run(argv, { env: values, cwd: runCwd, timeoutMs: 120000 })
+    // HOME e XDG num diretório novo e vazio: a configuração do cliente que o agente possa ter
+    // escrito (~/.curlrc, ~/.psqlrc, ~/.my.cnf, config do gh) não entra numa chamada aprovada.
+    const made = await $.process.run(['mktemp', '-d'])
+    const tmp = made.stdout.trim()
+    if (made.exitCode !== 0 || !/^\/[^\n]*[^/\n]$/.test(tmp)) return deny('não consegui criar o diretório temporário do cliente; nada correu.')
+    let run: ProcessRunResult
+    try {
+      run = await $.process.run(runArgv, { env: { ...values, ...isolatedEnv(runArgv[0] as string, tmp) }, cwd: runCwd, timeoutMs: 120000 })
+    } finally {
+      await $.process.run(['rm', '-rf', tmp])
+    }
     const out = maskSecrets(run.stdout, values)
     const err = maskSecrets(run.stderr, values)
     return { result: [`exit ${run.exitCode}`, out && `stdout:\n${out}`, err && `stderr:\n${err}`].filter(Boolean).join('\n') }
