@@ -2,6 +2,29 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.0.0 — 2026-10-14
+
+### Mudanças que bloqueiam
+
+Comportamentos novos que podem parar fluxos existentes. Lê antes de actualizar.
+
+- **`agent-readonly` bloqueia em prod** mudanças de estado feitas por agentes read-only (`prumo_org readonly_agents`): escritas, redirecções, SQL de escrita, `curl`/`wget` de mutação, `find -delete`, `sudo`, `timeout`...; em dev avisa.
+- **`approval-gate` ganha aprovação por comando** (`~/.prumo/approvals/<id>`, registo `via=approval-file`; só aceita um ficheiro com `expires` até 10 minutos). O `PRUMO_APPROVE` continua a funcionar, mas autoriza o nível inteiro na sessão: recomenda-se removê-lo dos settings e usar a aprovação por comando.
+- **Dependência do `prumo-base` 1.0.0:** o `self-guard` do base impede o agente de editar `PRUMO_APPROVE`, o modo e `~/.prumo/approvals/` em todos os modos.
+
+### Novidades
+
+- **`/prumo-mod-audit` — o que cada mod pode fazer.** Resume, a partir de `claude plugin validate --json`, os hooks que decidem (com e sem `.catch`), as chamadas a `$` que tocam em ficheiros, processos ou rede e os fluxos de telemetria de cada mod instalado ou em `dev-mods`. Porquê: um hook que decide e não tem `.catch` deixa passar quando falha.
+
+### Detalhe da fase 0 (ex-v0.11.0)
+
+**Fase 0 do prumo-guard — dois ganchos novos no secops.**
+
+- **`pre-tool-agent-readonly.sh` — respeita o modo.** Os agentes read-only (`prumo_org readonly_agents`) deixam de poder mutar estado (escritas, redirecções, SQL de escrita, `curl`/`wget` de mutação, `find -delete`, `sudo`, `timeout`...). Porquê: "read-only" era só texto na descrição do agente; nada o impunha.
+- **`pre-tool-approval-gate.sh` — segundo canal por comando.** Além do `PRUMO_APPROVE` (que autoriza o nível inteiro na sessão), um ficheiro `~/.prumo/approvals/<id>` autoriza um único comando; o `approval-id:` vem na mensagem de bloqueio e o registo em `approvals.log` fica `via=approval-file`. Antes não existia aprovação por comando, e `PRUMO_APPROVE` era editável pelo próprio agente (agora bloqueado pelo `self-guard` do prumo-base nas formas que nomeiam o ficheiro; best effort no Bash). O gate só aceita um ficheiro com `expires` até 10 minutos (o máximo que o prumo-guard escreve): uma aprovação forjada por uma indirecção que o `self-guard` não apanhe nunca dura mais do que isso.
+- **`post-tool-cef-wazuh.sh` — atalho.** Sai cedo quando o prumo-guard já regista a sessão (marker `~/.prumo/run/cef-mod.<sessão>`), para não duplicar linhas CEF.
+- **`hooks.json`:** `${CLAUDE_PLUGIN_ROOT}` entre aspas em todos os comandos.
+
 ## v0.9.3 — 2026-08-03
 
 **Segunda passagem às descrições, depois de as ler outra vez no reload.** A v0.9.2 corrigiu a gramática e deixou dois defeitos de sentido que só se vêem com o texto à frente:

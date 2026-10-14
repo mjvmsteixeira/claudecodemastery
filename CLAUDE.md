@@ -4,7 +4,7 @@ Guidance para Claude Code ao trabalhar neste repositório.
 
 ## O que é este repositório
 
-Um **marketplace privado de plugins Claude Code** (`prumo`), não uma aplicação. Ships **quatro** plugins escritos em Markdown + Bash — não há compilador, test runner nem manifest de dependências. "Build" = zipar um directório num `.plugin`; "correr" = instalar no Claude Code e exercitar commands/skills/hooks.
+Um **marketplace privado de plugins Claude Code** (`prumo`), não uma aplicação. Ships **cinco** plugins: quatro escritos em Markdown + Bash e o `prumo-guard`, que é um **mod** (function hooks em TypeScript, carregado pelo Claude Code sem compilar). Nos quatro não há compilador, test runner nem manifest de dependências. "Build" = zipar um directório num `.plugin`; "correr" = instalar no Claude Code e exercitar commands/skills/hooks.
 
 ```
 .claude-plugin/marketplace.json   ← declaração do marketplace (lista os plugins)
@@ -12,6 +12,7 @@ base/     ← prumo-base   · foundacional (instalar PRIMEIRO)
 secops/   ← prumo-secops · SecOps SaaS (recomenda prumo-base)
 devkit/   ← prumo-devkit · toolkit de auditoria (recomenda prumo-base)
 design/   ← prumo-design · orquestrador de design (standalone)
+guard/    ← prumo-guard  · mod de guardrails (recomenda prumo-base e prumo-secops)
 ```
 
 ## Relações entre plugins
@@ -21,6 +22,8 @@ design/   ← prumo-design · orquestrador de design (standalone)
 **`prumo-secops`** recomenda prumo-base (soft). `secops/hooks/_lib.sh` procura `*/prumo-base/*/lib/prumo-common.sh` no cache; sem ele usa stubs fail-closed em prod. 6 agents `prumo-*-01`, 10 commands, 6 skills, cadeia PreToolUse/PostToolUse/Stop.
 
 **`prumo-devkit`** recomenda prumo-base (soft) — só `/ngrok-expose` o consome (authtoken via Vault). Audits read-only por defeito; apply opt-in com gates.
+
+**`prumo-guard`** é um mod (`guard/hooks/hooks.json` → `modules`), não um plugin de hooks bash. Valida-se com `claude plugin validate guard`, testa-se com `claude plugin test guard` e `bash guard/smoke.sh`. Usa os hooks do base e do secops como classificadores (approval-gate 0.11.0, `vault-read-field.sh` do base 0.14.0). O validador impõe: um só `session.start` sem matcher e um só hook sem matcher por evento (despachante em `observers.ts`), nomes de evento literais, átomos declarados em cada ficheiro que os usa. API de mods em early access; detalhe em `guard/README.md`.
 
 **`prumo-design`** é standalone quanto a outros plugins prumo; depende da stack nativa de design do Claude (frontend-design + Artifact + design-sync).
 
@@ -44,6 +47,7 @@ Precedente já existente no plugin: `PRUMO_WAZUH_HOST`, `PRUMO_RAILS_DEPLOY_BASE
 ## Convenções
 
 - **Modo operacional** (`PRUMO_OPERATING_MODE` ou `~/.prumo/mode`; default `prod`): `prod` fail-closed (`exit 2`), `dev` warn-only, `lab` bypass (requer `~/.prumo/lab-mode`). Gerir com `/prumo-mode`.
+- **Exceções fail-closed** (`FAILCLOSED_EXEMPT` no `validate.sh`): `pre-tool-approval-gate.sh` (negação humana), `pre-tool-self-guard.sh` (protege os ficheiros que definem o modo — bloqueia em todos os modos) e `pre-tool-secret-read.sh` (bloqueia em prod e dev, bypass registado em lab).
 - Hooks devem bloquear via `prumo_fail_or_warn`/`prumo_require` (respeitam o modo), excepto negação humana explícita no approval-gate (fail-closed intencional).
 - **Fail-closed com allowlist de diagnóstico** no `pre-tool-vault-ttl.sh` — preservar sempre (remover cria diagnose-deadlock).
 - **Vault é o broker de credenciais** — nunca introduzir segredos estáticos ou `.env` em conteúdo de plugin.
@@ -63,4 +67,4 @@ Ignora tudo (`/*`) e re-inclui só o whitelisted. **Ficheiro novo na raiz não �
 
 ## Naming
 
-`marketplace.json` é a source of truth: marketplace `prumo`, plugins `prumo-base`, `prumo-secops`, `prumo-devkit`, `prumo-design`. Install: `/plugin install prumo-<x>@prumo`. Rebranding wire→prumo em 2026-07-06 (ver CHANGELOG.md).
+`marketplace.json` é a source of truth: marketplace `prumo`, plugins `prumo-base`, `prumo-secops`, `prumo-devkit`, `prumo-design`, `prumo-guard`. Install: `/plugin install prumo-<x>@prumo`. Rebranding wire→prumo em 2026-07-06 (ver CHANGELOG.md).

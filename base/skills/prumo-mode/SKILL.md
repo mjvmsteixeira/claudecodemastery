@@ -1,11 +1,11 @@
 ---
 name: prumo-mode
-description: Configura o PRUMO_OPERATING_MODE (prod/dev/lab) que os hooks do ecossistema prumo respeitam. Dispara em "muda para dev", "modo dev", "modo prod", "activa lab mode", "qual o modo actual?", "prumo mode". Lê/escreve ~/.prumo/mode + gere o marker ~/.prumo/lab-mode.
+description: Mostra o PRUMO_OPERATING_MODE (prod/dev/lab) que os hooks do ecossistema prumo respeitam e como o alterar. Dispara em "muda para dev", "modo dev", "modo prod", "activa lab mode", "qual o modo actual?", "prumo mode". Lê ~/.prumo/mode e o marker ~/.prumo/lab-mode; a alteração é humana.
 ---
 
 # prumo-mode
 
-Skill-trigger que delega para `/prumo-mode`. Permite ver e mudar o modo operacional dos plugins prumo sem editar ficheiros à mão.
+Skill-trigger que delega para `/prumo-mode`. Mostra o modo operacional dos plugins prumo e os caminhos humanos para o mudar (`/prumo-guard-mode` ou o terminal).
 
 ## Trigger
 
@@ -24,7 +24,7 @@ Invocar `/prumo-mode <arg>` com base na intenção:
 | "muda para dev" | `/prumo-mode dev` |
 | "activa lab" | `/prumo-mode lab` |
 
-O command lê/escreve `~/.prumo/mode` e, para `lab`, cria o marker `~/.prumo/lab-mode` (obrigatório por segurança — previne activação acidental).
+O command lê o modo e mostra ao utilizador como o alterar: o hook `self-guard` bloqueia escritas do agente em `~/.prumo/mode` e `~/.prumo/lab-mode` (a alteração é humana: `/prumo-guard-mode` ou o terminal). Para `lab`, o marker `~/.prumo/lab-mode` é obrigatório por segurança — previne activação acidental.
 
 ## Resumo dos modos
 

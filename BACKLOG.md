@@ -8,6 +8,39 @@ Aberto a 2026-08-02.
 
 ---
 
+## B7 · Passagem do friday-state para o mod
+
+**Estado:** writer feito (`guard/hooks/friday.ts`) e desligado (`friday.enabled: false`). Falta verificar as linhas ao vivo contra as do `friday-state.sh` para o mesmo `session_id` e decidir com a FRIDAY. **Porquê:** enquanto as 12 entradas do `friday-state.sh` estiverem nos settings, as duas fontes escrevem no mesmo ficheiro. Diferença conhecida: `p` é `null` nas linhas `PreToolUse` do mod. Passos no `guard/README.md`.
+
+## B8 · E2E da aprovação depois do push
+
+**Estado:** não feito. **Porquê:** o diálogo só abre com o approval-gate 0.11.0 instalado (contrato `approval-id` + `approvals/<id>`); a cache local ainda pode ter versão anterior. Verificar depois do push e do `/plugin install`: um comando N2 bloqueado abre o painel, "Só esta" escreve o ficheiro e o comando passa uma vez.
+
+## B9 · `vault-read.sh` continua a imprimir valores
+
+**Estado:** em aberto. **Porquê:** o caminho seguro é o `run_with_secret`; o `vault-read.sh` põe o valor no contexto do modelo. Avaliar se o `secret-read` deve passar a bloquear o `vault-read.sh` quando o prumo-guard está ativo.
+
+## B10 · Modo da máquina em `dev`
+
+**Estado:** decisão do utilizador. **Porquê:** em `dev`, `pii-redact`, `vault-ttl`, `workspace` e `agent-readonly` só avisam; só em `prod` bloqueiam. O mod é independente do modo, mas estes hooks não.
+
+## B11 · Hooks do prumo-guard que decidem e falham abertos
+
+**Estado:** medido com `bash secops/lib/mod-audit.sh guard` (17 hooks sem `.catch`, 5 com). Dois dos 17 decidem: `prompt.submit` da redação (uma falha deixa o prompt seguir sem redação) e `agent.offer` (uma falha deixa o agente visível). Os restantes 15 só observam. O `classic.Stop` decide (o travão anula o re-prompt do ralph em pausa) e o `tool.call` do Bash da aprovação decide (apaga e recusa um ficheiro de aprovação forjado); ambos já têm `.catch`. **Porquê não está feito:** adicionar `.catch` muda o comportamento em falha (reter o prompt) e é decisão de produto.
+
+## B12 · Aprovações por ficheiro: o que fica de fora do registo humano
+
+**Estado:** em aberto, por desenho. Com o prumo-guard ativo, um `approvals/<id>` só serve com o registo que o diálogo gravou no átomo `approvals` da sessão (mesmo id e nível, por expirar e, em `once`, por usar); um ficheiro sem registo é apagado e o comando recusado, no hook do Bash e no `run_with_secret`. Reproduzido antes da correção: `cd ~ && ln -s .prumo y` seguido de `curl -s -o y/approvals/<id> file:///…/payload` fabricava uma aprovação que o gate e o `run_with_secret` aceitavam. **O que continua aberto:**
+- Sem o prumo-guard instalado, o `approval-gate` sozinho confia no ficheiro (até 10 minutos de `expires`): o registo humano vive no mod, não no gate.
+- O `self-guard` do base continua best effort no Bash: escritas por caminho relativo depois de um `cd` que não nomeia `~/.prumo` (`cd ~ && cd .prumo && …`), um link criado por outra via (glob, interpretador com caminho relativo, `os.symlink`, `p=.pru; ln -s ~/${p}mo lnk`) ou um script escrito antes não são apanhados. O `ln` com a literal `.prumo` num argumento passou a bloquear; um symlink sem essa literal continua a passar (só o prompt de permissão do Bash o trava, e a escrita via symlink por `Write` é bloqueada).
+- **TOCTOU entre o mod e o gate (não "chamada concorrente" apenas).** A verificação do mod (hook `tool.call`) e a leitura do ficheiro pelo approval-gate são dois passos em processos diferentes, a dezenas de ms um do outro. Um processo de fundo que alterne criar/apagar `approvals/<id>` (lançado por um script com caminho calculado que o self-guard não apanha) pode fazer o mod ver "ausente" e o gate ver "presente", aceitando um ficheiro `level=N1..N3`, `scope=ttl`, `expires<=10 min` sem registo humano. Mitigado: o mod varre depois do `next` um ficheiro sem registo que tenha surgido, e a verificação de cada comando apaga um ficheiro sem registo, por isso um forjado **não persiste além de um comando**. **Fica aberto:** a janela de um único comando. Um fecho real (p. ex. autoridade do gate delegada no átomo do mod, que o agente não consegue forjar) precisa de garantias de ordenação `tool.call`/`PreToolUse`/`tool.check` que a API early-access não documenta de forma estável nem o kit de testes consegue exercitar — por isso a barreira efetiva para esse comando continua a ser o prompt de permissão do Bash (coerente com o modelo de confiança do `secops/CLAUDE.md`).
+- Ids com um NUL ou um surrogate isolado divergem entre o gate e o mod (medido: gate `c6ff0ea5` vs mod `f1d7d20a` com NUL; o surrogate faz o jq do gate sair 0 sem classificar). Pré-existente e presumivelmente inexplorável — o argv do Bash não leva um NUL —, mas não confirmado no motor.
+- NUL no comando: os ids do mod e do gate divergem; impraticável, porque um comando com NUL não chega a correr.
+- `run_with_secret` é experimental e desligado por omissão (`secretExec.enabled`). O único controlo real é a aprovação humana por chamada (uso único, não forjável com o prumo-guard ativo). A lista de recusa do `argv` é defesa em profundidade e best effort; escapes conhecidos, encontrados em revisão e não fechados: psql `-o '|cmd'`/`--output='|cmd'`, opções longas abreviadas (`--fil`), `\g (opções) | cmd`; mysql `pager`/`tee`/`\P`/`\T`; gh `api -iq 'env…'`/`-pq` com jq que lê o ambiente, e subcomandos que correm git no `cwd` (`pr checkout`, `repo sync`, `pr create`) e leem o `.git/config`. Aprovar = confiar no comando com o segredo; manter desligado em loops sem supervisão.
+- O registo é da sessão: uma aprovação dada noutra sessão do Claude Code para o mesmo comando não serve nesta, e o ficheiro é apagado.
+
+---
+
 ## B1 · Identidade do embedder do MemPalace — **FECHADO** (2026-08-03)
 
 **Resolvido com `mempalace palace set-embedder --model minilm`.** Identidade gravada em `palace/mempalace_embedder.json` (`minilm`, dim 384), coerente com o `embedding_model` do `config.json`. Verificado pelo comportamento: a operação que antes emitia o `EmbedderIdentityUnknownWarning` para as duas colecções — `repair --dry-run` — deixou de emitir qualquer aviso.

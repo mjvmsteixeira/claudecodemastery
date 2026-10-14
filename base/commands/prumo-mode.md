@@ -1,6 +1,6 @@
 ---
 name: prumo-mode
-description: Mostra ou altera o PRUMO_OPERATING_MODE do ecossistema prumo (prod/dev/lab). Lê/escreve ~/.prumo/mode e gere o marker ~/.prumo/lab-mode. Sem argumentos = mostra estado actual.
+description: Mostra o PRUMO_OPERATING_MODE do ecossistema prumo (prod/dev/lab) e como o alterar. Lê ~/.prumo/mode e o marker ~/.prumo/lab-mode; a alteração é humana. Sem argumentos = mostra estado actual.
 allowed-tools: Bash, Read
 ---
 
@@ -34,45 +34,20 @@ echo "Modo efectivo: $EFFECTIVE"
 
 ## Passo 2 — Interpretar argumento
 
-Se o utilizador passou um argumento em `$ARGUMENTS`:
+Se o utilizador passou um argumento em `$ARGUMENTS`, responde em texto, **sem correr Bash**: alterar o modo é uma ação humana e o hook `self-guard` bloqueia escritas do agente em `~/.prumo/mode` e `~/.prumo/lab-mode`, em todos os modos (um bloco Bash que só imprimisse as instruções também seria bloqueado, porque nomeia esses ficheiros ao lado de `>`).
 
-- `prod` — escrever `prod` em `~/.prumo/mode`; remover `~/.prumo/lab-mode` se existir
-- `dev` — escrever `dev` em `~/.prumo/mode`; remover `~/.prumo/lab-mode` se existir
-- `lab` — escrever `lab` em `~/.prumo/mode`; **criar `~/.prumo/lab-mode`** (obrigatório); avisar que lab faz bypass de hooks
-- `status` ou vazio — apenas mostrar o Passo 1
-- qualquer outro valor — recusar com lista de valores válidos
-
-```bash
-case "$ARGUMENTS" in
-  ""|status)
-    : ;;  # apenas mostrar; já feito no Passo 1
-  prod|dev)
-    mkdir -p ~/.prumo
-    echo "$ARGUMENTS" > ~/.prumo/mode
-    rm -f ~/.prumo/lab-mode
-    echo "OK · modo definido para $ARGUMENTS (persistente em ~/.prumo/mode)"
-    ;;
-  lab)
-    mkdir -p ~/.prumo
-    echo "lab" > ~/.prumo/mode
-    touch ~/.prumo/lab-mode
-    cat <<'EOF'
-OK · modo lab activado.
-ATENÇÃO: lab faz BYPASS de hooks (TTL guard, approval gate, second-opinion).
-Apenas para exploração de novos hooks / eval de skills. NÃO usar em operação real.
-EOF
-    ;;
-  *)
-    echo "Valor inválido: $ARGUMENTS"
-    echo "Valores válidos: prod | dev | lab | status"
-    exit 1
-    ;;
-esac
-```
+- `status` ou vazio — apenas mostrar o Passo 1.
+- `prod`, `dev` ou `lab` — mostrar ao utilizador os dois caminhos, com o valor pedido:
+  - com o prumo-guard instalado: `/prumo-guard-mode <valor>`
+  - no terminal dele, fora do Claude Code:
+    - `prod`: `echo prod > ~/.prumo/mode && rm -f ~/.prumo/lab-mode`
+    - `dev`: `echo dev > ~/.prumo/mode && rm -f ~/.prumo/lab-mode`
+    - `lab`: `echo lab > ~/.prumo/mode && touch ~/.prumo/lab-mode` (lab faz bypass dos hooks)
+- qualquer outro valor — recusar com a lista de valores válidos: `prod | dev | lab | status`.
 
 ## Passo 3 — Resumo do que cada modo significa
 
-Após alterar (ou só consultar), mostrar tabela curta para o utilizador saber o que muda:
+Depois de consultar ou de mostrar os caminhos, mostrar tabela curta para o utilizador saber o que muda:
 
 ```
 | Modo | Hooks                              | Auto-up Vault (Docker) |
@@ -87,4 +62,4 @@ Após alterar (ou só consultar), mostrar tabela curta para o utilizador saber o
 - O override por **env var** (`export PRUMO_OPERATING_MODE=dev`) tem prioridade sobre o ficheiro. Útil para uma sessão pontual sem mexer no persistente.
 - O ficheiro `~/.prumo/mode` persiste entre sessões.
 - O modo `lab` requer **dois** sinais (ficheiro = `lab` E marker `~/.prumo/lab-mode` presente). Isto previne activação acidental.
-- Para reverter: `/prumo-mode prod`.
+- Para reverter: `/prumo-guard-mode prod`, ou no terminal `echo prod > ~/.prumo/mode && rm -f ~/.prumo/lab-mode`.

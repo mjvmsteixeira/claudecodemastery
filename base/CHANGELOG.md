@@ -2,6 +2,34 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.0.0 — 2026-10-14
+
+### Mudanças que bloqueiam
+
+Comportamentos novos que podem parar fluxos existentes. Lê antes de actualizar.
+
+- **`self-guard` bloqueia, em todos os modos,** escritas do agente em `~/.prumo/{mode,lab-mode,audit-active,org.json,guard.json,redact.json,secret-exec.json}`, em `~/.prumo/approvals/` e em chaves protegidas de qualquer `.claude/settings*.json` (`env.PRUMO_*`, `enabledPlugins` `prumo-*`, `permissions.defaultMode`, `disableAllHooks`). Fluxos em que o agente mudava o modo ou editava `PRUMO_APPROVE` deixam de funcionar. No Bash é best effort: apanha redirecções, verbos de escrita (incluindo `curl -o`, `wget -O`, `rsync`, `scp`) e `cd`/variável para `~/.prumo`; indirecções em vários passos escapam.
+- **`/prumo-mode` já não escreve o modo.** Mostra os caminhos para o humano alterar (`/prumo-guard-mode` ou o terminal).
+- **`secret-read` bloqueia em prod e dev** `Read`, `Grep` e a exibição via `Bash` de ficheiros de segredos (`.env*`, `.envrc`, chaves, `vault-init.json`, `token-cache`...). Em lab o bypass fica registado.
+- **`workspace` bloqueia em prod** escritas fora das raízes de trabalho e de `guard.json` → `workspace.extraRoots`; em dev avisa.
+- **`approval-gate` (secops) ganha aprovação por comando;** recomenda-se remover `PRUMO_APPROVE` dos settings. Ver `prumo-secops`.
+
+### Detalhe da fase 0 (ex-v0.14.0)
+
+**Fase 0 do prumo-guard — três hooks PreToolUse que fecham o que passava em silêncio.** Medido antes desta versão (spec `prumo-guard-design`): o agente auto-escalava para `lab`, editava `PRUMO_APPROVE` nos settings, fazia `Read .env` e escrevia fora do projecto sem que nenhum hook reagisse.
+
+- **`pre-tool-self-guard.sh` — bloqueia em todos os modos.** O agente deixa de poder escrever `~/.prumo/{mode,lab-mode,audit-active,org.json,guard.json,redact.json,secret-exec.json}` e `~/.prumo/approvals/`, ou mudar `env.PRUMO_*`, `enabledPlugins` `prumo-*`, `permissions.defaultMode` e `disableAllHooks` em qualquer `.claude/settings*.json`. Porquê: quem define o modo não pode ser quem o pede. O `/prumo-mode` deixou de escrever e passa a mostrar os caminhos para o humano.
+- **`pre-tool-secret-read.sh` — bloqueia em prod e dev; em lab o bypass fica registado.** Cobre `Read`, `Grep` e a exibição via `Bash` de ficheiros de segredos (`.env*`, `.envrc`, chaves, `vault-init.json`, `token-cache`, ...). Porquê: o `.env` lido entra no contexto do modelo e sai para a API.
+- **`pre-tool-workspace.sh` — respeita o modo.** Escritas só dentro das raízes de trabalho e de `~/.prumo/guard.json` → `workspace.extraRoots`. Porquê: um `Write` fora do projecto não tinha qualquer barreira.
+- **`vault-read-field.sh` (`lib/`) — lê um campo KV do Vault sem eco de tokens.** Existe para o `run_with_secret` do prumo-guard injetar o valor por variável de ambiente sem passar pela conversa; o `vault-read.sh` continua a imprimir valores (BACKLOG B9).
+- **`prumo_real_path`** na `prumo-common.sh` (v0.3.0), resolvida com `/bin/pwd -P`, que devolve a caixa canónica em APFS; sem isto, `Dir` e `dir` eram dois caminhos para o mesmo sítio.
+- **Fail-closed intencional:** `self-guard` e `secret-read` entram em `FAILCLOSED_EXEMPT` do `validate.sh`, a par do `approval-gate`.
+- **Harness de eval:** os casos do corpus aceitam `payload` (qualquer tool), `seed` byte-exact e `@HOME@`, com sandbox limpo por caso; o resumo "Por hook" passa a listar os quatro hooks novos.
+- **`hooks.json`:** `${CLAUDE_PLUGIN_ROOT}` entre aspas em todos os comandos, para um caminho com espaços não partir o comando.
+- **`self-guard` (revisão final do ramo):** `curl`, `wget`, `scp`, `rsync` e afins contam como escrita (`curl -o ~/.prumo/mode` passava); o próprio `~/.prumo` como alvo (`cp x ~/.prumo/`, `--output-dir ~/.prumo`) bloqueia; `cd`/`pushd` ou uma variável para `~/.prumo` numa linha que escreve bloqueia, e o mesmo para `.claude` quando a linha nomeia um `settings.json`. O corpus ganha casos para approvals/, `guard.json`, `redact.json`, `secret-exec.json`, `org.json`, `tee`, `defaultMode` e `disableAllHooks`, e o Passo 1 do `/prumo-mode`. Continua best effort no Bash: indirecções em vários passos escapam (documentado).
+- **`self-guard`: `ln` com `.prumo` num argumento bloqueia** (quaisquer opções, caminho relativo ou absoluto). `cd ~ && ln -s .prumo y` passava, e por `y/approvals/<id>` o agente escrevia uma aprovação que nenhum guard via; o corpus ganha `sg-59`–`sg-61`. Continua best effort: escritas por caminho relativo depois de um `cd` que não nomeia `~/.prumo` e links criados por outra via escapam. Com o prumo-guard ativo, um ficheiro de aprovação sem o registo do diálogo é apagado e recusado; sem ele, o approval-gate continua a confiar no ficheiro (BACKLOG B12).
+- **`/prumo-mode`:** o Passo 2 deixou de ser um bloco Bash (o `self-guard` bloqueava-o, porque nomeava `~/.prumo/mode` ao lado de `>`); o modelo mostra os dois caminhos em texto. As descrições do comando e da skill deixam de dizer que escrevem o modo.
+
 ## v0.12.0 — 2026-08-03
 
 **B6 fase 3f — o resto da identidade, e a distinção que faltava ao ratchet.** O `/prumo-onboard`, o `prumo-context-pack`, os comandos de Vault e os READMEs migraram para `prumo_org`.

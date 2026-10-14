@@ -270,9 +270,41 @@ prumo_init_dirs() {
 }
 
 # ────────────────────────────────────────────────────────────────────────────
+# prumo_real_path · caminho absoluto com o maior ancestral existente resolvido
+#
+# Uso:  prumo_real_path <caminho> [base]
+# Relativo → junta-se a base (default $PWD). Resolve symlinks e `..` do maior
+# ancestral que existe (cd -P) e junta o resto tal como veio. Sem readlink -f:
+# o do BSD não o tem.
+# ────────────────────────────────────────────────────────────────────────────
+prumo_real_path() {
+  local p="$1" base="${2:-$PWD}" d rest=""
+  # shellcheck disable=SC2088  # padrão literal "~/" (til recebido como texto), não expansão
+  case "$p" in
+    "~") p="$HOME" ;;
+    "~/"*) p="$HOME/${p#\~/}" ;;
+    /*) ;;
+    *) p="$base/$p" ;;
+  esac
+  d="$p"
+  while [ ! -d "$d" ] && [ "$d" != "/" ] && [ -n "$d" ]; do
+    rest="/$(basename "$d")$rest"
+    d="$(dirname "$d")"
+  done
+  if [ -d "$d" ]; then
+    # o pwd -P builtin do bash mantém a caixa escrita em volumes insensíveis a maiúsculas; /bin/pwd (realpath) devolve a do disco
+    if [ -x /bin/pwd ]; then d="$(cd "$d" 2>/dev/null && /bin/pwd -P)" || d=""
+    else d="$(cd "$d" 2>/dev/null && pwd -P)" || d=""; fi
+    printf '%s%s' "$d" "$rest"
+  else
+    printf '%s' "$p"
+  fi
+}
+
+# ────────────────────────────────────────────────────────────────────────────
 # prumo_version · versão deste lib
 # ────────────────────────────────────────────────────────────────────────────
-PRUMO_COMMON_VERSION="0.2.0"
+PRUMO_COMMON_VERSION="0.3.0"
 prumo_version() { echo "$PRUMO_COMMON_VERSION"; }
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -374,7 +406,7 @@ prumo_org_require() {
 
 # Fallback estático — existe num sítio só, e o validate.sh compara-o com o
 # marketplace.json. Editar aqui sem editar lá é erro apanhado no CI.
-PRUMO_PLUGINS_FALLBACK="prumo-base prumo-secops prumo-devkit prumo-design"
+PRUMO_PLUGINS_FALLBACK="prumo-base prumo-secops prumo-devkit prumo-design prumo-guard"
 
 prumo_marketplace_json() {
   local c

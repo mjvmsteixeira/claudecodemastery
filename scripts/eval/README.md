@@ -1,6 +1,6 @@
 # eval-harness — regressão dos hooks de segurança
 
-Rede de segurança para os hooks (audit-guard, vault-ttl, pii-redact, approval-gate).
+Rede de segurança para os hooks (audit-guard, vault-ttl, pii-redact, approval-gate, second-opinion, memory-scope, self-guard, secret-read, workspace, agent-readonly).
 Uma lista de comandos com a resposta certa (bloquear/passar) + um programa que
 confere se cada hook faz o que devia. Corre a cada alteração; um erro fica
 vermelho e nomeia o caso. Nasceu porque nesta base as correções de segurança
@@ -15,6 +15,11 @@ já introduziram regressões que só um review manual apanhou.
 | `selftest.sh` | prova que o harness deteta regressões (mutação num hook → deve ficar vermelho) |
 | `generate.sh` | (opcional, IA) o Ollama local propõe evasões novas para revisão humana |
 | `second-opinion-livetest.sh` | (opcional, python3) sobe um stub Ollama e testa a lógica de decisão + resistência a injeção do guardrail semântico |
+| `approval-file-test.sh` | canal de aprovação por ficheiro do approval-gate: `once`, `ttl`, expirado, nível errado, tecto de 10 minutos no `expires` |
+| `cef-marker-test.sh` | o `post-tool-cef-wazuh.sh` sai cedo quando o prumo-guard já regista a sessão (marker `run/cef-mod.<sessão>`) |
+| `guard-paths-test.sh` | caminhos que o corpus não exprime no self-guard e no secret-read: symlinks, `..`, maiúsculas, espaços, stdin vazio |
+| `vault-read-field-test.sh` | `vault-read-field.sh` com um `vault` falso: token da cache, campo pedido, sem eco de tokens |
+| `mod-audit-test.sh` | (precisa do CLI `claude`) o `mod-audit.sh` distingue mods de plugins clássicos e conta os gating hooks |
 
 ## Correr
 
@@ -27,7 +32,10 @@ já introduziram regressões que só um review manual apanhou.
 ```
 
 Exit `0` se tudo bate certo; exit `1` se houver mismatch (serve de gate).
-Corre também dentro do `scripts/validate.sh` (secção 9), logo entra no CI.
+Corre também dentro do `scripts/validate.sh` (secção 9), logo entra no CI, a par
+dos quatro testes de contrato acima (`approval-file`, `cef-marker`, `guard-paths`,
+`vault-read-field`). O `mod-audit-test.sh` e o `claude plugin test` de cada mod
+correm no `validate.sh` quando o CLI `claude` existe (no CI, não existe).
 
 **Hermético:** cada caso corre com `HOME` sandbox — não toca no teu `~/.prumo`.
 Os hooks nunca executam o comando; só o classificam (pre-execution).
@@ -41,7 +49,7 @@ Os hooks nunca executam o comando; só o classificam (pre-execution).
  "reason":"sed -i escreve ficheiro (nao e filtro)"}
 ```
 
-- `hook` ∈ `audit-guard | vault-ttl | pii-redact | approval-gate | second-opinion`
+- `hook` ∈ `audit-guard | vault-ttl | pii-redact | approval-gate | second-opinion | memory-scope | self-guard | secret-read | workspace | agent-readonly`
 - `env` — variáveis aplicadas ao correr. As sensíveis (`VAULT_TOKEN`, `PRUMO_APPROVE`,
   `PRUMO_AUDIT_APPLY`, `PRUMO_PII_DISABLE`, `PRUMO_AUDIT_ACTIVE`, `PRUMO_OPERATING_MODE`)
   são desligadas por defeito; o caso religa só as que precisa.
@@ -54,6 +62,13 @@ Os hooks nunca executam o comando; só o classificam (pre-execution).
   intestável tudo o que dependa de `PRUMO_OPERATING_MODE`. Usar só quando o caso
   testa semântica de modo. O par `pii-13`/`pii-18` fixa os dois lados — mesmo
   input e modo `dev`, com base → `allow`, sem base → `block`.
+
+## Casos com outras tools
+
+- `payload`: stdin completo do hook (ex.: `{"tool_name":"Read","tool_input":{"file_path":"@HOME@/p/.env"},"cwd":"@HOME@/p"}`). Sem ele, o caso é um Bash com `command`.
+- `seed`: `{"@HOME@/.claude/settings.json": "{\"env\":{}}"}` cria ficheiros no HOME do sandbox antes do caso. O conteúdo é escrito byte-a-byte (quebras de linha, tabs e barras invertidas incluídos). Cada caso começa com o sandbox limpo, por isso um seed não sobrevive ao caso seguinte.
+- `@HOME@` é substituído pelo HOME do sandbox em `command`, `payload` e `seed`.
+- `command` continua obrigatório: é a etiqueta que o relatório mostra.
 
 ## Adicionar casos
 

@@ -46,6 +46,10 @@ hook_path() {
     approval-gate) echo "$REPO_ROOT/secops/hooks/pre-tool-approval-gate.sh" ;;
     second-opinion) echo "$REPO_ROOT/secops/hooks/pre-tool-second-opinion.sh" ;;
     memory-scope)  echo "$REPO_ROOT/base/hooks/pre-tool-memory-scope.sh" ;;
+    self-guard)    echo "$REPO_ROOT/base/hooks/pre-tool-self-guard.sh" ;;
+    secret-read)   echo "$REPO_ROOT/base/hooks/pre-tool-secret-read.sh" ;;
+    workspace)     echo "$REPO_ROOT/base/hooks/pre-tool-workspace.sh" ;;
+    agent-readonly) echo "$REPO_ROOT/secops/hooks/pre-tool-agent-readonly.sh" ;;
     *) echo "" ;;
   esac
 }
@@ -58,9 +62,16 @@ else
 fi
 
 # ── sandbox HOME (hermético) ─────────────────────────────────────────────────
-SANDBOX="$(mktemp -d "${TMPDIR:-/tmp}/prumo-eval.XXXXXX")"
+# Fora de /tmp e do TMPDIR: são raízes permitidas pelo hook workspace, e um
+# sandbox lá dentro fazia os casos ws-* passar pela raiz dos temporários (no
+# Linux o mktemp cria em /tmp; foi assim que o CI apanhou ws-02 e ws-06).
+SANDBOX="$(mktemp -d "${PRUMO_EVAL_ROOT:-$HOME}/.prumo-eval.XXXXXX")"
 # cache vazio para o `find` dos hooks secops não falhar sob set -e (→ fallback stubs)
 mkdir -p "$SANDBOX/.claude/plugins/cache"
+# FS sem distinção de maiúsculas? (casos com "requires": "case-insensitive-fs")
+CASE_INSENSITIVE_FS=0
+: > "$SANDBOX/.case-probe" && [ -e "$SANDBOX/.CASE-PROBE" ] && CASE_INSENSITIVE_FS=1
+rm -f "$SANDBOX/.case-probe"
 # shellcheck disable=SC2329  # invocado indirectamente pelo trap abaixo
 cleanup() { rm -rf "$SANDBOX"; }
 trap cleanup EXIT
@@ -86,7 +97,7 @@ provision_base() {
 
 # ── corre um caso, devolve "block"|"allow"|"error:<code>" ────────────────────
 run_case() {
-  local cmd="$1" hook="$2" env_json="$3" needs_base="${4:-false}"
+  local cmd="$1" hook="$2" env_json="$3" needs_base="${4:-false}" payload_json="${5:-}" seed_json="${6:-}"
   local hp; hp="$(hook_path "$hook")"
   [ -n "$hp" ] && [ -f "$hp" ] || { echo "error:no-hook"; return; }
 
@@ -94,10 +105,25 @@ run_case() {
   # que um caso que (hipoteticamente) escreva um marker ~/.prumo/* não contamine
   # o caso seguinte. Os classificadores actuais não escrevem, mas isto torna a
   # garantia hermética real e à prova de casos futuros.
-  rm -rf "$SANDBOX/.prumo" "$SANDBOX/.claude"
+  find "$SANDBOX" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
   mkdir -p "$SANDBOX/.claude/plugins/cache"
   if [ "$needs_base" = "true" ]; then
     provision_base "$SANDBOX" || { echo "error:no-base"; return; }
+  fi
+
+  # ficheiros semeados no HOME do sandbox (@HOME@ → sandbox). O conteúdo é escrito
+  # byte-a-byte pelo jq (-j, sem @tsv nem $(...), que apagaria o \n final);
+  # o @HOME@ do conteúdo é trocado pelo próprio jq, dentro da string.
+  if [ -n "$seed_json" ] && [ "$seed_json" != "null" ]; then
+    local sk sp
+    while IFS= read -r sk; do
+      sp="${sk//@HOME@/$SANDBOX}"
+      if ! mkdir -p "$(dirname "$sp")" \
+         || ! printf '%s' "$seed_json" \
+              | jq -j --arg k "$sk" --arg h "$SANDBOX" '.[$k] | gsub("@HOME@"; $h)' > "$sp"; then
+        echo "error:seed"; return
+      fi
+    done < <(printf '%s' "$seed_json" | jq -r 'keys[]')
   fi
 
   # env: as opções -u TÊM de vir antes de qualquer KEY=val (exigência do env(1)).
@@ -117,7 +143,11 @@ run_case() {
 
   # stdin: JSON de tool call
   local stdin_json
-  stdin_json="$(jq -cn --arg c "$cmd" '{tool_name:"Bash",tool_input:{command:$c}}')"
+  if [ -n "$payload_json" ] && [ "$payload_json" != "null" ]; then
+    stdin_json="${payload_json//@HOME@/$SANDBOX}"
+  else
+    stdin_json="$(jq -cn --arg c "${cmd//@HOME@/$SANDBOX}" '{tool_name:"Bash",tool_input:{command:$c}}')"
+  fi
 
   local code
   printf '%s' "$stdin_json" | "${envargs[@]}" bash "$hp" >/dev/null 2>&1
@@ -145,15 +175,26 @@ while IFS= read -r line; do
   exp="$(jq -r '.expected' <<<"$line")"
   reason="$(jq -r '.reason // ""' <<<"$line")"
   needs_base="$(jq -r '.needs_base // false' <<<"$line")"
+  payload="$(jq -c '.payload // empty' <<<"$line")"
+  seed="$(jq -c '.seed // empty' <<<"$line")"
+  requires="$(jq -r '.requires // empty' <<<"$line")"
 
   [ -n "$FILTER_HOOK" ] && [ "$hook" != "$FILTER_HOOK" ] && continue
+
+  # Casos que só fazem sentido num FS que não distingue maiúsculas (APFS por
+  # omissão). Num FS sensível a maiúsculas o comportamento esperado é outro, e
+  # o caso salta com aviso em vez de falhar ou passar pela razão errada.
+  if [ "$requires" = "case-insensitive-fs" ] && [ "$CASE_INSENSITIVE_FS" != 1 ]; then
+    [ "$OUT_JSON" = 0 ] && printf '  %s-%s %-8s %-14s %ssaltado: FS distingue maiúsculas%s\n' "$C_Y" "$C_0" "$id" "$hook" "$C_DIM" "$C_0"
+    continue
+  fi
 
   if [ "$LIST_ONLY" = 1 ]; then
     printf '%-8s %-14s %-8s %-9s %s\n' "$id" "$hook" "$exp" "$cat" "$cmd"
     continue
   fi
 
-  act="$(run_case "$cmd" "$hook" "$envj" "$needs_base")"
+  act="$(run_case "$cmd" "$hook" "$envj" "$needs_base" "$payload" "$seed")"
   TOTAL=$((TOTAL+1))
 
   ok=0
@@ -206,7 +247,7 @@ fi
 # ── relatório humano ─────────────────────────────────────────────────────────
 echo
 echo "${C_B}Por hook:${C_0}"
-for h in audit-guard vault-ttl pii-redact approval-gate second-opinion memory-scope; do
+for h in audit-guard vault-ttl pii-redact approval-gate second-opinion memory-scope self-guard secret-read workspace agent-readonly; do
   t="$(jq --arg h "$h" '[.[]|select(.hook==$h)]|length' <<<"$RESULTS_JSON")"
   [ "$t" -gt 0 ] || continue
   o="$(jq --arg h "$h" '[.[]|select(.hook==$h and .pass)]|length' <<<"$RESULTS_JSON")"

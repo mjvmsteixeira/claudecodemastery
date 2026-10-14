@@ -2,11 +2,29 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.10.0 · prumo-secops 0.8.2 · prumo-devkit 0.5.2 · prumo-design 0.6.1**
+Estado actual: **prumo-2026.10.0 — prumo-base 1.0.0 · prumo-secops 1.0.0 · prumo-devkit 1.0.0 · prumo-design 1.0.0 · prumo-guard 1.0.0**
 
 **Convenção de tags: `prumo-<plugin>-v<versão>`, uma por plugin e por release.** Todas as tags actuais apontam para o commit onde o `plugin.json` desse plugin tem essa versão — invariante verificável com `git show <tag>:<plugin>/.claude-plugin/plugin.json`.
 
 As tags legacy `v0.5.0`, `v0.5.1` e `v0.6.0` são anteriores à convenção e não identificam o plugin (a `v0.5.1` era do devkit, não do base, apesar de a numeração o sugerir). Ficam como estão, por já estarem publicadas; não usar como referência.
+
+## prumo-2026.10.0 — 2026-10-14
+
+**Primeira release coordenada: os cinco plugins passam a 1.0.0.** O agente deixa de poder mudar as regras que o limitam (modo, aprovações, `PRUMO_*`), de ler ficheiros de segredos e de escrever fora do projecto; os agentes read-only deixam de mudar estado; e o novo mod `prumo-guard` junta aprovação humana por comando, redação de segredos e PII, travão do loop (pausa em cada disparo; corta o turno só acima de 120% do orçamento em USD), trilho CEF e `run_with_secret` (desligado por omissão, com aprovação humana a cada chamada). Tag do repositório: `prumo-2026.10.0`.
+
+| Plugin | Versão anterior | Versão |
+|---|---|---|
+| prumo-base | 0.14.0 | 1.0.0 |
+| prumo-secops | 0.11.0 | 1.0.0 |
+| prumo-devkit | 0.5.2 | 1.0.0 |
+| prumo-design | 0.6.1 | 1.0.0 |
+| prumo-guard | 0.1.0 | 1.0.0 |
+
+Mudanças que bloqueiam em `base/CHANGELOG.md` e `secops/CHANGELOG.md`. O `prumo-guard` usa a API de mods do Claude Code, em early access. `devkit` e `design`: alinhamento de versão.
+
+## 2026-10-14 · `prumo-base 0.14.0` · `prumo-secops 0.11.0` · guardrails da fase 0
+
+**O agente deixa de poder mudar as regras que o limitam.** Medido antes: auto-escalada para `lab`, edição de `PRUMO_APPROVE`, `Read .env` e escrita fora do projecto passavam em silêncio. Base ganha `self-guard` (todos os modos), `secret-read` (prod e dev; bypass registado em lab) e `workspace` (respeita o modo); secops ganha `agent-readonly` (respeita o modo) e aprovação por comando no `approval-gate`. Detalhe nos `CHANGELOG.md` de cada plugin.
 
 ## 2026-08-02 · `prumo-base 0.10.0` · a lista de plugins deixa de ser escrita
 

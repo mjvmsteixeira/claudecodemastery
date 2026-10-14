@@ -253,6 +253,22 @@ for p in "${PLUGINS[@]}"; do
       fail "$hooks_json: JSON inválido"
       continue
     fi
+    # mod (function hooks): hooks.json = { "modules": [...] }, sem comandos shell
+    if jq -e 'has("modules")' "$hooks_json" >/dev/null 2>&1; then
+      while IFS= read -r mod; do
+        [ -z "$mod" ] && continue
+        [ -f "$p/hooks/$mod" ] || fail "$hooks_json: módulo inexistente: $p/hooks/$mod"
+      done < <(jq -r '.modules[]' "$hooks_json")
+      if command -v claude >/dev/null 2>&1; then
+        # --strict: um aviso do validador conta como erro (o mod tem de sair com 0 avisos).
+        claude plugin validate --strict "$p" >/dev/null 2>&1 \
+          || fail "$p: 'claude plugin validate --strict' falhou ou tem avisos (corre-o para detalhe)"
+      else
+        info "$p: CLI claude ausente — validação do módulo saltada"
+      fi
+      pass "$p/hooks/ (modules) validados"
+      continue
+    fi
     # extrai todos os comandos referenciados; troca ${CLAUDE_PLUGIN_ROOT} pelo path do plugin
     referenced=$(jq -r '
       [.hooks[][] | .hooks[]? | select(.type=="command") | .command]
@@ -269,7 +285,7 @@ for p in "${PLUGINS[@]}"; do
       [ -z "$cmd" ] && continue
       # primeiro token (executável); ignora 'bash' / args
       first_tok=$(echo "$cmd" | awk '{print $1}')
-      path_tok=$(echo "$cmd" | grep -oE '\${CLAUDE_PLUGIN_ROOT}[^ ]*')
+      path_tok=$(echo "$cmd" | grep -oE '\${CLAUDE_PLUGIN_ROOT}[^ "\\]*')
       [ -z "$path_tok" ] && path_tok="$first_tok"
       resolved="${path_tok/\$\{CLAUDE_PLUGIN_ROOT\}/$p}"
       if [ ! -f "$resolved" ]; then
@@ -307,7 +323,7 @@ done
 section "convenção: hooks bloqueiam via prumo_fail_or_warn (respeitam o modo)"
 
 # Excepções: hooks fail-closed por desenho, justificados no CLAUDE.md do repo.
-FAILCLOSED_EXEMPT="pre-tool-approval-gate.sh"
+FAILCLOSED_EXEMPT="pre-tool-approval-gate.sh pre-tool-self-guard.sh pre-tool-secret-read.sh"
 
 for p in "${PLUGINS[@]}"; do
   [ -d "$p/hooks" ] || continue
@@ -332,11 +348,10 @@ for p in "${PLUGINS[@]}"; do
       END { print n+0 }
     ' "$sh")
     [ "$raw_exit" -eq 0 ] && continue
-    if [ "$base_sh" = "$FAILCLOSED_EXEMPT" ]; then
-      info "$sh: exit 2 cru — excepção documentada (fail-closed por desenho)"
-    else
-      fail "$sh: bloqueia com 'exit 2' cru em vez de prumo_fail_or_warn — ignora PRUMO_OPERATING_MODE (ver CLAUDE.md § Convenções)"
-    fi
+    case " $FAILCLOSED_EXEMPT " in
+      *" $base_sh "*) info "$sh: exit 2 cru — excepção documentada (fail-closed por desenho)" ;;
+      *) fail "$sh: bloqueia com 'exit 2' cru em vez de prumo_fail_or_warn — ignora PRUMO_OPERATING_MODE (ver CLAUDE.md § Convenções)" ;;
+    esac
   done
 done
 
@@ -576,6 +591,38 @@ if [ -z "$ONLY_PLUGIN" ] && [ -x "$REPO_ROOT/scripts/eval/run.sh" ]; then
     else
       fail "audit-feedback-test falhou — corre ./scripts/eval/audit-feedback-test.sh"
     fi
+  fi
+
+  # Contratos do prumo-guard com os hooks bash (aprovação por ficheiro, marker CEF, caminhos
+  # do self-guard, leitura de um campo do Vault). Herméticos, só bash + jq: correm também no CI.
+  for t in approval-file cef-marker guard-paths vault-read-field; do
+    tf="$REPO_ROOT/scripts/eval/$t-test.sh"
+    if [ ! -x "$tf" ]; then
+      fail "scripts/eval/$t-test.sh em falta ou sem bit de execução"
+    elif "$tf" >/dev/null 2>&1; then
+      pass "$t-test verde"
+    else
+      fail "$t-test falhou — corre ./scripts/eval/$t-test.sh"
+    fi
+  done
+
+  # Mods: o mod-audit e os testes de cada mod precisam do CLI claude, ausente no CI.
+  if command -v claude >/dev/null 2>&1; then
+    if "$REPO_ROOT/scripts/eval/mod-audit-test.sh" >/dev/null 2>&1; then
+      pass "mod-audit-test verde"
+    else
+      fail "mod-audit-test falhou — corre ./scripts/eval/mod-audit-test.sh"
+    fi
+    for p in "${PLUGINS[@]}"; do
+      jq -e 'has("modules")' "$p/hooks/hooks.json" >/dev/null 2>&1 || continue
+      if claude plugin test "$p" >/dev/null 2>&1; then
+        pass "$p: claude plugin test verde"
+      else
+        fail "$p: 'claude plugin test' falhou — corre 'claude plugin test $p'"
+      fi
+    done
+  else
+    info "mod-audit-test e testes dos mods saltados (CLI claude ausente)"
   fi
 
   # security-scan eval — camada determinística (semgrep/gitleaks vs fixtures).

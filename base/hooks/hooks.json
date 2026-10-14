@@ -1,12 +1,12 @@
 {
-  "description": "Auto-unseal the local Vault at session start and inject available-credentials context. PreToolUse audit-guard bloqueia operações destrutivas durante contexto de audit do devkit a menos que apply esteja explicitamente aprovado. PreToolUse memory-scope guarda o âmbito de memória em comandos Bash.",
+  "description": "Auto-unseal the local Vault at session start and inject available-credentials context. PreToolUse self-guard impede o agente de mudar modo, aprovações e chaves protegidas dos settings (todos os modos). PreToolUse audit-guard bloqueia operações destrutivas durante contexto de audit do devkit a menos que apply esteja explicitamente aprovado. PreToolUse memory-scope guarda o âmbito de memória em comandos Bash.",
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/vault-session-check.sh",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/vault-session-check.sh\"",
             "timeout": 8,
             "statusMessage": "Vault check..."
           }
@@ -19,7 +19,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-audit-guard.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-self-guard.sh\"",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-audit-guard.sh\"",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-workspace.sh\"",
             "timeout": 3
           }
         ]
@@ -29,7 +49,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-memory-scope.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-memory-scope.sh\"",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Grep|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-secret-read.sh\"",
             "timeout": 3
           }
         ]
