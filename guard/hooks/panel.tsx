@@ -3,7 +3,7 @@ import type { EngineInterface, On } from 'claude-code'
 import type { HookInput, HookNext, HookResult } from './hook-types.ts'
 import type { PrumoGuardLoop } from '../types'
 import { parseRalphState } from './loop-state.ts'
-import { AGENTS_DEFAULT, LOOP_DEFAULT, PHASE_DEFAULT, TESTS_DEFAULT, USAGE_DEFAULT } from './refs.ts'
+import { AGENTS_DEFAULT, BRAKE_DEFAULT, LOOP_DEFAULT, PHASE_DEFAULT, TESTS_DEFAULT, USAGE_DEFAULT } from './refs.ts'
 import { refreshStatus } from './status.ts'
 import { isTestCommand, parseTestSummary } from './test-summary.ts'
 
@@ -12,6 +12,8 @@ const phaseRef = atom({ plugin: 'prumo-guard', key: 'phase' } as const, PHASE_DE
 const testsRef = atom({ plugin: 'prumo-guard', key: 'tests' } as const, TESTS_DEFAULT)
 const agentsRef = atom({ plugin: 'prumo-guard', key: 'agents' } as const, AGENTS_DEFAULT)
 const usageRef = atom({ plugin: 'prumo-guard', key: 'usage' } as const, USAGE_DEFAULT)
+
+const brakeRef = atom({ plugin: 'prumo-guard', key: 'brake' } as const, BRAKE_DEFAULT)
 
 const PHASES = ['plano', 'implementação', 'testes', 'revisão', 'outro']
 const LOOP_PHASE_TOOL = 'mcp__prumo-guard__loop_phase'
@@ -104,7 +106,8 @@ export function registerPanel(on: On): void {
     const tests = await read($, testsRef)
     const phase = await read($, phaseRef)
     const usage = await read($, usageRef)
-    if (e.props.hasSurvey || (!loop.active && agents.length === 0 && !tests && !phase)) return next(e)
+    const brake = await read($, brakeRef)
+    if (e.props.hasSurvey || (!loop.active && agents.length === 0 && !tests && !phase && !brake.paused)) return next(e)
     const { Box, Text } = $.ui.resolve(e)
     const now = await $.clock.now()
     const head = [
@@ -116,6 +119,7 @@ export function registerPanel(on: On): void {
     ].filter(Boolean).join(' · ')
     return (
       <Box flexDirection="column">
+        {brake.paused ? <Text color="red">[pausa] {brake.reason ?? 'travão acionado'}</Text> : null}
         {head ? <Text>{head}</Text> : null}
         {agents.length > 0 ? (
           <Text dimColor>

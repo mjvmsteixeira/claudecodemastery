@@ -13,6 +13,16 @@ export type PrumoGuardTests = { command: string; passed: number; failed: number;
 export type PrumoGuardAgent = { id: string; type: string; startedAt: number }
 export type PrumoGuardUsage = { contextPercent: number | null; usd: number | null; rate: string }
 
+export type PrumoGuardRepeat = {
+  lastKey: string | null
+  sameCount: number
+  lastFailSig: string | null
+  failCount: number
+  edits: { file: string; old: string; neu: string }[]
+  flips: number
+}
+export type PrumoGuardBrake = { paused: boolean; reason: string | null; loopStartUsd: number | null; tokens: number }
+
 declare module 'claude-code' {
   interface PluginState {
     'prumo-guard': {
@@ -24,6 +34,8 @@ declare module 'claude-code' {
       tests: PrumoGuardTests | null
       agents: PrumoGuardAgent[]
       usage: PrumoGuardUsage
+      repeat: PrumoGuardRepeat
+      brake: PrumoGuardBrake
     }
   }
 }

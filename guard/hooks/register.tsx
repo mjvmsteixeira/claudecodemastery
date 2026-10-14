@@ -1,5 +1,6 @@
 import type { Register } from 'claude-code'
 import { registerApproval } from './approval.tsx'
+import { registerBrake, startBrake } from './brake.ts'
 import { registerCommands, startCommands } from './commands.ts'
 import { registerRedaction, startRedaction } from './redact.ts'
 import { registerFriday } from './friday.ts'
@@ -13,6 +14,7 @@ export const register: Register = on => {
   registerRedaction(on)
   registerCommands(on)
   registerPanel(on)
+  registerBrake(on)
   registerObservers(on)
 
   // Único session.start sem matcher do módulo: cada funcionalidade expõe a sua função de arranque.
@@ -20,6 +22,7 @@ export const register: Register = on => {
     await startRedaction($)
     await startCommands($)
     await startPanel($)
+    await startBrake($)
     await refreshStatus($)
     return next(e)
   })
