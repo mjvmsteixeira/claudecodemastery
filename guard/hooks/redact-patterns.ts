@@ -60,9 +60,10 @@ const RULES: Rule[] = [
   { name: 'TOKEN', re: /\b(Bearer)\s+[A-Za-z0-9._~+/-]{16,}=*/g, replace: (_m, kw) => `${kw} ${ph('TOKEN')}` },
   {
     name: 'SEGREDO',
-    re: /\b((?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]?secret)\s*[=:]\s*)(["']?)([^\s"'&;,]{6,})\2/gi,
+    re: /((?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]?secret)(?:_[A-Za-z0-9_]*)?["']?\s*[=:]\s*)(["']?)(?!\[prumo:)([^\s"'&;,]{6,})\2/gi,
     replace: (_m, lead, q) => `${lead}${q}${ph('SEGREDO')}${q}`,
   },
+  { name: 'URL-CREDENCIAIS', re: /(\b[a-z][a-z0-9+.-]*:\/\/[^\s:\/@]+:)(?!\[prumo:)([^\s@\/]{3,})(@)/gi, replace: (_m, lead, _pw, at) => `${lead}${ph('SEGREDO')}${at}` },
   { name: 'EMAIL', pii: true, re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g },
   { name: 'IBAN', pii: true, re: /\bPT\d{2}(?:\s?\d{4}){5}\s?\d\b/gi, valid: ibanValid },
   { name: 'CC', pii: true, re: /\b\d{8}\s?\d\s?[A-Za-z]{2}\d\b/g, valid: ccValid },

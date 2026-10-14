@@ -60,3 +60,24 @@ test('padrões da organização', () => {
 test('contagem de marcadores', () => {
   expect(countPlaceholders('x [prumo:EMAIL] y [prumo:NIF]')).toBe(2)
 })
+
+test('segredos em JSON, com prefixo de variável e em URLs', () => {
+  const casos: [string, string][] = [
+    ['{"password": "hunter2hunter2"}', '{"password": "[prumo:SEGREDO]"}'],
+    ['"token":"abcdefghij"', '"token":"[prumo:SEGREDO]"'],
+    ['DB_PASSWORD=hunter2hunter2', 'DB_PASSWORD=[prumo:SEGREDO]'],
+    ['GITHUB_TOKEN=abcdefghijkl', 'GITHUB_TOKEN=[prumo:SEGREDO]'],
+    ['AWS_SECRET_ACCESS_KEY=abcdefghijkl', 'AWS_SECRET_ACCESS_KEY=[prumo:SEGREDO]'],
+    ['postgres://admin:s3cretpass@db.local/x', 'postgres://admin:[prumo:SEGREDO]@db.local/x'],
+  ]
+  for (const [entrada, saida] of casos) {
+    const r = redactText(entrada, SECRETS_ONLY)
+    expect(r.text).toBe(saida)
+    expect(r.hits).toBe(1)
+  }
+})
+
+test('URL sem credenciais e valores já redigidos não são tocados', () => {
+  expect(redactText('https://exemplo.pt:8080/x', SECRETS_ONLY).hits).toBe(0)
+  expect(redactText('token: [prumo:SEGREDO]', SECRETS_ONLY).hits).toBe(0)
+})
