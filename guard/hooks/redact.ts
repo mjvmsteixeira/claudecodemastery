@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, On } from 'claude-code'
-import { loadConfig, prumoHome, type GuardConfig } from './config.ts'
+import { loadConfig, prumoHome, readJsonFile, type GuardConfig } from './config.ts'
 import { compileExtra, countPlaceholders, redactText, type ExtraPattern } from './redact-patterns.ts'
 
 export const redactOn = atom({ plugin: 'prumo-guard', key: 'redactOn' } as const, true)
@@ -15,22 +15,41 @@ let cfg: GuardConfig | undefined
 let extra: ExtraPattern[] = []
 
 let extraLoaded = false
+let extraProblem: string | null = null
 
 async function ensureConfig($: EngineInterface): Promise<GuardConfig> {
   if (!cfg) cfg = await loadConfig($)
   return cfg
 }
 
+// redact.json ausente é normal (sem padrões da organização). Ilegível, JSON inválido ou sem uma
+// lista em `patterns` desliga esses padrões, e a pessoa tem de o saber (toast e /prumo-guard).
 async function ensureExtra($: EngineInterface): Promise<void> {
   if (extraLoaded) return
   extraLoaded = true
-  try {
-    const compiled = compileExtra(JSON.parse(await $.fs.read(`${await prumoHome($)}/redact.json`)))
-    extra = compiled.patterns
-    if (compiled.errors.length) $.ui.toast(`prumo-guard: ${compiled.errors.length} padrão(ões) inválido(s) em redact.json`)
-  } catch {
-    extra = []
+  extra = []
+  extraProblem = null
+  const file = await readJsonFile($, `${await prumoHome($)}/redact.json`)
+  if (file.state === 'missing') return
+  const value = file.state === 'ok' ? file.value : null
+  const list = typeof value === 'object' && value !== null ? (value as { patterns?: unknown }).patterns : undefined
+  if (!Array.isArray(list)) {
+    extraProblem = 'redact.json inválido — padrões da organização desligados'
+    $.ui.toast(`prumo-guard: ${extraProblem}`)
+    return
   }
+  const compiled = compileExtra(value)
+  extra = compiled.patterns
+  if (compiled.errors.length) {
+    extraProblem = `${compiled.errors.length} padrão(ões) inválido(s) em redact.json, ignorado(s)`
+    $.ui.toast(`prumo-guard: ${compiled.errors.length} padrão(ões) inválido(s) em redact.json`)
+  }
+}
+
+// Para o /prumo-guard: o problema do redact.json, se houver.
+export async function redactConfigProblem($: EngineInterface): Promise<string | null> {
+  await ensureExtra($)
+  return extraProblem
 }
 
 type Block = { type: string; text?: string; content?: unknown; [k: string]: unknown }

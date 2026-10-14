@@ -13,12 +13,13 @@ import { registerSecretTool, startSecretTool } from './secret-tool.ts'
 import { registerAgents, startAgents } from './agents.ts'
 
 export const register: Register = on => {
+  // Primeiro: o despachante dos eventos partilhados é o hook mais exterior (ver observers.ts).
+  registerObservers(on)
   registerApproval(on)
   registerRedaction(on)
   registerCommands(on)
   registerPanel(on)
   registerBrake(on)
-  registerObservers(on)
   registerSecretTool(on)
 
   // Único session.start sem matcher do módulo: cada funcionalidade expõe a sua função de arranque.

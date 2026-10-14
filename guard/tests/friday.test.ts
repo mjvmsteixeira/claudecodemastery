@@ -7,7 +7,7 @@ test('com friday.enabled o writer acrescenta a linha ao <sid>.jsonl ao terminar 
   on('session.end', (_$, e) => ({ sessionId: e.sessionId }))
   on('fs.read', () => ({ value: '{"friday":{"enabled":true}}' }))
   on('clock.now', () => ({ value: 42 }))
-  on('clock.every', () => ({ value: undefined }))
+  on('clock.every', () => ({ deny: 'sem relógio no teste' }))
   on('session.id', () => ({ value: 'sid-1' }))
   const runs: Array<{ argv: readonly string[]; stdin?: string }> = []
   on('process.run', (_$, e) => {
@@ -66,7 +66,7 @@ test('sid inválido no payload do hook usa session.id()', async ($, on) => {
   on('session.end', (_$, e) => ({ sessionId: e.sessionId }))
   on('fs.read', () => ({ value: '{"friday":{"enabled":true}}' }))
   on('clock.now', () => ({ value: 1 }))
-  on('clock.every', () => ({ value: undefined }))
+  on('clock.every', () => ({ deny: 'sem relógio no teste' }))
   on('session.id', () => ({ value: 'fb' }))
   const runs: Array<{ argv: readonly string[]; stdin?: string }> = []
   on('process.run', (_$, e) => { runs.push({ argv: e.argv, stdin: e.init?.stdin }); return { value: OK } })
@@ -82,11 +82,30 @@ test('sid válido do hook tem prioridade sobre session.id()', async ($, on) => {
   on('session.end', (_$, e) => ({ sessionId: e.sessionId }))
   on('fs.read', () => ({ value: '{"friday":{"enabled":true}}' }))
   on('clock.now', () => ({ value: 1 }))
-  on('clock.every', () => ({ value: undefined }))
+  on('clock.every', () => ({ deny: 'sem relógio no teste' }))
   on('session.id', () => ({ value: 'outro' }))
   const runs: Array<readonly string[]> = []
   on('process.run', (_$, e) => { runs.push(e.argv); return { value: OK } })
   await $.classic.Stop({ session_id: 'do-hook' } as never)
   await $.session.end({ reason: 'other', sessionId: 'x', resume: { id: 'x' } })
   expect(runs[0]?.at(-1)).toBe('/h/.claude/friday-state/do-hook.jsonl')
+})
+
+test('depois de um /clear as linhas vão para o ficheiro do id novo', async ($, on) => {
+  mock.env(on, { HOME: '/h' })
+  on('classic.PostToolUse', () => ({}))
+  on('session.end', (_$, e) => ({ sessionId: e.sessionId }))
+  on('fs.read', () => ({ value: '{"friday":{"enabled":true}}' }))
+  on('clock.now', () => ({ value: 3 }))
+  on('clock.every', () => ({ deny: 'sem relógio no teste' }))
+  let sid = 's-1'
+  on('session.id', () => ({ value: sid }))
+  const runs: Array<readonly string[]> = []
+  on('process.run', (_$, e) => { runs.push(e.argv); return { value: OK } })
+  await $.classic.PostToolUse({ tool_name: 'Bash', tool_input: {}, tool_response: '', tool_use_id: 't1', session_id: 's-1' })
+  await $.session.end({ reason: 'clear', sessionId: 's-1', resume: { id: 's-1' } })
+  sid = 's-2'
+  await $.tool.call({ tool: 'Read', file_path: '/p/x' } as never).catch(() => undefined)
+  await $.session.end({ reason: 'other', sessionId: 's-2', resume: { id: 's-2' } })
+  expect(runs.map(r => r.at(-1))).toEqual(['/h/.claude/friday-state/s-1.jsonl', '/h/.claude/friday-state/s-2.jsonl'])
 })

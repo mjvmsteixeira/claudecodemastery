@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { checkArgv, maskSecrets, parseSecretRef, shellQuote } from '../hooks/secret-exec.ts'
+import { checkArgv, checkEnvName, maskSecrets, parseSecretRef, protectedArg, protectedDir, shellQuote } from '../hooks/secret-exec.ts'
 
 const ALLOW = ['psql', 'curl', 'gh']
 
@@ -38,4 +38,64 @@ test('referências e quoting', () => {
   expect(parseSecretRef('secret/projects/x#db_password')).toEqual({ path: 'secret/projects/x', field: 'db_password' })
   expect(parseSecretRef('sem-campo')).toBe(null)
   expect(shellQuote(['psql', '-c', "select 'a'"])).toBe(`psql -c 'select '"'"'a'"'"''`)
+})
+
+const ALL = ['psql', 'mysql', 'curl', 'gh', 'git', 'docker', 'kubectl']
+
+test('opções e subcomandos que correm código são recusados; os usos comuns passam', () => {
+  for (const argv of [
+    ['git', '-c', 'core.pager=sh', 'log'],
+    ['git', '--config-env=core.pager=X', 'log'],
+    ['git', '--exec-path=/tmp/x', 'status'],
+    ['git', '-C', '/p', 'config', 'alias.x', '!sh'],
+    ['git', 'clone', '-u', 'sh -c x', 'repo'],
+    ['git', 'clone', '--template=/tmp/t', 'repo'],
+    ['git', 'fetch', '--upload-pack=sh', 'origin'],
+    ['git', 'clone', 'ext::sh -c x', 'd'],
+    ['git', 'grep', '-Ovim', 'x'],
+    ['curl', '-sK', 'cfg', 'https://x'],
+    ['curl', '--config=cfg', 'https://x'],
+    ['docker', 'exec', 'c', 'sh'],
+    ['docker', '--config', '/tmp/d', 'ps'],
+    ['kubectl', '--kubeconfig=/tmp/k', 'get', 'pods'],
+    ['kubectl', 'debug', 'node/x'],
+    ['gh', 'alias', 'set', 'x', '!sh'],
+    ['gh', 'extension', 'install', 'x/y'],
+    ['psql', '-c', '\\! printf %s "$PGPASSWORD" | base64'],
+    ['psql', '-c', 'select 1 \\g |sh'],
+    ['psql', '-f', 'x.sql'],
+    ['mysql', '-e', 'system sh'],
+    ['mysql', '--pager=sh'],
+  ]) expect(checkArgv(argv, ALL)).toContain('correr código')
+  for (const argv of [
+    ['git', 'switch', '-c', 'nova'],
+    ['git', '-C', '/p', 'push', '-u', 'origin', 'main'],
+    ['curl', '-sSL', '-H', 'Key: v', 'https://x'],
+    ['curl', '-HKey: v', 'https://x'],
+    ['docker', 'login', '-u', 'x', '--password-stdin'],
+    ['kubectl', 'get', 'pods', '-n', 'x'],
+    ['gh', 'api', 'repos/x/alias'],
+    ['psql', '-c', 'select 1'],
+    ['mysql', '-e', 'select 1'],
+  ]) expect(checkArgv(argv, ALL)).toBe(null)
+})
+
+test('nomes de variável que mudam o carregamento ou o comportamento são recusados', () => {
+  for (const n of ['PATH', 'IFS', 'BASH_ENV', 'ENV', 'LD_PRELOAD', 'DYLD_INSERT_LIBRARIES', 'GIT_SSH_COMMAND', 'NODE_OPTIONS', 'PRUMO_APPROVE', 'PAGER']) {
+    expect(checkEnvName(n)).toContain(n)
+  }
+  expect(checkEnvName('lower')).toContain('inválido')
+  expect(checkEnvName('PGPASSWORD')).toBe(null)
+  expect(checkEnvName('GH_TOKEN')).toBe(null)
+})
+
+test('caminhos protegidos em argumentos e em cwd', () => {
+  expect(protectedArg(['-o', '/u/.prumo/mode'], '/u/.prumo')).toBe('/u/.prumo/mode')
+  expect(protectedArg(['--output=/U/.Prumo/approvals/x'], '/u/.prumo')).toBe('--output=/U/.Prumo/approvals/x')
+  expect(protectedArg(['-o', '/opt/prumo/guard.json'], '/opt/prumo')).toBe('/opt/prumo/guard.json')
+  expect(protectedArg(['-o', 'proj/.claude/settings.json'], '/u/.prumo')).toBe('proj/.claude/settings.json')
+  expect(protectedArg(['-o', 'out.txt', 'https://x/.prumo-docs'], '/u/.prumo')).toBe(null)
+  expect(protectedDir('/u/.prumo/approvals', '/u/.prumo')).toBe(true)
+  expect(protectedDir('/p/.claude', '/u/.prumo')).toBe(true)
+  expect(protectedDir('/p/src', '/u/.prumo')).toBe(false)
 })

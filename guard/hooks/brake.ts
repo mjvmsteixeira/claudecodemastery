@@ -13,24 +13,35 @@ const repeatRef = atom({ plugin: 'prumo-guard', key: 'repeat' } as const, emptyR
 const loopRef = atom({ plugin: 'prumo-guard', key: 'loop' } as const, LOOP_DEFAULT)
 const usageRef = atom({ plugin: 'prumo-guard', key: 'usage' } as const, USAGE_DEFAULT)
 
-let currentTurn: string | null = null
-let loopWasActive = false
+const LOOP_PHASE_TOOL = 'mcp__prumo-guard__loop_phase'
 
+let currentTurn: string | null = null
+let abortedTurn: string | null = null
+let loopWasActive = false
+// Espelho da pausa para o `.catch` do Stop, quando ler o estado também falha.
+let pausedMirror = false
+
+// A pausa só para o re-prompt do ralph (veto no Stop); cortar o turno fica para o excesso de
+// orçamento acima de 120% (cutTurn), como na D6.
 async function trip($: EngineInterface, reason: string): Promise<void> {
   const b = await read($, brakeRef)
   if (b.paused) return
   await update($, brakeRef, s => ({ ...(s ?? b), paused: true, reason }))
+  pausedMirror = true
   $.ui.toast(`prumo-guard: loop em pausa — ${reason}. /prumo-guard-resume para continuar.`)
   void $.ui.notify(`Loop em pausa: ${reason}`, { title: 'prumo-guard' })
-  if (currentTurn) {
-    try {
-      await $.turn.abort({ turnId: currentTurn })
-    } catch {
-      // O motor pode recusar o abort de dentro do hook do mesmo turno; a pausa já está registada
-      // e o veto ao Stop impede o re-prompt do ralph.
-    }
-  }
   await refreshStatus($)
+}
+
+async function cutTurn($: EngineInterface): Promise<void> {
+  if (!currentTurn || abortedTurn === currentTurn) return
+  abortedTurn = currentTurn
+  try {
+    await $.turn.abort({ turnId: currentTurn })
+  } catch {
+    // O motor pode recusar o abort de dentro do hook do mesmo turno; a pausa já está registada
+    // e o veto ao Stop impede o re-prompt do ralph.
+  }
 }
 
 export async function startBrake($: EngineInterface): Promise<void> {
@@ -73,14 +84,18 @@ export async function brakeMeasure($: EngineInterface, e: HookInput<'session.mea
   const cfg = await loadConfig($)
   const b = await read($, brakeRef)
   const spent = usd - (b.loopStartUsd ?? 0)
-  if (cfg.brake.usdBudget > 0 && spent >= cfg.brake.usdBudget) {
-    await trip($, `orçamento atingido (${spent.toFixed(2)} de ${cfg.brake.usdBudget} USD)`)
+  const budget = cfg.brake.usdBudget
+  if (budget > 0 && spent >= budget) {
+    await trip($, `orçamento atingido (${spent.toFixed(2)} de ${budget} USD)`)
+    if (spent >= budget * 1.2) await cutTurn($)
   }
   return r
 }
 
 export async function brakeToolCall($: EngineInterface, e: HookInput<'tool.call'>, next: HookNext<'tool.call'>): HookResult<'tool.call'> {
   const ran = await next(e)
+  // Declarar a fase não é trabalho do loop: repetir a mesma fase não conta como repetição.
+  if (e.tool === LOOP_PHASE_TOOL) return ran
   const cfg = await loadConfig($)
   const limit = cfg.brake.repeatLimit
   let s = await read($, repeatRef)
@@ -107,11 +122,27 @@ export async function brakeStop($: EngineInterface, e: HookInput<'classic.Stop'>
   return rest
 }
 
+// `.catch` do despachante do Stop: o veto é uma decisão e não pode cair com uma falha de outro
+// tratador. `next` aqui repete o resultado já obtido (ou corre os hooks de baixo uma vez).
+export async function brakeStopCaught($: EngineInterface, e: HookInput<'classic.Stop'>, next: HookNext<'classic.Stop'>): HookResult<'classic.Stop'> {
+  const r = await next(e)
+  let paused = pausedMirror
+  try {
+    paused = (await read($, brakeRef)).paused
+  } catch {
+    // Sem estado legível vale o espelho da pausa.
+  }
+  if (!paused || r.block === undefined) return r
+  const { block: _vetoed, ...rest } = r
+  return rest
+}
+
 export function registerBrake(on: On): void {
   on('command.run', { command: 'prumo-guard-resume' }, async ($, e) => {
     if (e.origin?.kind !== 'composer') return { text: HUMAN_ONLY }
     const usd = (await read($, usageRef)).usd
     await update($, brakeRef, () => ({ paused: false, reason: null, loopStartUsd: usd ?? 0, tokens: 0 }))
+    pausedMirror = false
     await update($, repeatRef, () => emptyRepeat())
     await refreshStatus($)
     return { text: 'Travão rearmado. O orçamento conta a partir de agora.' }

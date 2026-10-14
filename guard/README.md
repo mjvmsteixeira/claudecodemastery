@@ -24,7 +24,9 @@ claude plugin install prumo-guard@prumo
 
 Quando o `approval-gate` do prumo-secops recusa um comando Bash, o mod regista o pedido, abre o painel `prumo · aprovação` e notifica. A pessoa escolhe `Só esta` (5 minutos), `10 minutos` ou `Negar`; a escolha escreve `~/.prumo/approvals/<id>` (`level=`, `expires=`, `scope=`) e o modelo recebe uma mensagem a dizer que pode repetir exatamente o comando (ou que foi negado). Os pedidos pendentes (máximo 20) aparecem na linha de estado.
 
-Dependência do contrato do approval-gate: o mod lê da mensagem de bloqueio a linha `[prumo-secops/approval-gate] Operação N<k> detectada:` e a linha `approval-id: <64 hex>`, e escreve o ficheiro que o gate lê. Isto exige o **prumo-secops 0.11.0 ou superior**. Sem ele o painel não abre e a aprovação continua a ser a do `PRUMO_APPROVE`.
+Dependência do contrato do approval-gate: o mod lê da mensagem de bloqueio o nível (`[prumo-secops/approval-gate] Operação N<k> detectada:`) e calcula ele próprio o id do comando que mostra à pessoa (sha256 do comando, com quebras de linha e tabs trocados por espaço, como o gate). O painel só abre se a mensagem trouxer `approval-id: <esse id>`, e o ficheiro escreve-se sempre com esse id: um id que só apareça no texto (na pré-visualização do comando ou no output de outro comando) nunca é o que fica aprovado. Isto exige o **prumo-secops 0.11.0 ou superior**. Sem ele o painel não abre e a aprovação continua a ser a do `PRUMO_APPROVE`.
+
+A mensagem ao modelo cita o comando numa só linha e sem crases, para o texto do agente não se ler como sendo da pessoa. O gate só aceita um ficheiro com `expires` até 10 minutos, o máximo que o mod escreve.
 
 ### Redação de segredos e PII
 
@@ -53,19 +55,27 @@ Põe o loop em pausa (estado, aviso, notificação) e anula o re-prompt do ralph
 - o mesmo teste falha com a mesma assinatura `brake.repeatLimit` vezes seguidas;
 - edições ao mesmo ficheiro se desfazem umas às outras 3 vezes.
 
+A pausa não interrompe o turno em curso: só impede o ralph de lançar o seguinte. Acima de 120% de `brake.usdBudget` o mod corta também o turno em curso (`$.turn.abort`), uma vez por turno, mesmo que o loop já esteja em pausa. Declarar a fase com `loop_phase` não conta como repetição. Se a cadeia do `Stop` falhar, o veto em pausa aplica-se na mesma (`.catch`).
+
 `/prumo-guard-resume` rearma o travão e recomeça a contagem; `/prumo-guard-stop` apaga o `.claude/ralph-loop.local.md` e termina o loop. Ambos só aceitam a tecla Enter da pessoa.
 
 ### Trilho CEF
 
-Cada chamada de ferramenta gera uma linha CEF (veredicto `allow`, `deny`, `blocked` ou `withheld`, hook que decidiu, hash do input, iteração do loop) escrita em lotes a cada 5 s em `~/.prumo/log/cef.log` e, se `PRUMO_WAZUH_HOST` (ou `WAZUH_HOST`) estiver definido, enviada por UDP (porta `WAZUH_PORT`, 514 por omissão). Desliga-se com `cef.enabled: false`. Enquanto o trilho está ativo o mod escreve `~/.prumo/run/cef-mod.<sessão>`, e o `post-tool-cef-wazuh.sh` do prumo-secops sai cedo para não duplicar o registo.
+Cada chamada de ferramenta gera uma linha CEF (veredicto `allow`, `deny`, `blocked` ou `withheld`, hook que decidiu, hash do input, iteração do loop) escrita em lotes a cada 5 s em `~/.prumo/log/cef.log` e, se `PRUMO_WAZUH_HOST` (ou `WAZUH_HOST`) estiver definido, enviada por UDP (porta `WAZUH_PORT`, 514 por omissão). Desliga-se com `cef.enabled: false`. Enquanto o trilho está ativo o mod escreve `~/.prumo/run/cef-mod.<sessão>`, e o `post-tool-cef-wazuh.sh` do prumo-secops sai cedo para não duplicar o registo. Depois de um `/clear` ou de um resume o processo continua com outro id: o mod passa o marker e as linhas para o id novo na chamada seguinte. O despachante é o primeiro hook registado, por isso as recusas do próprio prumo-guard (guarda de marcadores, `run_with_secret`) também entram no trilho, como `deny`. No fim da sessão o mod espera pelo lote em escrita antes de tirar o marker.
 
 ### run_with_secret
 
-Ferramenta `mcp__prumo-guard__run_with_secret`: corre um comando com segredos do Vault injetados como variáveis de ambiente, sem o valor entrar na conversa. Entrada: `argv` (comando já partido, sem shell), `secrets` (`NOME_DA_VARIAVEL` → `caminho/kv#campo`) e `cwd` opcional. O output volta com os valores trocados por `[SEGREDO:NOME]` (inclui a forma sem espaço final e a codificada em URL).
+Ferramenta `mcp__prumo-guard__run_with_secret`: corre um comando com segredos do Vault injetados como variáveis de ambiente; o mod não põe o valor na conversa. Entrada: `argv` (comando já partido, sem shell), `secrets` (`NOME_DA_VARIAVEL` → `caminho/kv#campo`) e `cwd` opcional. O output volta com os valores trocados por `[SEGREDO:NOME]` na forma crua, sem espaço final e codificada em URL; outras transformações (base64, hex, ...) não são mascaradas.
 
 - Recusa shells e interpretadores (`bash`, `python`, `node`, `env`, `sudo`, ...), caminhos em `argv[0]` e comandos fora da allowlist.
-- Passa o comando pelo `approval-gate` do prumo-secops; se o gate pedir aprovação, abre o painel como na aprovação por comando.
+- Recusa as formas conhecidas com que os clientes da allowlist correm código ou leem configuração de fora: `git -c`, `--config-env`, `--exec-path`, `--upload-pack`, `ext::` e subcomandos como `config`, `rebase`, `submodule`; `curl -K`/`--config`; `docker run|exec|build|compose|cp` e `--config`; `kubectl exec|run|debug|attach|cp` e `--kubeconfig`; `gh alias|extension`; `psql -f` e `\!`, `\o |`, `\i`; `mysql system`/`source` e `--pager`.
+- Recusa nomes de variável que mudam o que o processo carrega ou corre (`PATH`, `IFS`, `BASH_ENV`, `ENV`, `HOME`, `LD_*`, `DYLD_*`, `GIT_*`, `NODE_*`, `PRUMO_*`, ...).
+- Recusa argumentos e `cwd` em `~/.prumo` ou nos `settings.json` do Claude Code.
+- Corre os mesmos PreToolUse que um Bash atravessaria, com um payload sintético: `self-guard`, `secret-read` e `workspace` do prumo-base, `agent-readonly` do prumo-secops (com o tipo do subagente; um subagente de tipo desconhecido é recusado) e, no fim, o `approval-gate`. Se o gate pedir aprovação, abre o painel como na aprovação por comando.
+- Todas as recusas voltam ao modelo como erro (e ao trilho CEF como `deny`), e o comando não corre.
 - Lê cada campo com o `vault-read-field.sh` do prumo-base (0.14.0 ou superior).
+
+Limite: a allowlist confia nos clientes. Um cliente pode correr código por configuração que já exista no disco (aliases e hooks de um repositório git, `~/.curlrc`, credential helpers do docker), e o `mongosh` corre JavaScript. O mod fecha as formas que se veem no `argv`; a garantia para o resto é o approval-gate e a pessoa.
 
 ### Agentes escondidos
 
@@ -83,7 +93,7 @@ Writer do `friday-state` no processo, desligado por omissão (ver secção abaix
 
 | Comando | O que faz | Só pela pessoa |
 |---|---|---|
-| `/prumo-guard` | Estado: modo, redação (e valores redigidos), orçamento, repetição, caminho do `guard.json` | não |
+| `/prumo-guard` | Estado: modo, redação (e valores redigidos), aviso de `redact.json` inválido, orçamento, repetição, caminho do `guard.json` | não |
 | `/prumo-guard-mode prod\|dev\|lab` | Muda o modo operacional (`~/.prumo/mode`; `lab` escreve também o marker `lab-mode`) | sim |
 | `/prumo-guard-redact on\|off` | Liga ou desliga a redação nesta sessão | sim |
 | `/prumo-guard-approvals` | Abre o painel de aprovações pendentes | não |
@@ -114,7 +124,7 @@ Caminho: `$PRUMO_HOME/guard.json` (`~/.prumo/guard.json` por omissão). Cada sec
 | `mempalace.staleDays` | `90` | Idade a partir da qual uma memória é marcada como antiga |
 | `cef.enabled` | `true` | Trilho CEF |
 
-O `self-guard` do prumo-base impede o agente de escrever este ficheiro; só a pessoa (ou `/prumo-guard-agents`, pela pessoa) o altera.
+O `self-guard` do prumo-base bloqueia as escritas do agente neste ficheiro (no Bash, best effort: indirecções em vários passos escapam-lhe); quem o altera é a pessoa, ou `/prumo-guard-agents` pela pessoa.
 
 ### `~/.prumo/redact.json`
 
@@ -124,7 +134,7 @@ Padrões extra de redação:
 { "patterns": [ { "name": "PROCESSO-INTERNO", "regex": "PI-\\d{6}", "flags": "g" } ] }
 ```
 
-`name` só aceita `A-Z`, `0-9` e `-` e aparece como `[prumo:NOME]`; `flags` é opcional e o `g` é acrescentado se faltar. Um padrão inválido é ignorado e a pessoa recebe um aviso.
+`name` só aceita `A-Z`, `0-9` e `-` e aparece como `[prumo:NOME]`; `flags` é opcional e o `g` é acrescentado se faltar. Um padrão inválido é ignorado e a pessoa recebe um aviso. Um ficheiro ilegível, com JSON inválido ou sem uma lista em `patterns` desliga todos os padrões da organização: a pessoa recebe o aviso `redact.json inválido — padrões da organização desligados`, que também aparece no `/prumo-guard`. As classes por omissão continuam ativas.
 
 ### `~/.prumo/secret-exec.json`
 
@@ -132,21 +142,23 @@ Configura o `run_with_secret`; todos os campos são opcionais:
 
 | Campo | Default |
 |---|---|
-| `allow` | `psql`, `mysql`, `curl`, `gh`, `git`, `docker`, `kubectl`, `redis-cli`, `mongosh` |
+| `allow` | `psql`, `mysql`, `curl`, `gh`, `git`, `docker`, `kubectl`, `redis-cli`, `mongosh` (ficheiro ausente) |
 | `readerPath` | `lib/vault-read-field.sh` da versão mais recente do prumo-base na cache |
 | `gatePath` | `hooks/pre-tool-approval-gate.sh` da versão mais recente do prumo-secops na cache |
 
+Ficheiro ilegível, JSON inválido ou `allow` que não seja uma lista de nomes: o `run_with_secret` recusa tudo até a pessoa o corrigir (com um aviso), em vez de cair na allowlist por omissão.
+
 ## O que o `/prumo-mod-audit` mostra
 
-`bash secops/lib/mod-audit.sh guard` conta hooks "gating" (que podem negar ou alterar) sem `.catch`: sem `.catch`, se o hook falhar o motor segue o caminho por omissão (deixa passar). Medido em 2026-10-14: 19 sem `.catch` e 3 com (`session.append` da redação, `tool.call` de `Write|Edit|MultiEdit` e `tool.call` do `run_with_secret`).
+`bash secops/lib/mod-audit.sh guard` conta hooks "gating" (que podem negar ou alterar) sem `.catch`: sem `.catch`, se o hook falhar o motor segue o caminho por omissão (deixa passar). Medido em 2026-10-14: 18 sem `.catch` e 4 com (`session.append` da redação, `tool.call` de `Write|Edit|MultiEdit`, `tool.call` do `run_with_secret` e `classic.Stop`, onde o travão anula o re-prompt do ralph em pausa).
 
-Dos 19, 17 só observam ou acrescentam informação e a falha deles não abre nada: os 10 `classic.*` do friday-state, `classic.Stop`, o despachante `tool.call`, `agent.spawn`, o `tool.call` do `loop_phase`, o `tool.call` do Bash do painel de testes, `tool.call` do Bash da aprovação e o `session.append` da idade das memórias. Os dois restantes **decidem e falham aberto**: o `prompt.submit` da redação (se falhar, o prompt segue sem redação) e o `agent.offer` (se falhar, o agente fica visível). Estão registados no BACKLOG.
+Dos 18, 16 só observam ou acrescentam informação e a falha deles não abre nada: os 10 `classic.*` do friday-state, o despachante `tool.call`, `agent.spawn`, o `tool.call` do `loop_phase`, o `tool.call` do Bash do painel de testes, `tool.call` do Bash da aprovação e o `session.append` da idade das memórias. Os dois restantes **decidem e falham aberto**: o `prompt.submit` da redação (se falhar, o prompt segue sem redação) e o `agent.offer` (se falhar, o agente fica visível). Estão registados no BACKLOG.
 
 ## Estrutura
 
 - `hooks/hooks.json` → `{ "modules": ["./register.tsx"] }`
 - `hooks/register.tsx` → ponto de entrada; chama o `register<Nome>(on)` de cada funcionalidade e tem o único `session.start`, que espera pelas funções `start<Nome>($)`
-- `hooks/observers.ts` → despachante: um só hook sem matcher por evento partilhado (`tool.call`, `turn.start`, `turn.complete`, `session.measure`, `session.end`, `agent.spawn`, `classic.Stop`), com a ordem friday, painel, travão, auditoria
+- `hooks/observers.ts` → despachante: um só hook sem matcher por evento partilhado (`tool.call`, `turn.start`, `turn.complete`, `session.measure`, `session.end`, `agent.spawn`, `classic.Stop`), com a ordem friday, painel, travão, auditoria; registado antes de todos os outros, para ser o hook mais exterior
 - `hooks/config.ts` → `loadConfig($)` lê `$PRUMO_HOME/guard.json` e funde com `DEFAULTS`
 - `types/index.d.ts` → contrato de estado `PluginState['prumo-guard']`
 

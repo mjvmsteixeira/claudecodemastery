@@ -113,3 +113,13 @@ test('o arranque regista os comandos e a linha de estado inclui o modo e a reda�
   expect(seen.commands).toContain('prumo-guard-approvals')
   expect(status).toBe('prumo prod · redação on')
 })
+
+test('/prumo-guard mostra o aviso de um redact.json inválido', async ($, on) => {
+  mock.env(on, { HOME: '/h' })
+  on('fs.read', (_$, e) => (e.path === '/h/.prumo/redact.json' ? { value: '{"patterns":[],' } : { deny: 'ENOENT' }))
+  on('fs.exists', (_$, e) => ({ value: e.path === '/h/.prumo/redact.json' }))
+  on('fs.stat', () => ({ deny: 'ENOENT' }))
+  on('ui.toast', () => ({ value: undefined }))
+  const r = await $.command.run(cmd('prumo-guard'))
+  expect(r.text).toContain('aviso: redact.json inválido — padrões da organização desligados')
+})

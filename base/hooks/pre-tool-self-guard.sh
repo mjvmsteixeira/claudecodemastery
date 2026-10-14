@@ -14,13 +14,18 @@
 #
 # Write/Edit/MultiEdit sobre settings: simula a escrita e compara a projecção
 # protegida antes e depois. Uma edição de "N1" para "N3" não menciona PRUMO_,
-# e só assim se apanha. No Bash não há simulação: um verbo de escrita numa
-# cláusula que nomeie um ficheiro protegido bloqueia (best effort; `cd ~/.prumo
-# && rm mode` escapa e fica como risco residual documentado).
+# e só assim se apanha. No Bash não há simulação (best effort):
+#   · verbo de escrita (incluindo curl, wget, scp, rsync) numa cláusula que
+#     nomeie um ficheiro protegido ou o próprio ~/.prumo, ou redirecção para lá;
+#   · `cd`/`pushd` para ~/.prumo ou approvals/, ou uma variável com esse
+#     caminho ou com o de um ficheiro protegido, numa linha que escreva (verbo
+#     ou `>`); o mesmo para .claude quando a linha nomeia um settings.json.
 #
-# Riscos residuais (best effort, não se tenta fechar):
-#   · indirecção por variável: `P=$HOME/.prumo; echo lab > $P/mode`
-#   · `cd ~/.prumo && rm mode` (caminho relativo ao directório corrente)
+# Riscos residuais (best effort, não se tenta fechar): indirecções que não
+# nomeiam o caminho na própria linha — `cd ~ && cd .prumo`, um symlink criado
+# antes, `for f in ~/.prumo/*`, um script que o agente escreveu e depois corre.
+# Contra estas a barreira é o prompt de permissão do Bash; o approval-gate
+# limita uma aprovação forjada a 10 minutos.
 set -uo pipefail
 
 HELPER="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/lib/prumo-common.sh"
@@ -171,7 +176,20 @@ PROT_RE="(${DIRS})/(${NAMES})"
 SETTINGS_RE='\.claude/settings(\.local)?\.json'
 REDIR_PROT_RE=">&?[[:space:]]*(${DIRS})/(${NAMES})"
 REDIR_SETTINGS_RE=">&?[[:space:]]*[^[:space:]]*${SETTINGS_RE}"
-VERB_RE='(^|[[:space:]/\\(`])(rm|mv|cp|ln|touch|unlink|truncate|install|tee|chmod|chown|dd|python[0-9.]*|perl|ruby|node|osascript)([[:space:]]|$)|sed[[:space:]]+(-[a-zA-Z]*i|--in-place)'
+# Os de download contam como escrita: `curl -o`, `wget -O`, `--output-dir` e `-P` gravam o
+# ficheiro onde a linha disser.
+VERB_RE='(^|[[:space:]/\\(`])(rm|mv|cp|ln|touch|unlink|truncate|install|tee|chmod|chown|dd|curl|wget|fetch|scp|sftp|ftp|rsync|python[0-9.]*|perl|ruby|node|osascript)([[:space:]]|$)|sed[[:space:]]+(-[a-zA-Z]*i|--in-place)'
+# O próprio diretório como alvo (`cp x ~/.prumo/`, `rm -rf ~/.prumo`, `curl --output-dir ~/.prumo`).
+PROT_DIR_RE="(${DIRS})/?([[:space:];&|)]|\$)"
+# Mudar para o diretório (ou para approvals/), ou guardar numa variável esse diretório ou um
+# ficheiro protegido, e escrever depois por caminho relativo ou pela variável. Um subdiretório
+# não protegido (`~/.prumo/backups`, `~/.prumo/log`) não conta.
+PROT_TARGET="(${DIRS})(/?([[:space:];&|)]|\$)|/(${NAMES}))"
+CD_PROT_RE="(^|[[:space:];&|(])(cd|pushd)[[:space:]]+${PROT_TARGET}"
+VAR_PROT_RE="(^|[[:space:];&|(])[A-Za-z_][A-Za-z0-9_]*=${PROT_TARGET}"
+CD_CLAUDE_RE='(^|[[:space:];&|(])(cd|pushd)[[:space:]]+[^[:space:];&|]*\.claude/?([[:space:];&|)]|$)'
+VAR_CLAUDE_RE='(^|[[:space:];&|(])[A-Za-z_][A-Za-z0-9_]*=[^[:space:];&|]*\.claude(/?([[:space:];&|)]|$)|/settings(\.local)?\.json)'
+SETTINGS_NAME_RE='(^|[^A-Za-z0-9_.-])settings(\.local)?\.json'
 INTERP_RE='(^|[[:space:]/\\(`])(python[0-9.]*|perl|ruby|node|osascript)([[:space:]]|$)|(^|[[:space:]/])(sh|bash|zsh)[[:space:]]+-[a-z]*c'
 
 # Interpretador + ficheiro protegido em qualquer ponto da linha: um ';' dentro
@@ -185,6 +203,16 @@ if printf '%s' "$NORM" | grep -qiE "$INTERP_RE"; then
   fi
 fi
 
+# Escrita na linha: um verbo de escrita ou uma redirecção que sobrou da normalização.
+line_writes() { printf '%s' "$NORM" | grep -qE "$VERB_RE" || printf '%s' "$NORM" | grep -q '>'; }
+
+if printf '%s' "$NORM" | grep -qiE "$CD_PROT_RE|$VAR_PROT_RE" && line_writes; then
+  deny "linha que entra em ~/.prumo (cd ou variável) e escreve: ${CMD:0:120}"
+fi
+if printf '%s' "$NORM" | grep -qiE "$CD_CLAUDE_RE|$VAR_CLAUDE_RE" && printf '%s' "$NORM" | grep -qiE "$SETTINGS_NAME_RE" && line_writes; then
+  deny "linha que entra num .claude (cd ou variável) e escreve num settings: ${CMD:0:120}"
+fi
+
 while IFS= read -r clause; do
   [ -n "$clause" ] || continue
   # Redirecção para um alvo protegido, ou verbo de escrita + alvo na cláusula.
@@ -196,7 +224,7 @@ while IFS= read -r clause; do
     deny "comando que escreve num settings do Claude Code: ${clause:0:120}"
   fi
   printf '%s' "$clause" | grep -qE "$VERB_RE" || continue
-  if printf '%s' "$clause" | grep -qiE "$PROT_RE"; then
+  if printf '%s' "$clause" | grep -qiE "$PROT_RE|$PROT_DIR_RE"; then
     deny "comando que escreve num ficheiro protegido de ~/.prumo: ${clause:0:120}"
   fi
   if printf '%s' "$clause" | grep -qiE "$SETTINGS_RE"; then

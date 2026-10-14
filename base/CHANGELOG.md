@@ -14,6 +14,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento
 - **Fail-closed intencional:** `self-guard` e `secret-read` entram em `FAILCLOSED_EXEMPT` do `validate.sh`, a par do `approval-gate`.
 - **Harness de eval:** os casos do corpus aceitam `payload` (qualquer tool), `seed` byte-exact e `@HOME@`, com sandbox limpo por caso; o resumo "Por hook" passa a listar os quatro hooks novos.
 - **`hooks.json`:** `${CLAUDE_PLUGIN_ROOT}` entre aspas em todos os comandos, para um caminho com espaços não partir o comando.
+- **`self-guard` (revisão final do ramo):** `curl`, `wget`, `scp`, `rsync` e afins contam como escrita (`curl -o ~/.prumo/mode` passava); o próprio `~/.prumo` como alvo (`cp x ~/.prumo/`, `--output-dir ~/.prumo`) bloqueia; `cd`/`pushd` ou uma variável para `~/.prumo` numa linha que escreve bloqueia, e o mesmo para `.claude` quando a linha nomeia um `settings.json`. O corpus ganha casos para approvals/, `guard.json`, `redact.json`, `secret-exec.json`, `org.json`, `tee`, `defaultMode` e `disableAllHooks`, e o Passo 1 do `/prumo-mode`. Continua best effort no Bash: indirecções em vários passos escapam (documentado).
+- **`/prumo-mode`:** o Passo 2 deixou de ser um bloco Bash (o `self-guard` bloqueava-o, porque nomeava `~/.prumo/mode` ao lado de `>`); o modelo mostra os dois caminhos em texto. As descrições do comando e da skill deixam de dizer que escrevem o modo.
 
 ## v0.12.0 — 2026-08-03
 

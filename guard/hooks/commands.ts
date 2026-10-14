@@ -3,7 +3,7 @@ import type { EngineInterface, On } from 'claude-code'
 import { APPROVAL_PANE } from './approval.tsx'
 import { loadConfig, prumoHome } from './config.ts'
 import { readMode, writeMode, type PrumoMode } from './mode.ts'
-import { setRedactOn } from './redact.ts'
+import { redactConfigProblem, setRedactOn } from './redact.ts'
 import { refreshStatus } from './status.ts'
 
 const redactOn = atom({ plugin: 'prumo-guard', key: 'redactOn' } as const, true)
@@ -37,9 +37,11 @@ export function registerCommands(on: On): void {
   on('command.run', { command: 'prumo-guard' }, async $ => {
     const mode = await readMode($)
     const cfg = await loadConfig($)
+    const problem = await redactConfigProblem($)
     const lines = [
       `modo: ${mode}`,
       `redação: ${(await read($, redactOn)) ? 'on' : 'off'} · ${await read($, redactHits)} valor(es) redigido(s) nesta sessão`,
+      ...(problem ? [`aviso: ${problem}`] : []),
       `orçamento: ${cfg.brake.usdBudget} USD · repetição: ${cfg.brake.repeatLimit} · ips internos: ${cfg.redact.internalIps ? 'on' : 'off'}`,
       `configuração: ${await prumoHome($)}/guard.json`,
     ]

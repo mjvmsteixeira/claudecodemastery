@@ -7,34 +7,61 @@ let buffer: string[] = []
 let enabled = false
 let sid: string | null = null
 let ready = false
+let timer: { cancel: () => void } | null = null
+let writing: Promise<void> | null = null
 
-async function flush($: EngineInterface): Promise<void> {
-  if (!enabled || !sid || buffer.length === 0) return
-  const lines = buffer
-  buffer = []
+async function write($: EngineInterface, id: string, lines: string[]): Promise<void> {
   const dir = (await $.env.get('FRIDAY_STATE_DIR')) ?? `${await $.env.get('HOME')}/.claude/friday-state`
-  await $.process.run(['sh', '-c', 'umask 077; mkdir -p "$1" && cat >> "$2"', '_', dir, `${dir}/${sid}.jsonl`], {
+  await $.process.run(['sh', '-c', 'umask 077; mkdir -p "$1" && cat >> "$2"', '_', dir, `${dir}/${id}.jsonl`], {
     stdin: lines.join('\n') + '\n',
   })
 }
 
+// Um flush de cada vez: o do session.end espera pelo periódico em voo antes de escrever o resto.
+async function flush($: EngineInterface): Promise<void> {
+  while (writing) await writing.catch(() => undefined)
+  if (!enabled || !sid || buffer.length === 0) return
+  const lines = buffer
+  buffer = []
+  writing = write($, sid, lines)
+  try {
+    await writing
+  } finally {
+    writing = null
+  }
+}
+
 // `on('session.start')` sem matcher só pode existir uma vez no plugin (e já é do register.tsx):
-// a configuração lê-se de forma preguiçosa no primeiro evento que chega.
+// a configuração lê-se de forma preguiçosa no primeiro evento que chega. O sid também: depois de
+// um /clear ou de um resume o processo continua com outro id e não há session.start.
 async function init($: EngineInterface, hookSid: unknown): Promise<void> {
-  if (ready) return
-  ready = true
-  enabled = (await loadConfig($)).friday.enabled
-  if (!enabled) return
-  sid = validSessionId(hookSid) ?? validSessionId(await $.session.id())
-  $.clock.every(500, () => void flush($))
+  if (!ready) {
+    ready = true
+    enabled = (await loadConfig($)).friday.enabled
+    if (enabled) {
+      timer?.cancel()
+      timer = $.clock.every(500, () => void flush($))
+    }
+  }
+  if (enabled && !sid) sid = validSessionId(hookSid) ?? validSessionId(await $.session.id())
+}
+
+// O friday-state é opcional e não pode derrubar os hooks que encadeia (o Stop decide o veto do
+// travão): uma falha aqui perde a linha e segue.
+async function note($: EngineInterface, hookSid: unknown, line: () => Promise<string>): Promise<void> {
+  try {
+    await init($, hookSid)
+    if (enabled) buffer.push(await line())
+  } catch {
+    // linha perdida
+  }
 }
 
 async function record<E extends object, R>($: EngineInterface, name: string, e: E, next: (e: E) => R): Promise<Awaited<R>> {
   const x = e as Record<string, unknown>
-  await init($, x.session_id)
-  if (enabled) {
-    buffer.push(fridayLine({ t: await $.clock.now(), e: x.hook_event_name ?? name, p: x.prompt_id, tool: x.tool_name, ag: x.agent_id, at: x.agent_type, nt: x.notification_type }))
-  }
+  await note($, x.session_id, async () =>
+    fridayLine({ t: await $.clock.now(), e: x.hook_event_name ?? name, p: x.prompt_id, tool: x.tool_name, ag: x.agent_id, at: x.agent_type, nt: x.notification_type }),
+  )
   return await next(e)
 }
 
@@ -59,12 +86,16 @@ export function fridayStop($: EngineInterface, e: HookInput<'classic.Stop'>, nex
 }
 
 export async function fridayToolCall($: EngineInterface, e: HookInput<'tool.call'>, next: HookNext<'tool.call'>): HookResult<'tool.call'> {
-  await init($, undefined)
-  if (enabled) buffer.push(fridayLine({ t: await $.clock.now(), e: 'PreToolUse', tool: e.tool, ag: e.agentId }))
+  await note($, undefined, async () => fridayLine({ t: await $.clock.now(), e: 'PreToolUse', tool: e.tool, ag: e.agentId }))
   return next(e)
 }
 
 export async function fridaySessionEnd($: EngineInterface, e: HookInput<'session.end'>, next: HookNext<'session.end'>): HookResult<'session.end'> {
-  await flush($)
+  try {
+    await flush($)
+  } catch {
+    // o fim da sessão segue sem as linhas
+  }
+  if (e.reason === 'clear' || e.reason === 'resume') sid = null
   return next(e)
 }

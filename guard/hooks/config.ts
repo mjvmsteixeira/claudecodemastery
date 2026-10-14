@@ -26,6 +26,25 @@ export async function prumoHome($: EngineInterface): Promise<string> {
   return `${(await $.env.get('HOME')) ?? ''}/.prumo`
 }
 
+export type JsonFile = { state: 'missing' } | { state: 'invalid' } | { state: 'ok'; value: unknown }
+
+// Ficheiro de configuração JSON: ausente, ilegível ou inválido são casos distintos, para que um
+// erro num ficheiro de segurança não passe por ausência (e caia nos defaults) sem aviso.
+export async function readJsonFile($: EngineInterface, path: string): Promise<JsonFile> {
+  let text: string
+  try {
+    text = await $.fs.read(path)
+  } catch {
+    // $.fs.exists só rejeita para locais de rede, que aqui contam como ausentes.
+    return (await $.fs.exists(path).catch(() => false)) ? { state: 'invalid' } : { state: 'missing' }
+  }
+  try {
+    return { state: 'ok', value: JSON.parse(text) }
+  } catch {
+    return { state: 'invalid' }
+  }
+}
+
 function section<K extends keyof GuardConfig>(raw: unknown, key: K): GuardConfig[K] {
   const value = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>)[key] : undefined
   if (typeof value !== 'object' || value === null) return DEFAULTS[key]

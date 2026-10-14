@@ -26,7 +26,7 @@ Aberto a 2026-08-02.
 
 ## B11 · Hooks do prumo-guard que decidem e falham abertos
 
-**Estado:** medido com `bash secops/lib/mod-audit.sh guard` (19 hooks sem `.catch`). Dois decidem: `prompt.submit` da redação (uma falha deixa o prompt seguir sem redação) e `agent.offer` (uma falha deixa o agente visível). Os restantes 17 só observam. **Porquê não está feito:** adicionar `.catch` muda o comportamento em falha (reter o prompt) e é decisão de produto.
+**Estado:** medido com `bash secops/lib/mod-audit.sh guard` (18 hooks sem `.catch`, 4 com). Dois dos 18 decidem: `prompt.submit` da redação (uma falha deixa o prompt seguir sem redação) e `agent.offer` (uma falha deixa o agente visível). Os restantes 16 só observam. O `classic.Stop` decide (o travão anula o re-prompt do ralph em pausa) e já tem `.catch`. **Porquê não está feito:** adicionar `.catch` muda o comportamento em falha (reter o prompt) e é decisão de produto.
 
 ---
 

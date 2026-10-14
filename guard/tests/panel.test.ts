@@ -115,7 +115,7 @@ test('o arranque regista a tool loop_phase', async ($, on) => {
   on('session.id', () => ({ value: 's' }))
   on('process.run', () => ({ value: { exitCode: 0, stdout: 'h', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
   on('fs.write', () => ({ value: undefined }))
-  on('clock.every', () => ({ value: undefined }))
+  on('clock.every', () => ({ deny: 'sem relógio no teste' }))
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   await $.session.start({ cwd: '/p', surface: null, isInteractive: false })
   expect(tools).toContain('loop_phase')

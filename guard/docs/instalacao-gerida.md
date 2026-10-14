@@ -74,7 +74,7 @@ Por confirmar: valor mínimo do CLI para o tier `prepend` com `prependPlugins` e
 
 ## 3. Configuração da instalação
 
-Ficheiros em `~/.prumo/` do utilizador final, protegidos contra escrita pelo agente (`pre-tool-self-guard.sh`). Quem os escreve é a pessoa ou a gestão de dispositivos, não o agente.
+Ficheiros em `~/.prumo/` do utilizador final, protegidos contra escrita pelo agente pelo `pre-tool-self-guard.sh` (no Bash, best effort: indirecções em vários passos escapam-lhe). Quem os escreve é a pessoa ou a gestão de dispositivos, não o agente.
 
 `~/.prumo/org.json` (identidade da organização; lido por `prumo_org`, cada chave sobreponível por `PRUMO_ORG_<CHAVE>`). Valores fictícios:
 

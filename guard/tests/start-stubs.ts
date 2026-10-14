@@ -9,7 +9,9 @@ export function stubStart(on: On, seen: { commands: string[]; tools?: unknown[] 
   on('tool.register', (_$, e) => { seen.tools?.push(e); return { value: { tool: 'x' } } })
   on('session.id', () => ({ value: 'sid-test' }))
   on('session.cwd', () => ({ value: '/p' }))
-  on('clock.every', () => ({ value: undefined }))
+  // Um período recusado termina o intervalo. Responder de imediato punha os flushes periódicos
+  // (trilho CEF, friday) em ciclo apertado ao lado do teste, a roubar o lote ao do session.end.
+  on('clock.every', () => ({ deny: 'sem relógio no teste' }))
   on('fs.write', () => ({ value: undefined }))
   on('process.run', () => ({ value: RAN }))
 }

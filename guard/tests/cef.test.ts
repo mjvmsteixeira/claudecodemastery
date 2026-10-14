@@ -37,13 +37,13 @@ const RALPH = '---\niteration: 4\nmax_iterations: 9\n---\nx'
 
 type Seen = { runs: Array<{ argv: readonly string[]; stdin?: string }>; writes: Array<{ path: string; text: string }> }
 
-function base(on: On, guardJson: string | null, env: Record<string, string> = {}, files: Record<string, string> = {}): Seen {
+function base(on: On, guardJson: string | null, env: Record<string, string> = {}, files: Record<string, string> = {}, sid: () => string = () => 'sess-1'): Seen {
   const seen: Seen = { runs: [], writes: [] }
   mock.env(on, { HOME: '/h', USER: 'ana', ...env })
   on('session.cwd', () => ({ value: '/p' }))
-  on('session.id', () => ({ value: 'sess-1' }))
+  on('session.id', () => ({ value: sid() }))
   on('clock.now', () => ({ value: Date.UTC(2026, 9, 14, 12, 0, 0) }))
-  on('clock.every', () => ({ value: undefined }))
+  on('clock.every', () => ({ deny: 'sem relógio no teste' }))
   on('fs.read', (_$, e) => {
     if (e.path === '/h/.prumo/guard.json' && guardJson !== null) return { value: guardJson }
     return files[e.path] !== undefined ? { value: files[e.path] as string } : { deny: 'ENOENT' }
@@ -138,4 +138,93 @@ test('sem colector não há envio por rede', async ($, on) => {
   await $.tool.call({ tool: 'Bash', command: 'ls' })
   await $.session.end(END)
   expect(seen.runs.some(r => r.argv[0] === 'nc')).toBe(false)
+})
+
+test('uma recusa do próprio prumo-guard (guarda de marcadores) fica no trilho como deny', async ($, on) => {
+  const seen = base(on, null, {}, { '/p/config.yml': 'email: real@x.pt\n' })
+  on('tool.call', () => ({ result: '', text: 'ok' }))
+  await $.session.start(START)
+  const r = await $.tool.call({ tool: 'Write', file_path: '/p/config.yml', content: 'email: [prumo:EMAIL]\n' })
+  expect(r.deny).toBeDefined()
+  await $.session.end(END)
+  const out = logged(seen)
+  expect(out).toContain('cs1=Write')
+  expect(out).toContain('|5|')
+  expect(out).toContain('cs5=deny cs6Label=Hook cs6=plugin')
+})
+
+test('uma recusa do run_with_secret fica no trilho como deny', async ($, on) => {
+  const seen = base(on, null)
+  await $.session.start(START)
+  const r = await $.tool.call({ tool: 'mcp__prumo-guard__run_with_secret', argv: ['bash', '-c', 'x'], secrets: {} } as never)
+  expect(r.deny).toContain('interpretador')
+  await $.session.end(END)
+  const out = logged(seen)
+  expect(out).toContain('cs1=mcp__prumo-guard__run_with_secret')
+  expect(out).toContain('cs5=deny')
+})
+
+test('depois de um /clear o trilho passa para o id novo: marker novo e cs3 novo', async ($, on) => {
+  let sid = 'sess-1'
+  const seen = base(on, null, {}, {}, () => sid)
+  on('tool.call', () => ({ result: '', text: 'ok' }))
+  await $.session.start(START)
+  await $.session.end({ reason: 'clear', sessionId: 'sess-1', resume: { id: 'sess-1' } })
+  sid = 'sess-2'
+  await $.tool.call({ tool: 'Bash', command: 'ls' })
+  await $.session.end({ reason: 'other', sessionId: 'sess-2', resume: { id: 'sess-2' } })
+  expect(seen.writes.map(w => w.path)).toEqual(['/h/.prumo/run/cef-mod.sess-1', '/h/.prumo/run/cef-mod.sess-2'])
+  const rms = seen.runs.filter(r => r.argv[0] === 'rm').map(r => r.argv.join(' '))
+  expect(rms).toEqual(['rm -f /h/.prumo/run/cef-mod.sess-1', 'rm -f /h/.prumo/run/cef-mod.sess-2'])
+  expect(logged(seen)).toContain('cs3Label=Session cs3=sess-2')
+  expect(logged(seen)).not.toContain('cs3=sess-1')
+})
+
+declare function setTimeout(fn: () => void, ms: number): unknown
+
+test('o session.end espera pelo flush periódico em voo antes de escrever o resto e tirar o marker', async ($, on) => {
+  const done: string[] = []
+  let tick: () => void = () => {}
+  const ticked = new Promise<void>(r => { tick = r })
+  let releaseWrite: () => void = () => {}
+  const writeGate = new Promise<void>(r => { releaseWrite = r })
+  let firstWrite = true
+  mock.env(on, { HOME: '/h', USER: 'ana' })
+  on('session.cwd', () => ({ value: '/p' }))
+  on('session.id', () => ({ value: 'sess-1' }))
+  on('clock.now', () => ({ value: Date.UTC(2026, 9, 14, 12, 0, 0) }))
+  let periods = 0
+  on('clock.every', async () => {
+    if (periods++ > 0) return { deny: 'só um período' }
+    await ticked
+    return { value: undefined }
+  })
+  on('fs.read', () => ({ deny: 'ENOENT' }))
+  on('fs.stat', () => ({ deny: 'ENOENT' }))
+  on('fs.write', () => ({ value: undefined }))
+  on('process.run', async (_$, e) => {
+    if (e.argv[0] === 'sh' && firstWrite) {
+      firstWrite = false
+      await writeGate
+    }
+    done.push(e.argv[0] === 'sh' ? `sh:${(e.init?.stdin ?? '').trim().split('\n').length}` : String(e.argv[0]))
+    return { value: { ...RAN, stdout: e.argv[0] === 'hostname' ? 'maquina' : '' } }
+  })
+  on('command.register', (_$, e) => ({ value: { command: e.name } }))
+  on('tool.register', (_$, e) => ({ value: { tool: e.name } }))
+  on('ui.status', () => ({ value: undefined }))
+  on('tool.call', () => ({ result: '', text: 'ok' }))
+  on('session.end', (_$, e) => ({ sessionId: e.sessionId }))
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  await $.session.start(START)
+  await $.tool.call({ tool: 'Bash', command: 'ls' })
+  tick()
+  for (let i = 0; i < 50 && firstWrite; i++) await new Promise<void>(r => setTimeout(r, 2))
+  expect(firstWrite).toBe(false)
+  await $.tool.call({ tool: 'Bash', command: 'pwd' })
+  const ending = $.session.end(END)
+  await new Promise<void>(r => setTimeout(r, 20))
+  releaseWrite()
+  await ending
+  expect(done.filter(x => x !== 'hostname')).toEqual(['sh:1', 'sh:1', 'rm'])
 })

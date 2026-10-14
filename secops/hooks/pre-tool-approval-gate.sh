@@ -201,16 +201,22 @@ fi
 # ────────────────────────────────────────────────────────────────────────────
 # Aprovação por comando · ficheiro escrito por ação humana (prumo-guard)
 # ────────────────────────────────────────────────────────────────────────────
-# O agente não consegue escrever aqui: ~/.prumo/approvals/ é protegido pelo
-# self-guard do prumo-base em todos os modos. Expirado ou de outro nível não
-# serve e é limpo.
+# ~/.prumo/approvals/ é protegido pelo self-guard do prumo-base em todos os
+# modos, mas no Bash essa proteção é best effort (indirecções como `cd ~ && cd
+# .prumo` escapam). Por isso o ficheiro também se valida aqui: expirado, de
+# outro nível ou com um expires para lá de 10 minutos (o máximo que o
+# prumo-guard escreve) não serve e é limpo. Uma aprovação forjada nunca dura
+# mais do que isso.
 APPROVED_BY_FILE=""
 APPROVAL_FILE="${PRUMO_HOME:-$HOME/.prumo}/approvals/${APPROVAL_ID}"
+APPROVAL_MAX_TTL=600
 if [ -z "$LAB_BYPASS" ] && [ "${PRUMO_APPROVE:-}" != "$LEVEL" ] && [ -n "$APPROVAL_ID" ] && [ -r "$APPROVAL_FILE" ]; then
   AF_LEVEL=$(sed -n 's/^level=//p' "$APPROVAL_FILE" | head -1)
   AF_EXP=$(sed -n 's/^expires=//p' "$APPROVAL_FILE" | head -1)
   AF_SCOPE=$(sed -n 's/^scope=//p' "$APPROVAL_FILE" | head -1)
-  if [ "$AF_LEVEL" = "$LEVEL" ] && [[ "$AF_EXP" =~ ^[0-9]+$ ]] && [ "$AF_EXP" -gt "$(date +%s)" ]; then
+  NOW=$(date +%s)
+  if [ "$AF_LEVEL" = "$LEVEL" ] && [[ "$AF_EXP" =~ ^[0-9]{1,12}$ ]] && [ "$AF_EXP" -gt "$NOW" ] \
+     && [ "$AF_EXP" -le $((NOW + APPROVAL_MAX_TTL)) ]; then
     APPROVED_BY_FILE=1
     [ "$AF_SCOPE" = "once" ] && rm -f "$APPROVAL_FILE"
   else

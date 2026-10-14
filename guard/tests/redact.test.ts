@@ -221,3 +221,39 @@ test('padrões extra de redact.json aplicam-se e os inválidos geram toast', asy
   expect(JSON.stringify(r.message)).toContain('[prumo:ORG]')
   expect(toasts.join(' ')).toContain('1 padrão(ões) inválido(s)')
 })
+
+async function startWithRedactJson($: Engine, on: On, text: string, toasts: string[]) {
+  mock.env(on, { HOME: '/h' })
+  on('fs.read', (_$, e) => (e.path === '/h/.prumo/redact.json' ? { value: text } : { deny: 'ENOENT' }))
+  on('fs.exists', (_$, e) => ({ value: e.path === '/h/.prumo/redact.json' }))
+  on('ui.toast', (_$, e) => { toasts.push(e.text); return { value: undefined } })
+  on('ui.status', () => ({ value: undefined }))
+  stubStart(on)
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: '/h', surface: null, isInteractive: false })
+}
+
+test('redact.json com JSON inválido avisa que os padrões da organização ficaram desligados', async ($, on) => {
+  const toasts: string[] = []
+  await startWithRedactJson($, on, '{"patterns":[{"name":"ORG","regex":"ORG-\\\\d{4}"}],}', toasts)
+  const r = await $.session.append(toolRow(` ref ${TOKEN}`) as never)
+  expect(JSON.stringify(r.message)).toContain('[prumo:VAULT-TOKEN]')
+  expect(toasts.join(' ')).toContain('redact.json inválido — padrões da organização desligados')
+})
+
+test('redact.json sem lista em patterns também avisa', async ($, on) => {
+  const toasts: string[] = []
+  await startWithRedactJson($, on, '{"patterns":{"name":"ORG"}}', toasts)
+  await $.session.append(toolRow('x') as never)
+  expect(toasts.join(' ')).toContain('redact.json inválido')
+})
+
+test('redact.json ausente não avisa', async ($, on) => {
+  const toasts: string[] = []
+  mock.env(on, { HOME: '/h' })
+  on('fs.read', () => ({ deny: 'ENOENT' }))
+  on('fs.exists', () => ({ value: false }))
+  on('ui.toast', (_$, e) => { toasts.push(e.text); return { value: undefined } })
+  await $.session.append(toolRow('x') as never)
+  expect(toasts).toEqual([])
+})

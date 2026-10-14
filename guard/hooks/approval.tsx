@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import { PENDING_DEFAULT } from './refs.ts'
 import type { EngineInterface, On } from 'claude-code'
 import type { PrumoGuardLevel, PrumoGuardPending } from '../types'
-import { parseGateDenial } from './approval-parse.ts'
+import { approvalIdOf, parseGateDenial, quoteCommand } from './approval-parse.ts'
 import { prumoHome } from './config.ts'
 import { refreshStatus } from './status.ts'
 
@@ -42,22 +42,22 @@ async function decide($: EngineInterface, p: PrumoGuardPending, choice: 'once' |
   await update($, pending, list => (list ?? []).filter(x => x.id !== p.id))
   if ((await read($, pending)).length === 0) await $.ui.close({ id: APPROVAL_PANE })
   await refreshStatus($)
-  const shown = p.command.slice(0, 200)
+  const shown = quoteCommand(p.command)
   if (choice === 'deny') {
-    await tell($, `prumo-guard: o humano negou ${p.level} para \`${shown}\`. Não o corras nem o contornes.`, p.agentId)
+    await tell($, `prumo-guard: o humano negou ${p.level} para \`${shown}\` (citado numa só linha). Não o corras nem o contornes.`, p.agentId)
     return
   }
   const expires = Math.floor(((await $.clock.now()) + (choice === 'ttl' ? TTL_MS : ONCE_MS)) / 1000)
   await $.fs.write(`${await prumoHome($)}/approvals/${p.id}`, `level=${p.level}\nexpires=${expires}\nscope=${choice}\n`)
   const span = choice === 'ttl' ? 'durante 10 minutos' : 'uma vez'
-  await tell($, `prumo-guard: aprovado ${p.level} ${span} para \`${shown}\`. Podes voltar a correr exatamente este comando.`, p.agentId)
+  await tell($, `prumo-guard: aprovado ${p.level} ${span} para \`${shown}\` (citado numa só linha). Podes repetir exatamente o comando que foi bloqueado.`, p.agentId)
 }
 
 export function registerApproval(on: On): void {
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const ran = await next(e)
     if (ran.deny !== undefined || ran.isError !== true) return ran
-    const req = parseGateDenial(ran.text ?? '')
+    const req = parseGateDenial(ran.text ?? '', await approvalIdOf(e.command))
     if (!req) return ran
     await requestApproval($, { ...req, command: e.command, ...(e.agentId ? { agentId: e.agentId } : {}) })
     return { ...ran, context: [MODEL_NOTE] }
