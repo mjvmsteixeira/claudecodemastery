@@ -292,7 +292,9 @@ prumo_real_path() {
     d="$(dirname "$d")"
   done
   if [ -d "$d" ]; then
-    d="$(cd "$d" 2>/dev/null && pwd -P)" || d=""
+    # o pwd -P builtin do bash mantém a caixa escrita em volumes insensíveis a maiúsculas; /bin/pwd (realpath) devolve a do disco
+    if [ -x /bin/pwd ]; then d="$(cd "$d" 2>/dev/null && /bin/pwd -P)" || d=""
+    else d="$(cd "$d" 2>/dev/null && pwd -P)" || d=""; fi
     printf '%s%s' "$d" "$rest"
   else
     printf '%s' "$p"
