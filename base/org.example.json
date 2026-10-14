@@ -20,5 +20,8 @@
     "acmePAPER",
     "acmeDESK"
   ],
-  "_products": "Inventário de produtos auditados. Vazio significa que os comandos que iteram produtos não têm sobre o que correr, e devem dizê-lo."
+  "_products": "Inventário de produtos auditados. Vazio significa que os comandos que iteram produtos não têm sobre o que correr, e devem dizê-lo.",
+
+  "readonly_agents": ["prumo-monitor-01", "prumo-tenant-01", "prumo-deploy-01"],
+  "_readonly_agents": "Agentes secops que se declaram read-only: o hook agent-readonly recusa-lhes escritas e comandos que mudam estado. Nomes sem prefixo de plugin. Vazio usa estes três."
 }

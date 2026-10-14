@@ -49,6 +49,16 @@
             "timeout": 3
           }
         ]
+      },
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-agent-readonly.sh",
+            "timeout": 3
+          }
+        ]
       }
     ],
     "PostToolUse": [
