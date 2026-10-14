@@ -2,6 +2,7 @@ import type { Register } from 'claude-code'
 import { loadConfig } from './config.ts'
 import { registerApproval } from './approval.tsx'
 import { registerFriday } from './friday.ts'
+import { registerMemory } from './memory.ts'
 
 export const register: Register = on => {
   registerApproval(on)
@@ -13,4 +14,5 @@ export const register: Register = on => {
   })
 
   registerFriday(on)
+  registerMemory(on)
 }
