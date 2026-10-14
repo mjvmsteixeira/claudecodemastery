@@ -25,6 +25,11 @@
       "name": "prumo-design",
       "source": "./design",
       "description": "Orquestrador de design — a skill product-design conduz a stack nativa do Claude (frontend-design + Artifact + design-sync) para produzir mockups visuais e design systems de produto, sem reimplementar regras de design. Dois modos: mockup e system. Standalone quanto a outros plugins prumo."
+    },
+    {
+      "name": "prumo-guard",
+      "source": "./guard",
+      "description": "Mod de guardrails para o loop autónomo — aprovação humana por comando, redação de segredos e PII antes do modelo, painel do loop e travão de orçamento. Recomenda prumo-base e prumo-secops."
     }
   ]
 }

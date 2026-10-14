@@ -406,7 +406,7 @@ prumo_org_require() {
 
 # Fallback estático — existe num sítio só, e o validate.sh compara-o com o
 # marketplace.json. Editar aqui sem editar lá é erro apanhado no CI.
-PRUMO_PLUGINS_FALLBACK="prumo-base prumo-secops prumo-devkit prumo-design"
+PRUMO_PLUGINS_FALLBACK="prumo-base prumo-secops prumo-devkit prumo-design prumo-guard"
 
 prumo_marketplace_json() {
   local c

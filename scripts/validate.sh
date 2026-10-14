@@ -253,6 +253,21 @@ for p in "${PLUGINS[@]}"; do
       fail "$hooks_json: JSON inválido"
       continue
     fi
+    # mod (function hooks): hooks.json = { "modules": [...] }, sem comandos shell
+    if jq -e 'has("modules")' "$hooks_json" >/dev/null 2>&1; then
+      while IFS= read -r mod; do
+        [ -z "$mod" ] && continue
+        [ -f "$p/hooks/$mod" ] || fail "$hooks_json: módulo inexistente: $p/hooks/$mod"
+      done < <(jq -r '.modules[]' "$hooks_json")
+      if command -v claude >/dev/null 2>&1; then
+        claude plugin validate "$p" >/dev/null 2>&1 \
+          || fail "$p: 'claude plugin validate' falhou (corre-o para detalhe)"
+      else
+        info "$p: CLI claude ausente — validação do módulo saltada"
+      fi
+      pass "$p/hooks/ (modules) validados"
+      continue
+    fi
     # extrai todos os comandos referenciados; troca ${CLAUDE_PLUGIN_ROOT} pelo path do plugin
     referenced=$(jq -r '
       [.hooks[][] | .hooks[]? | select(.type=="command") | .command]

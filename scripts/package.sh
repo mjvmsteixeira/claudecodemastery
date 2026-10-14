@@ -96,6 +96,7 @@ for p in "${SELECTED[@]}"; do
       -x "package.sh" \
       -x "smoke.sh" \
       -x ".orphaned_at" \
+      -x ".claude-plugin/types/*" \
       -x "*.env" \
       -x "*.env.*" \
       -x ".env" \
