@@ -1,4 +1,5 @@
 import type { EngineInterface, On } from 'claude-code'
+import type { HookInput, HookNext, HookResult } from './hook-types.ts'
 import { loadConfig } from './config.ts'
 import { fridayLine, validSessionId } from './friday-line.ts'
 
@@ -42,7 +43,6 @@ export function registerFriday(on: On): void {
   on('classic.SessionStart', ($, e, next) => record($, 'SessionStart', e, next))
   on('classic.Notification', ($, e, next) => record($, 'Notification', e, next))
   on('classic.PostToolUse', ($, e, next) => record($, 'PostToolUse', e, next))
-  on('classic.Stop', ($, e, next) => record($, 'Stop', e, next))
   on('classic.PostToolUseFailure', ($, e, next) => record($, 'PostToolUseFailure', e, next))
   on('classic.UserPromptSubmit', ($, e, next) => record($, 'UserPromptSubmit', e, next))
   on('classic.SessionEnd', ($, e, next) => record($, 'SessionEnd', e, next))
@@ -50,15 +50,21 @@ export function registerFriday(on: On): void {
   on('classic.SubagentStart', ($, e, next) => record($, 'SubagentStart', e, next))
   on('classic.SubagentStop', ($, e, next) => record($, 'SubagentStop', e, next))
   on('classic.PostCompact', ($, e, next) => record($, 'PostCompact', e, next))
+}
 
-  on('tool.call', async ($, e, next) => {
-    await init($, undefined)
-    if (enabled) buffer.push(fridayLine({ t: await $.clock.now(), e: 'PreToolUse', tool: e.tool, ag: e.agentId }))
-    return next(e)
-  })
+// Estes três eventos não podem ter um segundo hook sem matcher no módulo: o despachante
+// (observers.ts) chama-os por ordem, em primeiro lugar.
+export function fridayStop($: EngineInterface, e: HookInput<'classic.Stop'>, next: HookNext<'classic.Stop'>): HookResult<'classic.Stop'> {
+  return record($, 'Stop', e, next)
+}
 
-  on('session.end', async ($, e, next) => {
-    await flush($)
-    return next(e)
-  })
+export async function fridayToolCall($: EngineInterface, e: HookInput<'tool.call'>, next: HookNext<'tool.call'>): HookResult<'tool.call'> {
+  await init($, undefined)
+  if (enabled) buffer.push(fridayLine({ t: await $.clock.now(), e: 'PreToolUse', tool: e.tool, ag: e.agentId }))
+  return next(e)
+}
+
+export async function fridaySessionEnd($: EngineInterface, e: HookInput<'session.end'>, next: HookNext<'session.end'>): HookResult<'session.end'> {
+  await flush($)
+  return next(e)
 }
