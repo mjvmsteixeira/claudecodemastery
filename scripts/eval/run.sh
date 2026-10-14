@@ -46,6 +46,10 @@ hook_path() {
     approval-gate) echo "$REPO_ROOT/secops/hooks/pre-tool-approval-gate.sh" ;;
     second-opinion) echo "$REPO_ROOT/secops/hooks/pre-tool-second-opinion.sh" ;;
     memory-scope)  echo "$REPO_ROOT/base/hooks/pre-tool-memory-scope.sh" ;;
+    self-guard)    echo "$REPO_ROOT/base/hooks/pre-tool-self-guard.sh" ;;
+    secret-read)   echo "$REPO_ROOT/base/hooks/pre-tool-secret-read.sh" ;;
+    workspace)     echo "$REPO_ROOT/base/hooks/pre-tool-workspace.sh" ;;
+    agent-readonly) echo "$REPO_ROOT/secops/hooks/pre-tool-agent-readonly.sh" ;;
     *) echo "" ;;
   esac
 }
@@ -86,7 +90,7 @@ provision_base() {
 
 # ── corre um caso, devolve "block"|"allow"|"error:<code>" ────────────────────
 run_case() {
-  local cmd="$1" hook="$2" env_json="$3" needs_base="${4:-false}"
+  local cmd="$1" hook="$2" env_json="$3" needs_base="${4:-false}" payload_json="${5:-}" seed_json="${6:-}"
   local hp; hp="$(hook_path "$hook")"
   [ -n "$hp" ] && [ -f "$hp" ] || { echo "error:no-hook"; return; }
 
@@ -98,6 +102,17 @@ run_case() {
   mkdir -p "$SANDBOX/.claude/plugins/cache"
   if [ "$needs_base" = "true" ]; then
     provision_base "$SANDBOX" || { echo "error:no-base"; return; }
+  fi
+
+  # ficheiros semeados no HOME do sandbox (@HOME@ → sandbox). Conteúdos sem
+  # tabs nem backslashes: o @tsv escapa-os.
+  if [ -n "$seed_json" ] && [ "$seed_json" != "null" ]; then
+    local sp sc
+    while IFS=$'\t' read -r sp sc; do
+      [ -n "$sp" ] || continue
+      sp="${sp//@HOME@/$SANDBOX}"; sc="${sc//@HOME@/$SANDBOX}"
+      mkdir -p "$(dirname "$sp")" && printf '%s' "$sc" > "$sp"
+    done < <(printf '%s' "$seed_json" | jq -r 'to_entries[] | [.key, .value] | @tsv')
   fi
 
   # env: as opções -u TÊM de vir antes de qualquer KEY=val (exigência do env(1)).
@@ -117,7 +132,11 @@ run_case() {
 
   # stdin: JSON de tool call
   local stdin_json
-  stdin_json="$(jq -cn --arg c "$cmd" '{tool_name:"Bash",tool_input:{command:$c}}')"
+  if [ -n "$payload_json" ] && [ "$payload_json" != "null" ]; then
+    stdin_json="${payload_json//@HOME@/$SANDBOX}"
+  else
+    stdin_json="$(jq -cn --arg c "${cmd//@HOME@/$SANDBOX}" '{tool_name:"Bash",tool_input:{command:$c}}')"
+  fi
 
   local code
   printf '%s' "$stdin_json" | "${envargs[@]}" bash "$hp" >/dev/null 2>&1
@@ -145,6 +164,8 @@ while IFS= read -r line; do
   exp="$(jq -r '.expected' <<<"$line")"
   reason="$(jq -r '.reason // ""' <<<"$line")"
   needs_base="$(jq -r '.needs_base // false' <<<"$line")"
+  payload="$(jq -c '.payload // empty' <<<"$line")"
+  seed="$(jq -c '.seed // empty' <<<"$line")"
 
   [ -n "$FILTER_HOOK" ] && [ "$hook" != "$FILTER_HOOK" ] && continue
 
@@ -153,7 +174,7 @@ while IFS= read -r line; do
     continue
   fi
 
-  act="$(run_case "$cmd" "$hook" "$envj" "$needs_base")"
+  act="$(run_case "$cmd" "$hook" "$envj" "$needs_base" "$payload" "$seed")"
   TOTAL=$((TOTAL+1))
 
   ok=0

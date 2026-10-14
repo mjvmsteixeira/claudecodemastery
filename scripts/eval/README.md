@@ -55,6 +55,13 @@ Os hooks nunca executam o comando; só o classificam (pre-execution).
   testa semântica de modo. O par `pii-13`/`pii-18` fixa os dois lados — mesmo
   input e modo `dev`, com base → `allow`, sem base → `block`.
 
+## Casos com outras tools
+
+- `payload`: stdin completo do hook (ex.: `{"tool_name":"Read","tool_input":{"file_path":"@HOME@/p/.env"},"cwd":"@HOME@/p"}`). Sem ele, o caso é um Bash com `command`.
+- `seed`: `{"@HOME@/.claude/settings.json": "{\"env\":{}}"}` cria ficheiros no HOME do sandbox antes do caso.
+- `@HOME@` é substituído pelo HOME do sandbox em `command`, `payload` e `seed`.
+- `command` continua obrigatório: é a etiqueta que o relatório mostra.
+
 ## Adicionar casos
 
 Acrescenta uma linha ao `corpus.jsonl` e corre `run.sh`. Boas categorias a cobrir:
