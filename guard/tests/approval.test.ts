@@ -29,6 +29,7 @@ function stubs(on: On, texts: () => string, ran?: () => Ran): Seen {
   on('clock.now', () => ({ value: 1_000_000 }))
   on('ui.open', (_$, e) => { seen.opened.push(e.id); return { value: { isPlaced: true } } })
   on('ui.notify', (_$, e) => { seen.notified.push(String(e.text)); return { value: { isSent: true, channel: 'terminal_bell' } } })
+  on('ui.status', () => ({ value: undefined }))
   on('ui.close', (_$, e) => { seen.closed.push(e.id); return { value: undefined } })
   on('fs.write', (_$, e) => { seen.writes.push({ path: e.path, text: e.text }); return { value: undefined } })
   on('session.append', (_$, e, next) => {

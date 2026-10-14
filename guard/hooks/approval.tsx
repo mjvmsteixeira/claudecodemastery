@@ -1,10 +1,13 @@
 import { atom, read, update } from 'claude-code'
+import { PENDING_DEFAULT } from './refs.ts'
 import type { EngineInterface, On } from 'claude-code'
 import type { PrumoGuardLevel, PrumoGuardPending } from '../types'
 import { parseGateDenial } from './approval-parse.ts'
 import { prumoHome } from './config.ts'
+import { refreshStatus } from './status.ts'
 
-const pending = atom({ plugin: 'prumo-guard', key: 'pending' } as const, [] as PrumoGuardPending[])
+// O validador só lê átomos declarados no próprio ficheiro quando se escreve (update); a leitura usa o de refs.ts.
+const pending = atom({ plugin: 'prumo-guard', key: 'pending' } as const, PENDING_DEFAULT)
 export const APPROVAL_PANE = 'prumo-guard-approval'
 const ONCE_MS = 5 * 60 * 1000
 const TTL_MS = 10 * 60 * 1000
@@ -21,6 +24,7 @@ export async function requestApproval(
   await update($, pending, list =>
     [...(list ?? []).filter(p => p.id !== req.id), { ...req, requestedAt }].slice(-20),
   )
+  await refreshStatus($)
   void $.ui.open({ id: APPROVAL_PANE, title: 'prumo · aprovação', focus: true, closeOnEscape: true, rows: 10 })
   void $.ui.notify(`Aprovação ${req.level} pedida: ${req.command.slice(0, 80)}`, { title: 'prumo-guard' })
 }
@@ -37,6 +41,7 @@ async function tell($: EngineInterface, text: string, agentId?: string): Promise
 async function decide($: EngineInterface, p: PrumoGuardPending, choice: 'once' | 'ttl' | 'deny'): Promise<void> {
   await update($, pending, list => (list ?? []).filter(x => x.id !== p.id))
   if ((await read($, pending)).length === 0) await $.ui.close({ id: APPROVAL_PANE })
+  await refreshStatus($)
   const shown = p.command.slice(0, 200)
   if (choice === 'deny') {
     await tell($, `prumo-guard: o humano negou ${p.level} para \`${shown}\`. Não o corras nem o contornes.`, p.agentId)
