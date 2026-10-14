@@ -24,7 +24,7 @@ Invocar `/prumo-mode <arg>` com base na intenção:
 | "muda para dev" | `/prumo-mode dev` |
 | "activa lab" | `/prumo-mode lab` |
 
-O command lê/escreve `~/.prumo/mode` e, para `lab`, cria o marker `~/.prumo/lab-mode` (obrigatório por segurança — previne activação acidental).
+O command lê o modo e mostra ao utilizador como o alterar: o hook `self-guard` bloqueia escritas do agente em `~/.prumo/mode` e `~/.prumo/lab-mode` (a alteração é humana: `/prumo-guard-mode` ou o terminal). Para `lab`, o marker `~/.prumo/lab-mode` é obrigatório por segurança — previne activação acidental.
 
 ## Resumo dos modos
 

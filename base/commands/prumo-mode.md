@@ -36,31 +36,23 @@ echo "Modo efectivo: $EFFECTIVE"
 
 Se o utilizador passou um argumento em `$ARGUMENTS`:
 
-- `prod` — escrever `prod` em `~/.prumo/mode`; remover `~/.prumo/lab-mode` se existir
-- `dev` — escrever `dev` em `~/.prumo/mode`; remover `~/.prumo/lab-mode` se existir
-- `lab` — escrever `lab` em `~/.prumo/mode`; **criar `~/.prumo/lab-mode`** (obrigatório); avisar que lab faz bypass de hooks
+Alterar o modo é uma ação humana: o hook `self-guard` bloqueia escritas do agente em `~/.prumo/mode` e `~/.prumo/lab-mode`, em todos os modos. Mostra ao utilizador os dois caminhos e não tentes escrever:
+
+- com o prumo-guard instalado: `/prumo-guard-mode <prod|dev|lab>`
+- no terminal dele, fora do Claude Code:
+  - `prod`: `echo prod > ~/.prumo/mode && rm -f ~/.prumo/lab-mode`
+  - `dev`: `echo dev > ~/.prumo/mode && rm -f ~/.prumo/lab-mode`
+  - `lab`: `echo lab > ~/.prumo/mode && touch ~/.prumo/lab-mode` (lab faz bypass dos hooks)
+
 - `status` ou vazio — apenas mostrar o Passo 1
 - qualquer outro valor — recusar com lista de valores válidos
 
 ```bash
 case "$ARGUMENTS" in
-  ""|status)
-    : ;;  # apenas mostrar; já feito no Passo 1
-  prod|dev)
-    mkdir -p ~/.prumo
-    echo "$ARGUMENTS" > ~/.prumo/mode
-    rm -f ~/.prumo/lab-mode
-    echo "OK · modo definido para $ARGUMENTS (persistente em ~/.prumo/mode)"
-    ;;
-  lab)
-    mkdir -p ~/.prumo
-    echo "lab" > ~/.prumo/mode
-    touch ~/.prumo/lab-mode
-    cat <<'EOF'
-OK · modo lab activado.
-ATENÇÃO: lab faz BYPASS de hooks (TTL guard, approval gate, second-opinion).
-Apenas para exploração de novos hooks / eval de skills. NÃO usar em operação real.
-EOF
+  ""|status) : ;;  # apenas mostrar; já feito no Passo 1
+  prod|dev|lab)
+    echo "Alterar o modo é uma ação humana (self-guard). Corre no teu terminal:"
+    echo "  /prumo-guard-mode $ARGUMENTS   (se o prumo-guard estiver instalado)"
     ;;
   *)
     echo "Valor inválido: $ARGUMENTS"

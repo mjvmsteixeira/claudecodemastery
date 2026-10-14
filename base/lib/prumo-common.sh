@@ -270,9 +270,38 @@ prumo_init_dirs() {
 }
 
 # ────────────────────────────────────────────────────────────────────────────
+# prumo_real_path · caminho absoluto com o maior ancestral existente resolvido
+#
+# Uso:  prumo_real_path <caminho> [base]
+# Relativo → junta-se a base (default $PWD). Resolve symlinks e `..` do maior
+# ancestral que existe (cd -P) e junta o resto tal como veio. Sem readlink -f:
+# o do BSD não o tem.
+# ────────────────────────────────────────────────────────────────────────────
+prumo_real_path() {
+  local p="$1" base="${2:-$PWD}" d rest=""
+  case "$p" in
+    "~") p="$HOME" ;;
+    "~/"*) p="$HOME/${p#\~/}" ;;
+    /*) ;;
+    *) p="$base/$p" ;;
+  esac
+  d="$p"
+  while [ ! -d "$d" ] && [ "$d" != "/" ] && [ -n "$d" ]; do
+    rest="/$(basename "$d")$rest"
+    d="$(dirname "$d")"
+  done
+  if [ -d "$d" ]; then
+    d="$(cd "$d" 2>/dev/null && pwd -P)" || d=""
+    printf '%s%s' "$d" "$rest"
+  else
+    printf '%s' "$p"
+  fi
+}
+
+# ────────────────────────────────────────────────────────────────────────────
 # prumo_version · versão deste lib
 # ────────────────────────────────────────────────────────────────────────────
-PRUMO_COMMON_VERSION="0.2.0"
+PRUMO_COMMON_VERSION="0.3.0"
 prumo_version() { echo "$PRUMO_COMMON_VERSION"; }
 
 # ────────────────────────────────────────────────────────────────────────────

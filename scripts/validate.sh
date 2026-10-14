@@ -307,7 +307,7 @@ done
 section "convenção: hooks bloqueiam via prumo_fail_or_warn (respeitam o modo)"
 
 # Excepções: hooks fail-closed por desenho, justificados no CLAUDE.md do repo.
-FAILCLOSED_EXEMPT="pre-tool-approval-gate.sh"
+FAILCLOSED_EXEMPT="pre-tool-approval-gate.sh pre-tool-self-guard.sh pre-tool-secret-read.sh"
 
 for p in "${PLUGINS[@]}"; do
   [ -d "$p/hooks" ] || continue
@@ -332,11 +332,10 @@ for p in "${PLUGINS[@]}"; do
       END { print n+0 }
     ' "$sh")
     [ "$raw_exit" -eq 0 ] && continue
-    if [ "$base_sh" = "$FAILCLOSED_EXEMPT" ]; then
-      info "$sh: exit 2 cru — excepção documentada (fail-closed por desenho)"
-    else
-      fail "$sh: bloqueia com 'exit 2' cru em vez de prumo_fail_or_warn — ignora PRUMO_OPERATING_MODE (ver CLAUDE.md § Convenções)"
-    fi
+    case " $FAILCLOSED_EXEMPT " in
+      *" $base_sh "*) info "$sh: exit 2 cru — excepção documentada (fail-closed por desenho)" ;;
+      *) fail "$sh: bloqueia com 'exit 2' cru em vez de prumo_fail_or_warn — ignora PRUMO_OPERATING_MODE (ver CLAUDE.md § Convenções)" ;;
+    esac
   done
 done
 
