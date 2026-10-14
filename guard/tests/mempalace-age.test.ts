@@ -47,3 +47,51 @@ test('outras tools passam intactas', async ($, on) => {
   const stored = await appendWith('Bash', '{"results":[{"created_at":"2026-10-10T12:00:00"}]}', $, on)
   expect(stored).not.toContain('prumo-guard')
 })
+
+async function appendRaw(
+  $: Engine,
+  on: On,
+  opts: { door?: string; content: unknown; config?: string },
+): Promise<string> {
+  mock.env(on, { HOME: '/h' })
+  on('fs.read', () => (opts.config ? { value: opts.config } : { deny: 'ENOENT' }))
+  on('clock.now', () => ({ value: NOW }))
+  let stored = ''
+  on('session.append', (_$, e, next) => {
+    stored = JSON.stringify(e.message.content)
+    return next(e)
+  })
+  await $.session.append({
+    door: (opts.door ?? 'tool-result') as 'tool-result',
+    origin: { kind: 'tool', tool: MEMPALACE_SEARCH },
+    uuid: 'u1',
+    message: { type: 'user', role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: opts.content }] },
+  } as never)
+  return stored
+}
+
+const OLD = '{"results":[{"created_at":"2026-09-01T12:00:00"}]}'
+
+test('staleDays da configuração decide a marca de antigo no hook', async ($, on) => {
+  const stored = await appendRaw($, on, { content: OLD, config: '{"mempalace":{"staleDays":30}}' })
+  expect(stored).toContain('(antigo')
+})
+
+test('com a configuração por omissão (90 dias) 43 dias não é antigo', async ($, on) => {
+  const stored = await appendRaw($, on, { content: OLD })
+  expect(stored).toContain('#1 há 43 dias')
+  expect(stored).not.toContain('(antigo')
+})
+
+test('conteúdo em blocos de texto recebe um bloco de texto com a nota', async ($, on) => {
+  const stored = await appendRaw($, on, { content: [{ type: 'text', text: OLD }] })
+  const blocks = JSON.parse(stored)[0].content as Array<{ type: string; text: string }>
+  expect(blocks.length).toBe(2)
+  expect(blocks[1]?.type).toBe('text')
+  expect(blocks[1]?.text).toContain('[prumo-guard] idade das memórias: #1 há 43 dias')
+})
+
+test('porta que não é tool-result passa intacta', async ($, on) => {
+  const stored = await appendRaw($, on, { door: 'user', content: OLD })
+  expect(stored).not.toContain('prumo-guard')
+})
