@@ -9,6 +9,7 @@ export function checkArgv(argv: string[], allow: string[]): string | null {
   if (argv.length === 0 || !argv[0]) return 'argv vazio'
   const bin = base(argv[0])
   if (NEVER.has(bin) || /^python\d/.test(bin)) return `${bin} é um shell ou interpretador e nunca corre com segredos`
+  if (argv[0].includes('/')) return `${argv[0]} usa um caminho; só são aceites nomes simples de comandos (resolvidos pelo PATH)`
   if (!allow.includes(bin)) return `${bin} não está na allowlist (~/.prumo/secret-exec.json → allow)`
   return null
 }

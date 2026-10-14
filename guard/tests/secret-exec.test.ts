@@ -15,6 +15,15 @@ test('fora da allowlist', () => {
   expect(checkArgv([], ALLOW)).toContain('vazio')
 })
 
+test('recusa caminhos mesmo com nome na allowlist', () => {
+  expect(checkArgv(['/tmp/evil/curl', 'https://x'], ALLOW)).toContain('caminho')
+  expect(checkArgv(['./psql'], ALLOW)).toContain('caminho')
+})
+
+test('mascara segredo com newline final pelo valor aparado', () => {
+  expect(maskSecrets('tok=abcd1234 fim', { T: 'abcd1234\n' })).toBe('tok=[SEGREDO:T] fim')
+})
+
 test('mascara valor cru, URL-encoded e com newline', () => {
   const s = { DB_PASSWORD: 'p@ss w0rd' }
   const out = maskSecrets('a=p@ss w0rd b=p%40ss%20w0rd c=p@ss w0rd\n', s)
