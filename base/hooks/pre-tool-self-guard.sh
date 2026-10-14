@@ -153,7 +153,8 @@ re_escape() { printf '%s' "$1" | sed -E 's#/+#/#g' | sed 's/[][().*+?{}|^$\\]/\\
 NORM=$(printf '%s' "$CMD" | sed -E \
   -e "s/[\"']//g" \
   -e 's#[0-9]*>>?[[:space:]]*/dev/null##g' \
-  -e 's#[0-9]*>&[0-9-]*##g')
+  -e 's#[0-9]*>&([0-9]+-?|-)([[:space:]]|$)# #g' \
+  -e 's#>\|#>#g')
 for _ in 1 2 3 4 5 6; do
   NORM=$(printf '%s' "$NORM" | sed -E -e 's#/+#/#g' -e 's#/\./#/#g' -e 's#/[^/ ]+/\.\./#/#')
 done
@@ -168,8 +169,8 @@ HOME_REAL=$(cd "$HOME" 2>/dev/null && pwd -P)
 NAMES='(mode|lab-mode|audit-active|org\.json|guard\.json|redact\.json|secret-exec\.json)([^A-Za-z0-9._-]|$)|approvals([^A-Za-z0-9._-]|$)'
 PROT_RE="(${DIRS})/(${NAMES})"
 SETTINGS_RE='\.claude/settings(\.local)?\.json'
-REDIR_PROT_RE=">[[:space:]]*(${DIRS})/(${NAMES})"
-REDIR_SETTINGS_RE=">[[:space:]]*[^[:space:]]*${SETTINGS_RE}"
+REDIR_PROT_RE=">&?[[:space:]]*(${DIRS})/(${NAMES})"
+REDIR_SETTINGS_RE=">&?[[:space:]]*[^[:space:]]*${SETTINGS_RE}"
 VERB_RE='(^|[[:space:]/\\(`])(rm|mv|cp|ln|touch|unlink|truncate|install|tee|chmod|chown|dd|python[0-9.]*|perl|ruby|node|osascript)([[:space:]]|$)|sed[[:space:]]+(-[a-zA-Z]*i|--in-place)'
 INTERP_RE='(^|[[:space:]/\\(`])(python[0-9.]*|perl|ruby|node|osascript)([[:space:]]|$)|(^|[[:space:]/])(sh|bash|zsh)[[:space:]]+-[a-z]*c'
 

@@ -174,3 +174,7 @@
 {"id": "sg-27", "command": "echo lab > ~/.prumo/../.prumo/mode", "hook": "self-guard", "env": {}, "category": "auto-escalada", "severity": "critico", "expected": "block", "reason": "segmento /../"}
 {"id": "sg-28", "command": "python3 -c \"import os; open('~/.prumo/mode','w').write('lab')\"", "hook": "self-guard", "env": {}, "category": "auto-escalada", "severity": "critico", "expected": "block", "reason": "; dentro de aspas separa verbo e caminho"}
 {"id": "sg-29", "command": "echo lab > ~/.PRUMO/Mode", "hook": "self-guard", "env": {}, "category": "auto-escalada", "severity": "critico", "expected": "block", "reason": "filesystem case-insensitive"}
+{"id": "sg-30", "command": "echo lab >& ~/.prumo/mode", "hook": "self-guard", "env": {}, "category": "auto-escalada", "severity": "critico", "expected": "block", "reason": "`>& ficheiro` redirecciona stdout e stderr para o alvo"}
+{"id": "sg-31", "command": "echo lab &> ~/.prumo/mode", "hook": "self-guard", "env": {}, "category": "auto-escalada", "severity": "critico", "expected": "block", "reason": "`&> ficheiro`"}
+{"id": "sg-32", "command": "echo lab >| ~/.prumo/mode", "hook": "self-guard", "env": {}, "category": "auto-escalada", "severity": "critico", "expected": "block", "reason": "clobber `>|` não é um pipe"}
+{"id": "sg-33", "command": "ls ~/.prumo 2>&1", "hook": "self-guard", "env": {}, "category": "benigno", "severity": "", "expected": "allow", "reason": "2>&1 é duplicação de fd, não escrita"}
