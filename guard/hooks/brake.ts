@@ -14,6 +14,7 @@ const loopRef = atom({ plugin: 'prumo-guard', key: 'loop' } as const, LOOP_DEFAU
 const usageRef = atom({ plugin: 'prumo-guard', key: 'usage' } as const, USAGE_DEFAULT)
 
 let currentTurn: string | null = null
+let loopWasActive = false
 
 async function trip($: EngineInterface, reason: string): Promise<void> {
   const b = await read($, brakeRef)
@@ -42,11 +43,11 @@ export async function brakeTurnStart($: EngineInterface, e: HookInput<'turn.star
   if (!e.agentId) currentTurn = e.turnId
   const loop = await read($, loopRef)
   const b = await read($, brakeRef)
-  if (loop.active && b.loopStartUsd === null) {
+  const started = loop.active && !loopWasActive
+  loopWasActive = loop.active
+  if (loop.active && (started || b.loopStartUsd === null)) {
     const usd = (await read($, usageRef)).usd
     await update($, brakeRef, s => ({ ...(s ?? b), loopStartUsd: usd ?? 0 }))
-  } else if (!loop.active && b.loopStartUsd !== null) {
-    await update($, brakeRef, s => ({ ...(s ?? b), loopStartUsd: null }))
   }
   return next(e)
 }

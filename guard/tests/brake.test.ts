@@ -133,6 +133,16 @@ test('/prumo-guard-resume pela pessoa rearma o travão e recomeça a contagem', 
   expect(seen.repeat.length).toBeGreaterThan(0)
 })
 
+test('resume sem ralph: o turn.start seguinte não anula a base e o travão não volta a disparar', async ($, on) => {
+  const seen = base(on, { '/h/.prumo/guard.json': '{"brake":{"usdBudget":1}}' })
+  await measure($, 1.5)
+  await $.command.run(cmd('prumo-guard-resume', '', { kind: 'composer' }))
+  await $.turn.start({ text: 'x', turnId: 't2' })
+  expect(last(seen)?.loopStartUsd).toBe(1.5)
+  await measure($, 1.6)
+  expect(last(seen)?.paused).toBe(false)
+})
+
 test('/prumo-guard-resume por um plugin é recusado', async ($, on) => {
   const seen = base(on)
   const r = await $.command.run(cmd('prumo-guard-resume'))
