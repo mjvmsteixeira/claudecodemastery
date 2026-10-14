@@ -43,6 +43,16 @@
             "timeout": 3
           }
         ]
+      },
+      {
+        "matcher": "Read|Grep|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-secret-read.sh",
+            "timeout": 3
+          }
+        ]
       }
     ]
   }

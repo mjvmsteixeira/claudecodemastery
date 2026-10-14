@@ -32,5 +32,11 @@ expect "Write com espaço no caminho e .. até ~/.prumo/mode" 2 "$SG" \
 expect "stdin vazio" 0 "$SG" ""
 expect "JSON sem tool_input" 0 "$SG" '{"tool_name":"Bash"}'
 
+SR="$REPO_ROOT/base/hooks/pre-tool-secret-read.sh"
+echo "secret-read"
+expect "cat com aspas e espaços" 2 "$SR" \
+  '{"tool_name":"Bash","tool_input":{"command":"cat \"My Proj/.env\""}}'
+expect "stdin vazio" 0 "$SR" ""
+
 [ "$FAILS" -eq 0 ] || { echo "✗ $FAILS falha(s)"; exit 1; }
 echo "✓ guard-paths-test passou"
