@@ -1,6 +1,7 @@
 import { test, expect, mock } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 import type { On } from 'claude-code'
+import { stubStart } from './start-stubs.ts'
 
 const TOKEN = 'hvs.' + 'A'.repeat(24)
 
@@ -83,6 +84,7 @@ test('Write de ficheiro novo com marcadores passa', async ($, on) => {
 
 // Os módulos guardam config e padrões em cache; session.start reinicia-os.
 async function startWith($: Engine, on: On, files: Record<string, string>, setup?: (on: On) => void) {
+  stubStart(on)
   setup?.(on)
   mock.env(on, { HOME: '/h' })
   on('fs.read', (_$, e) => (files[e.path] !== undefined ? { value: files[e.path] as string } : { deny: 'ENOENT' }))
@@ -212,6 +214,7 @@ test('padrões extra de redact.json aplicam-se e os inválidos geram toast', asy
     return { value: undefined }
   })
   on('ui.status', () => ({ value: undefined }))
+  stubStart(on)
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   await $.session.start({ cwd: '/h', surface: null, isInteractive: false })
   const r = await $.session.append(toolRow(' ref ORG-1234') as never)

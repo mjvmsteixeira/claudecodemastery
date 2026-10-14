@@ -75,6 +75,10 @@ async function isOwnFile($: EngineInterface, filePath: string): Promise<boolean>
   }
 }
 
+export async function setRedactOn($: EngineInterface, value: boolean): Promise<void> {
+  await update($, redactOn, () => value)
+}
+
 export async function startRedaction($: EngineInterface): Promise<GuardConfig> {
   cfg = undefined
   extraLoaded = false
