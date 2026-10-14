@@ -15,6 +15,7 @@ async function statusWith(
   mock.env(on, env)
   on('fs.read', (_$, e) => read(e.path))
   let status = ''
+  on('command.register', (_$, e) => ({ value: { command: e.name } }))
   on('ui.status', (_$, e) => { status = e.text ?? ''; return { value: undefined } })
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   await $.session.start(START)
