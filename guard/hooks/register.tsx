@@ -9,6 +9,7 @@ import { registerObservers } from './observers.ts'
 import { registerPanel, startPanel } from './panel.tsx'
 import { registerMemory } from './memory.ts'
 import { refreshStatus } from './status.ts'
+import { registerSecretTool, startSecretTool } from './secret-tool.ts'
 
 export const register: Register = on => {
   registerApproval(on)
@@ -17,6 +18,7 @@ export const register: Register = on => {
   registerPanel(on)
   registerBrake(on)
   registerObservers(on)
+  registerSecretTool(on)
 
   // Único session.start sem matcher do módulo: cada funcionalidade expõe a sua função de arranque.
   on('session.start', async ($, e, next) => {
@@ -25,6 +27,7 @@ export const register: Register = on => {
     await startPanel($)
     await startBrake($)
     await startAuditTrail($)
+    await startSecretTool($)
     await refreshStatus($)
     return next(e)
   })
