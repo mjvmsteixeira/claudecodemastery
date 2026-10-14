@@ -5,8 +5,7 @@
 # sessão e a sua raiz git, os temporários, a memória, os planos e os dev-mods
 # do Claude Code, a configuração do Claude Code (settings, CLAUDE.md, rules,
 # skills, agents, commands) e as raízes extra de ~/.prumo/guard.json →
-# workspace.extraRoots. Caminhos resolvidos (symlinks e ..) antes de comparar;
-# a comparação ignora maiúsculas (APFS é insensível a maiúsculas por defeito).
+# workspace.extraRoots. Caminhos resolvidos (symlinks e ..) antes de comparar.
 # Respeita o modo: prod bloqueia, dev avisa, lab passa.
 set -uo pipefail
 
@@ -32,10 +31,7 @@ FP=$(jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' <<<"$IN
 CWD=$(jq -r '.cwd // empty' <<<"$INPUT" 2>/dev/null)
 [ -n "$CWD" ] || CWD="$PWD"
 
-lc() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
-
 TARGET=$(prumo_real_path "$FP" "$CWD")
-TARGET_LC=$(lc "$TARGET")
 
 ROOTS=("$CWD")
 GIT_TOP=$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null) && ROOTS+=("$GIT_TOP")
@@ -50,13 +46,13 @@ if [ -r "$GUARD_JSON" ]; then
 fi
 
 for r in "${ROOTS[@]}"; do
-  rr=$(lc "$(prumo_real_path "$r")")
+  rr=$(prumo_real_path "$r")
   [ -n "$rr" ] || continue
-  case "$TARGET_LC" in "$rr"|"$rr"/*) exit 0 ;; esac
+  case "$TARGET" in "$rr"|"$rr"/*) exit 0 ;; esac
 done
 
-CLAUDE_DIR=$(lc "$(prumo_real_path "$HOME/.claude")")
-case "$TARGET_LC" in
+CLAUDE_DIR=$(prumo_real_path "$HOME/.claude")
+case "$TARGET" in
   "$CLAUDE_DIR"/projects/*/memory/*) exit 0 ;;
   "$CLAUDE_DIR"/settings.json|"$CLAUDE_DIR"/settings.local.json|"$CLAUDE_DIR"/CLAUDE.md|"$CLAUDE_DIR"/keybindings.json) exit 0 ;;
 esac
