@@ -5,8 +5,8 @@ import { ageNote, MEMPALACE_SEARCH } from './mempalace-age.ts'
 type Block = { type: string; text?: string; content?: unknown; [k: string]: unknown }
 
 export function registerMemory(on: On): void {
-  on('session.append', async ($, e, next) => {
-    if (e.door !== 'tool-result' || e.origin.kind !== 'tool' || e.origin.tool !== MEMPALACE_SEARCH) return next(e)
+  on('session.append', { door: 'tool-result' }, async ($, e, next) => {
+    if (e.origin.kind !== 'tool' || e.origin.tool !== MEMPALACE_SEARCH) return next(e)
     const staleDays = (await loadConfig($)).mempalace.staleDays
     const now = await $.clock.now()
     const content = (e.message.content as Block[]).map(b => {
