@@ -31,7 +31,7 @@ for d in "${DIRS[@]}"; do
     | ($h | map(.notes[]?) ) as $notes
     | ($notes | map(select(test(" calls: ")) | sub("^.* calls: "; "") | split(", ")[]) | unique
        | map(select(test("^\\$\\.(fs|process|http|network|mcp|env|settings|config)\\."))) | join(",")) as $calls
-    | ($notes | map(select(test("telemetry|stands on"))) | join("; ")) as $tel
+    | ($notes | map(select(test(" hooks telemetry for: ")) | sub("^.* hooks telemetry for: "; "")) | join("; ")) as $tel
     | [$n, ($g | map(select(.hasCatch | not)) | length), ($g | map(select(.hasCatch)) | length),
        (if $calls == "" then "-" else $calls end), (if $tel == "" then "-" else $tel end)] | @tsv'
 done
