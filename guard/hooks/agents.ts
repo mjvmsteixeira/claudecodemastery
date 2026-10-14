@@ -3,6 +3,8 @@ import { loadConfig, prumoHome } from './config.ts'
 
 const HUMAN_ONLY = 'prumo-guard: este comando só aceita a tecla Enter da pessoa.'
 
+const UNREADABLE = 'prumo-guard: o guard.json está ilegível ou inválido; corrija-o à mão antes de alterar os agentes. Nada foi escrito.'
+
 const matches = (agent: string, name: string) => agent === name || agent.endsWith(`:${name}`)
 
 // Chamado pelo único session.start do register.tsx.
@@ -31,10 +33,21 @@ export function registerAgents(on: On): void {
     if (e.origin.kind !== 'composer') return { text: HUMAN_ONLY }
     if ((verb !== 'hide' && verb !== 'show') || !name) return { text: 'Uso: /prumo-guard-agents [hide|show <agente>]' }
     let raw: Record<string, unknown> = {}
+    let text: string | undefined
     try {
-      raw = JSON.parse(await $.fs.read(cfgPath))
-    } catch {
-      raw = {}
+      text = await $.fs.read(cfgPath)
+    } catch (err) {
+      const code = (err as { code?: string } | null)?.code
+      if (code !== 'ENOENT' && !String((err as Error | null)?.message ?? err).includes('ENOENT')) return { text: UNREADABLE }
+    }
+    if (text !== undefined) {
+      try {
+        const parsed: unknown = JSON.parse(text)
+        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return { text: UNREADABLE }
+        raw = parsed as Record<string, unknown>
+      } catch {
+        return { text: UNREADABLE }
+      }
     }
     const agents = (typeof raw.agents === 'object' && raw.agents !== null ? raw.agents : {}) as { hidden?: string[] }
     const set = new Set(agents.hidden ?? [])

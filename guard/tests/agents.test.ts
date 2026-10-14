@@ -66,3 +66,30 @@ test('sem argumentos lista os escondidos', async ($, on) => {
   const r = await $.command.run(run('', { kind: 'composer' }))
   expect(r.text).toContain('prumo-secops:prumo-ir-saas-01')
 })
+
+test('guard.json com JSON inválido recusa a alteração e não escreve', async ($, on) => {
+  setup(on, { value: '{"brake":{"usdBudget":7},' })
+  const writes: string[] = []
+  on('fs.write', (_$, e) => { writes.push(e.path); return { value: undefined } })
+  const r = await $.command.run(run('hide Plan', { kind: 'composer' }))
+  expect(r.text).toContain('ilegível ou inválido')
+  expect(writes).toEqual([])
+})
+
+test('guard.json com erro de leitura que não é ENOENT não escreve', async ($, on) => {
+  setup(on, { deny: 'EACCES: permission denied' })
+  const writes: string[] = []
+  on('fs.write', (_$, e) => { writes.push(e.path); return { value: undefined } })
+  const r = await $.command.run(run('hide Plan', { kind: 'composer' }))
+  expect(r.text).toContain('ilegível ou inválido')
+  expect(writes).toEqual([])
+})
+
+test('guard.json em falta (ENOENT) é criado só com agents', async ($, on) => {
+  setup(on, { deny: 'ENOENT: no such file' })
+  const writes: string[] = []
+  on('fs.write', (_$, e) => { writes.push(e.text); return { value: undefined } })
+  const r = await $.command.run(run('hide Plan', { kind: 'composer' }))
+  expect(r.text).toContain('Escondido: Plan')
+  expect(JSON.parse(writes[0] as string).agents.hidden).toEqual(['Plan'])
+})
