@@ -2,7 +2,7 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 0.14.0 · prumo-secops 0.11.0 · prumo-devkit 0.5.2 · prumo-design 0.6.1**
+Estado actual: **prumo-base 0.14.0 · prumo-secops 0.11.0 · prumo-devkit 0.5.2 · prumo-design 0.6.1 · prumo-guard 0.1.0**
 
 **Convenção de tags: `prumo-<plugin>-v<versão>`, uma por plugin e por release.** Todas as tags actuais apontam para o commit onde o `plugin.json` desse plugin tem essa versão — invariante verificável com `git show <tag>:<plugin>/.claude-plugin/plugin.json`.
 

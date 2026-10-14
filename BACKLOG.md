@@ -8,6 +8,28 @@ Aberto a 2026-08-02.
 
 ---
 
+## B7 · Passagem do friday-state para o mod
+
+**Estado:** writer feito (`guard/hooks/friday.ts`) e desligado (`friday.enabled: false`). Falta verificar as linhas ao vivo contra as do `friday-state.sh` para o mesmo `session_id` e decidir com a FRIDAY. **Porquê:** enquanto as 12 entradas do `friday-state.sh` estiverem nos settings, as duas fontes escrevem no mesmo ficheiro. Diferença conhecida: `p` é `null` nas linhas `PreToolUse` do mod. Passos no `guard/README.md`.
+
+## B8 · E2E da aprovação depois do push
+
+**Estado:** não feito. **Porquê:** o diálogo só abre com o approval-gate 0.11.0 instalado (contrato `approval-id` + `approvals/<id>`); a cache local ainda pode ter versão anterior. Verificar depois do push e do `/plugin install`: um comando N2 bloqueado abre o painel, "Só esta" escreve o ficheiro e o comando passa uma vez.
+
+## B9 · `vault-read.sh` continua a imprimir valores
+
+**Estado:** em aberto. **Porquê:** o caminho seguro é o `run_with_secret`; o `vault-read.sh` põe o valor no contexto do modelo. Avaliar se o `secret-read` deve passar a bloquear o `vault-read.sh` quando o prumo-guard está ativo.
+
+## B10 · Modo da máquina em `dev`
+
+**Estado:** decisão do utilizador. **Porquê:** em `dev`, `pii-redact`, `vault-ttl`, `workspace` e `agent-readonly` só avisam; só em `prod` bloqueiam. O mod é independente do modo, mas estes hooks não.
+
+## B11 · Hooks do prumo-guard que decidem e falham abertos
+
+**Estado:** medido com `bash secops/lib/mod-audit.sh guard` (19 hooks sem `.catch`). Dois decidem: `prompt.submit` da redação (uma falha deixa o prompt seguir sem redação) e `agent.offer` (uma falha deixa o agente visível). Os restantes 17 só observam. **Porquê não está feito:** adicionar `.catch` muda o comportamento em falha (reter o prompt) e é decisão de produto.
+
+---
+
 ## B1 · Identidade do embedder do MemPalace — **FECHADO** (2026-08-03)
 
 **Resolvido com `mempalace palace set-embedder --model minilm`.** Identidade gravada em `palace/mempalace_embedder.json` (`minilm`, dim 384), coerente com o `embedding_model` do `config.json`. Verificado pelo comportamento: a operação que antes emitia o `EmbedderIdentityUnknownWarning` para as duas colecções — `repair --dry-run` — deixou de emitir qualquer aviso.

@@ -8,6 +8,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento
 
 - **`pre-tool-agent-readonly.sh` — respeita o modo.** Os agentes read-only (`prumo_org readonly_agents`) deixam de poder mutar estado (escritas, redirecções, SQL de escrita, `curl`/`wget` de mutação, `find -delete`, `sudo`, `timeout`...). Porquê: "read-only" era só texto na descrição do agente; nada o impunha.
 - **`pre-tool-approval-gate.sh` — segundo canal por comando.** Além do `PRUMO_APPROVE` (que autoriza o nível inteiro na sessão), um ficheiro `~/.prumo/approvals/<id>` autoriza um único comando; o `approval-id:` vem na mensagem de bloqueio e o registo em `approvals.log` fica `via=approval-file`. Antes não existia aprovação por comando, e `PRUMO_APPROVE` era editável pelo próprio agente (agora fechado pelo `self-guard` do prumo-base).
+- **`/prumo-mod-audit` — o que cada mod pode fazer.** Resume, a partir de `claude plugin validate --json`, os hooks que decidem (com e sem `.catch`), as chamadas a `$` que tocam em ficheiros, processos ou rede e os fluxos de telemetria de cada mod instalado ou em `dev-mods`. Porquê: um hook que decide e não tem `.catch` deixa passar quando falha.
+- **`post-tool-cef-wazuh.sh` — atalho.** Sai cedo quando o prumo-guard já regista a sessão (marker `~/.prumo/run/cef-mod.<sessão>`), para não duplicar linhas CEF.
 - **`hooks.json`:** `${CLAUDE_PLUGIN_ROOT}` entre aspas em todos os comandos.
 
 ## v0.9.3 — 2026-08-03
