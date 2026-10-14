@@ -10,6 +10,7 @@ import { registerPanel, startPanel } from './panel.tsx'
 import { registerMemory } from './memory.ts'
 import { refreshStatus } from './status.ts'
 import { registerSecretTool, startSecretTool } from './secret-tool.ts'
+import { registerAgents, startAgents } from './agents.ts'
 
 export const register: Register = on => {
   registerApproval(on)
@@ -28,10 +29,12 @@ export const register: Register = on => {
     await startBrake($)
     await startAuditTrail($)
     await startSecretTool($)
+    await startAgents($)
     await refreshStatus($)
     return next(e)
   })
 
   registerFriday(on)
+  registerAgents(on)
   registerMemory(on)
 }
