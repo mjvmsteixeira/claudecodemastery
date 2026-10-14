@@ -14,11 +14,11 @@ O `/prumo-onboard` detecta o que falta, emite as linhas de install dos restantes
 
 | Plugin | Versão | Para quê |
 |---|---|---|
-| **prumo-base** | 0.10.0 | Fundação: gestão de segredos com Vault, diagnóstico do setup, governança da memória do agente. **Instalar primeiro.** |
-| **prumo-secops** | 0.8.2 | SecOps para um SaaS multi-tenant — isolamento entre clientes, release gates, resposta a incidentes, conformidade. |
-| **prumo-devkit** | 0.5.2 | Auditoria de código e infra: segurança, dependências, performance, UX. Read-only por defeito. |
-| **prumo-design** | 0.6.1 | Orquestrador de design sobre a stack nativa do Claude. Standalone. |
-| **prumo-guard** | 0.1.0 | Mod de guardrails (function hooks): aprovação humana por comando, redação de segredos e PII, painel e travão do loop, trilho CEF, `run_with_secret` (desligado por omissão, aprovação por chamada). API de mods em early access. |
+| **prumo-base** | 1.0.0 | Fundação: gestão de segredos com Vault, diagnóstico do setup, governança da memória do agente. **Instalar primeiro.** |
+| **prumo-secops** | 1.0.0 | SecOps para um SaaS multi-tenant — isolamento entre clientes, release gates, resposta a incidentes, conformidade. |
+| **prumo-devkit** | 1.0.0 | Auditoria de código e infra: segurança, dependências, performance, UX. Read-only por defeito. |
+| **prumo-design** | 1.0.0 | Orquestrador de design sobre a stack nativa do Claude. Standalone. |
+| **prumo-guard** | 1.0.0 | Mod de guardrails (function hooks): aprovação humana por comando, redação de segredos e PII, painel e travão do loop, trilho CEF, `run_with_secret` (desligado por omissão, aprovação por chamada). API de mods em early access. |
 
 **A ordem importa só numa direcção:** o `prumo-base` fornece as libs partilhadas que o `secops` assume e que o `/ngrok-expose` do `devkit` consome. Entre si, `secops` e `devkit` são independentes. O `design` não depende de nenhum.
 

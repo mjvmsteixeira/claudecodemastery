@@ -2,7 +2,11 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
-## v0.1.0 — 2026-10-14
+## v1.0.0 — 2026-10-14
+
+**Primeira release do prumo-guard.** O `run_with_secret` está desligado por omissão e pede aprovação humana a cada chamada; o travão pausa em cada disparo e só corta o turno acima de 120% do orçamento em USD.
+
+**Aviso: a API de mods (function hooks) do Claude Code é early access e pode mudar entre versões do Claude Code.** Nomes de eventos, regras do validador e comportamento dos tiers podem exigir ajustes neste mod.
 
 ### Added
 - Scaffold do mod: manifesto, `hooks.json` com `modules`, `register.tsx` com um só `session.start`, configuração (`guard.json`) com defaults, contrato de estado `prumo-guard`, testes e smoke.

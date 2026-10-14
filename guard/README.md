@@ -1,6 +1,6 @@
 # prumo-guard
 
-Mod Claude Code (function hooks em TypeScript) · guardrails do kit prumo · v0.1.0
+Mod Claude Code (function hooks em TypeScript) · guardrails do kit prumo · v1.0.0
 
 **Aviso: a API de mods do Claude Code é early access.** Os nomes de eventos, as regras do validador e o comportamento dos tiers podem mudar entre versões do Claude Code; cada mudança pode exigir ajustes neste mod. Os hooks de eventos `classic.*` não correm em plugins instalados por uma pessoa quando uma organização gere o Claude Code (ver `docs/instalacao-gerida.md`).
 
@@ -24,7 +24,7 @@ claude plugin install prumo-guard@prumo
 
 Quando o `approval-gate` do prumo-secops recusa um comando Bash, o mod regista o pedido, abre o painel `prumo · aprovação` e notifica. A pessoa escolhe `Só esta` (5 minutos), `10 minutos` ou `Negar`; a escolha escreve `~/.prumo/approvals/<id>` (`level=`, `expires=`, `scope=`) e o modelo recebe uma mensagem a dizer que pode repetir exatamente o comando (ou que foi negado). Os pedidos pendentes (máximo 20) aparecem na linha de estado.
 
-Dependência do contrato do approval-gate: o mod lê da mensagem de bloqueio o nível (`[prumo-secops/approval-gate] Operação N<k> detectada:`) e calcula ele próprio o id do comando que mostra à pessoa (sha256 do comando, com quebras de linha e tabs trocados por espaço, como o gate). O painel só abre se a mensagem trouxer `approval-id: <esse id>`, e o ficheiro escreve-se sempre com esse id: um id que só apareça no texto (na pré-visualização do comando ou no output de outro comando) nunca é o que fica aprovado. Isto exige o **prumo-secops 0.11.0 ou superior**. Sem ele o painel não abre e a aprovação continua a ser a do `PRUMO_APPROVE`.
+Dependência do contrato do approval-gate: o mod lê da mensagem de bloqueio o nível (`[prumo-secops/approval-gate] Operação N<k> detectada:`) e calcula ele próprio o id do comando que mostra à pessoa (sha256 do comando, com quebras de linha e tabs trocados por espaço, como o gate). O painel só abre se a mensagem trouxer `approval-id: <esse id>`, e o ficheiro escreve-se sempre com esse id: um id que só apareça no texto (na pré-visualização do comando ou no output de outro comando) nunca é o que fica aprovado. Isto exige o **prumo-secops 1.0.0 ou superior**. Sem ele o painel não abre e a aprovação continua a ser a do `PRUMO_APPROVE`.
 
 A mensagem ao modelo cita o comando numa só linha e sem crases, para o texto do agente não se ler como sendo da pessoa. O gate só aceita um ficheiro com `expires` até 10 minutos, o máximo que o mod escreve.
 
@@ -80,7 +80,7 @@ Um binário aprovado pode correr código com o segredo no ambiente (configuraç�
 - Recusa nomes de variável que mudam o que o processo carrega ou corre (`PATH`, `IFS`, `BASH_ENV`, `ENV`, `HOME`, `LD_*`, `DYLD_*`, `GIT_*`, `NODE_*`, `PRUMO_*`, ...), referências sem `caminho#campo`, e argumentos e `cwd` em `~/.prumo` ou nos `settings.json` do Claude Code.
 - Corre os mesmos PreToolUse que um Bash atravessaria, com um payload sintético: `self-guard`, `secret-read` e `workspace` do prumo-base e `agent-readonly` do prumo-secops (com o tipo do subagente; um subagente de tipo desconhecido é recusado). Depois da aprovação da chamada passa pelo `approval-gate`; se o gate pedir a sua aprovação (um comando N1–N3), abre um segundo pedido, e a aprovação da chamada só se gasta quando o comando corre.
 - Todas as recusas e pedidos de aprovação voltam ao modelo como erro (e ao trilho CEF como `deny`), e o comando não corre.
-- Lê cada campo com o `vault-read-field.sh` do prumo-base (0.14.0 ou superior).
+- Lê cada campo com o `vault-read-field.sh` do prumo-base (prumo-base 1.0.0 ou superior).
 
 ### Agentes escondidos
 

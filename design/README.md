@@ -1,6 +1,6 @@
 # prumo-design
 
-Plugin Claude Code · orquestrador de design do ecossistema prumo · v0.6.0
+Plugin Claude Code · orquestrador de design do ecossistema prumo · v1.0.0
 
 ---
 
@@ -65,7 +65,7 @@ concentra-se na orquestração, no render visual e na materialização de um des
 ```bash
 /plugin marketplace add mjvmsteixeira/claudecodemastery
 /plugin install prumo-design@prumo
-/plugin list                                  # verificar prumo-design v0.6.0
+/plugin list                                  # verificar prumo-design v1.0.0
 ```
 
 Se substitui um plugin anterior: `/plugin uninstall <anterior>@prumo` seguido de
@@ -73,4 +73,4 @@ Se substitui um plugin anterior: `/plugin uninstall <anterior>@prumo` seguido de
 
 ---
 
-© 2026 prumo · Uso interno · Versão 0.6.0
+© 2026 prumo · Uso interno · Versão 1.0.0

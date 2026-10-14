@@ -2,7 +2,19 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
-## v0.14.0 — 2026-10-14
+## v1.0.0 — 2026-10-14
+
+### Mudanças que bloqueiam
+
+Comportamentos novos que podem parar fluxos existentes. Lê antes de actualizar.
+
+- **`self-guard` bloqueia, em todos os modos,** escritas do agente em `~/.prumo/{mode,lab-mode,audit-active,org.json,guard.json,redact.json,secret-exec.json}`, em `~/.prumo/approvals/` e em chaves protegidas de qualquer `.claude/settings*.json` (`env.PRUMO_*`, `enabledPlugins` `prumo-*`, `permissions.defaultMode`, `disableAllHooks`). Fluxos em que o agente mudava o modo ou editava `PRUMO_APPROVE` deixam de funcionar. No Bash é best effort: apanha redirecções, verbos de escrita (incluindo `curl -o`, `wget -O`, `rsync`, `scp`) e `cd`/variável para `~/.prumo`; indirecções em vários passos escapam.
+- **`/prumo-mode` já não escreve o modo.** Mostra os caminhos para o humano alterar (`/prumo-guard-mode` ou o terminal).
+- **`secret-read` bloqueia em prod e dev** `Read`, `Grep` e a exibição via `Bash` de ficheiros de segredos (`.env*`, `.envrc`, chaves, `vault-init.json`, `token-cache`...). Em lab o bypass fica registado.
+- **`workspace` bloqueia em prod** escritas fora das raízes de trabalho e de `guard.json` → `workspace.extraRoots`; em dev avisa.
+- **`approval-gate` (secops) ganha aprovação por comando;** recomenda-se remover `PRUMO_APPROVE` dos settings. Ver `prumo-secops`.
+
+### Detalhe da fase 0 (ex-v0.14.0)
 
 **Fase 0 do prumo-guard — três hooks PreToolUse que fecham o que passava em silêncio.** Medido antes desta versão (spec `prumo-guard-design`): o agente auto-escalava para `lab`, editava `PRUMO_APPROVE` nos settings, fazia `Read .env` e escrevia fora do projecto sem que nenhum hook reagisse.
 
