@@ -45,7 +45,7 @@ export async function requestApproval(
   await refreshStatus($)
   // O pedido aparece na band acima do prompt (ui.render AbovePrompt, abaixo), não num painel com
   // foco: esse tirava o teclado a quem estava a trabalhar. O /prumo-guard-approvals abre o painel.
-  void $.ui.notify(`Aprovação ${req.level} pedida: ${req.command.slice(0, 80)} · 1/2/3 com o prompt vazio`, { title: 'prumo-guard' })
+  void $.ui.notify(`Aprovação ${req.level} pedida: ${req.command.slice(0, 80)} · 1/2/3 com o prompt vazio, sem Enter`, { title: 'prumo-guard' })
 }
 
 async function tell($: EngineInterface, text: string, agentId?: string): Promise<void> {
@@ -165,14 +165,12 @@ export function registerApproval(on: On): void {
     return (
       <Box flexDirection="column">
         <Text color="yellow">prumo · aprovação {p.level} · o agente quer correr:</Text>
-        <Box>
+        <Box columnGap={2}>
           <Button key="once" hotkey="1" plain label="Só esta" onPress={() => void decide($, p, 'once')} />
-          <Text> </Text>
           <Button key="ttl" hotkey="2" plain label="10 minutos" onPress={() => void decide($, p, 'ttl')} />
-          <Text> </Text>
           <Button key="deny" hotkey="3" plain label="Negar" onPress={() => void decide($, p, 'deny')} />
-          <Text dimColor>  · dígito com o prompt vazio · /prumo-guard-approvals abre o painel</Text>
         </Box>
+        <Text dimColor>só o dígito, sem Enter, com o prompt vazio · /prumo-guard-approvals abre o painel</Text>
         <Text bold>{shown.text}</Text>
         {shown.omitted > 0 ? (
           <Text dimColor>comando com {p.command.length} caracteres; mostra-se o início e o fim, a aprovação cobre-o inteiro</Text>
@@ -200,11 +198,9 @@ export function registerApproval(on: On): void {
         {p.agentId ? <Text dimColor>subagente {p.agentId}</Text> : null}
         {p.singleUse ? <Text dimColor>run_with_secret: a aprovação serve uma só chamada, também com 10 minutos.</Text> : null}
         {list.length > 1 ? <Text dimColor>+{list.length - 1} pedido(s) na fila</Text> : null}
-        <Box>
+        <Box columnGap={2}>
           <Button key="once" hotkey="1" plain label="Só esta" onPress={() => void decide($, p, 'once')} />
-          <Text> </Text>
           <Button key="ttl" hotkey="2" plain label="10 minutos" onPress={() => void decide($, p, 'ttl')} />
-          <Text> </Text>
           <Button key="deny" hotkey="3" plain label="Negar" onPress={() => void decide($, p, 'deny')} />
         </Box>
         <Text dimColor>Esc fecha o painel; o pedido continua na band acima do prompt.</Text>

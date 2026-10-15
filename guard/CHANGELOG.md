@@ -2,6 +2,13 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.0.3 — 2026-10-15
+
+**A band explica que o dígito vai sem Enter, e os botões ficam legíveis em terminais estreitos.** Medido no terminal real, em tmux a 65 colunas: o dígito fica um instante no prompt antes de carregar no botão. Com Enter a seguir, sai como mensagem e o pedido fica por decidir. A 1.0.2 também colava `1: Só esta2: 10 minutos` (um `Text` só com um espaço perde-se) e partia a dica numa coluna estreita ao lado dos botões.
+
+- Os botões ficam numa linha própria com `columnGap`, tanto na band como no painel, e a dica passa para a linha de baixo: `só o dígito, sem Enter, com o prompt vazio · /prumo-guard-approvals abre o painel`.
+- A notificação diz `1/2/3 com o prompt vazio, sem Enter`.
+
 ## v1.0.2 — 2026-10-15
 
 **O pedido de aprovação deixa de tirar o teclado.** Na 1.0.1 cada recusa do approval-gate abria o painel `prumo · aprovação` com foco: com o prompt vazio o painel ficava com as teclas, e os botões `[ Só esta ][ 10 minutos ][ Negar ]` não diziam que `1`/`2`/`3` respondiam nem que o `Esc` o fechava. Quem estava a trabalhar ficava sem prompt.
