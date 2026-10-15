@@ -18,7 +18,7 @@ O `/prumo-onboard` detecta o que falta, emite as linhas de install dos restantes
 | **prumo-secops** | 1.0.1 | SecOps para um SaaS multi-tenant — isolamento entre clientes, release gates, resposta a incidentes, conformidade. |
 | **prumo-devkit** | 1.0.0 | Auditoria de código e infra: segurança, dependências, performance, UX. Read-only por defeito. |
 | **prumo-design** | 1.0.0 | Orquestrador de design sobre a stack nativa do Claude. Standalone. |
-| **prumo-guard** | 1.0.3 | Mod de guardrails (function hooks): aprovação humana por comando (na band acima do prompt, sem tirar o teclado), redação de segredos e PII, painel e travão do loop (opt-in), trilho CEF, `run_with_secret` (desligado por omissão, aprovação por chamada). API de mods em early access. |
+| **prumo-guard** | 1.0.4 | Mod de guardrails (function hooks): aprovação humana por comando (na band acima do prompt, sem tirar o teclado), redação de segredos e PII, painel e travão do loop (opt-in), trilho CEF, `run_with_secret` (desligado por omissão, aprovação por chamada). API de mods em early access. |
 
 **A ordem importa só numa direcção:** o `prumo-base` fornece as libs partilhadas que o `secops` assume e que o `/ngrok-expose` do `devkit` consome. Entre si, `secops` e `devkit` são independentes. O `design` não depende de nenhum.
 

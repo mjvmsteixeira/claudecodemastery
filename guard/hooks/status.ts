@@ -12,7 +12,7 @@ export async function refreshStatus($: EngineInterface): Promise<void> {
   const mode = await readMode($)
   const on = await read($, redactOn)
   const n = (await read($, pending)).length
-  const parts = [`prumo ${mode}`, `redação ${on ? 'on' : 'off'}`]
+  const parts = [`prumo ${mode}`, `RGPD ${on ? 'on' : 'off'}`]
   const loop = await read($, loopRef)
   if (loop.active) parts.push(`ralph ${loop.iteration ?? '?'}/${loop.maxIterations ?? '?'}`)
   if ((await read($, brakeRef)).paused) parts.push('pausa')

@@ -47,7 +47,7 @@ Antes de o conteúdo chegar ao modelo, os valores sensíveis são trocados por `
 - Guarda contra corrupção: um `Write`, `Edit` ou `MultiEdit` que traga marcadores `[prumo:...]` para um ficheiro existente e apagaria os valores reais é recusado. Os ficheiros do próprio prumo-guard estão isentos.
 - Se a redação falhar, o resultado é retido em vez de passar em claro.
 
-Estado: `/prumo-guard-redact on|off` (só pela pessoa) liga ou desliga durante a sessão.
+Estado: `/prumo-guard-redact on|off` (só pela pessoa) liga ou desliga durante a sessão. Na linha de estado e no `/prumo-guard` aparece como `RGPD on` ou `RGPD off`.
 
 ### Painel do loop
 
@@ -118,9 +118,9 @@ Writer do `friday-state` no processo, desligado por omissão (ver secção abaix
 
 | Comando | O que faz | Só pela pessoa |
 |---|---|---|
-| `/prumo-guard` | Estado: modo, redação (e valores redigidos), aviso de `redact.json` inválido, orçamento, repetição, caminho do `guard.json` | não |
+| `/prumo-guard` | Estado: modo, RGPD (redação, e valores redigidos), aviso de `redact.json` inválido, orçamento, repetição, caminho do `guard.json` | não |
 | `/prumo-guard-mode prod\|dev\|lab` | Muda o modo operacional (`~/.prumo/mode`; `lab` escreve também o marker `lab-mode`) | sim |
-| `/prumo-guard-redact on\|off` | Liga ou desliga a redação nesta sessão | sim |
+| `/prumo-guard-redact on\|off` | Liga ou desliga o RGPD (redação) nesta sessão | sim |
 | `/prumo-guard-approvals` | Abre o pedido pendente num painel com foco (o `Esc` fecha-o; o pedido continua na band) | não |
 | `/prumo-guard-resume` | Rearma o travão | sim |
 | `/prumo-guard-stop` | Termina o loop do ralph | sim |
