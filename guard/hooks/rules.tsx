@@ -1,9 +1,10 @@
-import { atom } from 'claude-code'
-import type { EngineInterface } from 'claude-code'
+import { atom, read, update } from 'claude-code'
+import type { EngineInterface, On } from 'claude-code'
 import type { PrumoGuardRule } from '../types'
-import { sha256Hex } from './approval-parse.ts'
+import { displayCommand, sha256Hex } from './approval-parse.ts'
 import { prumoHome } from './config.ts'
 import { RULES_DEFAULT } from './refs.ts'
+import { refreshStatus } from './status.ts'
 
 // O ficheiro do projeto é uma lista de propostas: só vale o que a pessoa ativou nesta sessão
 // (rulesActive), uma cópia tirada no momento da ativação. O agente não escreve átomos.
@@ -79,4 +80,68 @@ async function saveRules($: EngineInterface, project: string, rules: PrumoGuardR
   } catch {
     return false
   }
+}
+
+export const RULES_PANE = 'prumo-guard-rules'
+
+export async function startRules($: EngineInterface): Promise<void> {
+  await $.command.register({ name: 'prumo-guard-rules', description: 'Regras de aprovação deste projeto: ver e revogar' })
+  const project = await projectRoot($)
+  if (!project) return
+  const loaded = await loadRules($, project)
+  if (loaded.state === 'invalid') {
+    $.ui.toast(`prumo-guard: rules/${(await sha256Hex(project)).slice(0, 12)}….json inválido — regras ignoradas`)
+    return
+  }
+  if (loaded.state === 'missing') return
+  await update($, rulesFile, () => loaded.rules)
+  await update($, rulesOffered, () => loaded.rules)
+}
+
+// Revogar tira a regra da sessão e reescreve o ficheiro a partir do que o mod leu ou escreveu.
+// Um ficheiro forjado entretanto fica substituído.
+export async function revokeRule($: EngineInterface, ruleId: string): Promise<void> {
+  await update($, rulesActive, list => (list ?? []).filter(r => r.id !== ruleId))
+  await update($, rulesOffered, list => (list ?? []).filter(r => r.id !== ruleId))
+  const remaining = (await read($, rulesFile)).filter(r => r.id !== ruleId)
+  await update($, rulesFile, () => remaining)
+  const project = await projectRoot($)
+  if (!project || !(await saveRules($, project, remaining))) $.ui.toast('prumo-guard: não foi possível gravar rules/ — a regra foi revogada só nesta sessão')
+  await refreshStatus($)
+}
+
+export async function decideOffered($: EngineInterface, rule: PrumoGuardRule, choice: 'activate' | 'later' | 'revoke'): Promise<void> {
+  await update($, rulesOffered, list => (list ?? []).filter(r => r.id !== rule.id))
+  if (choice === 'activate') await update($, rulesActive, list => [...(list ?? []).filter(r => r.id !== rule.id), rule])
+  if (choice === 'revoke') await revokeRule($, rule.id)
+  await refreshStatus($)
+}
+
+function describe(rule: PrumoGuardRule, max: number): string {
+  return rule.kind === 'level' ? 'todos os N1 neste projeto' : `este comando: ${displayCommand(rule.command, max).text}`
+}
+
+export function registerRules(on: On): void {
+  // Registado depois do pedido de aprovação e antes do painel do loop: um pedido pendente tem a
+  // band primeiro; sem pedidos, as regras do arranque por decidir; depois o painel.
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    if (e.props.hasSurvey) return next(e)
+    const offered = await read($, rulesOffered)
+    const r = offered[0]
+    if (!r) return next(e)
+    const { Box, Text, Button } = $.ui.resolve(e)
+    return (
+      <Box flexDirection="column">
+        <Text color="yellow">prumo · regra do projeto, criada a {r.createdAt.slice(0, 10)}:</Text>
+        <Text bold>{describe(r, 400)}</Text>
+        <Box columnGap={2}>
+          <Button key="rule-activate" hotkey="1" plain label="Ativar nesta sessão" onPress={() => void decideOffered($, r, 'activate')} />
+          <Button key="rule-later" hotkey="2" plain label="Agora não" onPress={() => void decideOffered($, r, 'later')} />
+          <Button key="rule-revoke" hotkey="3" plain label="Revogar" onPress={() => void decideOffered($, r, 'revoke')} />
+        </Box>
+        <Text dimColor>só o dígito, sem Enter, com o prompt vazio · /prumo-guard-rules abre o painel</Text>
+        {offered.length > 1 ? <Text dimColor>+{offered.length - 1} regra(s) por decidir</Text> : null}
+      </Box>
+    )
+  })
 }
