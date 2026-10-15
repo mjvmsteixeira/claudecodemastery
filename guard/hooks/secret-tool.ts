@@ -218,7 +218,7 @@ export function registerSecretTool(on: On): void {
     if (gate.exitCode === 2) {
       const req = parseGateDenial(gate.stderr, gateId)
       if (req) {
-        await requestApproval($, { ...req, command, ...(input.agentId ? { agentId: input.agentId } : {}) })
+        await requestApproval($, { ...req, command, noRules: true, ...(input.agentId ? { agentId: input.agentId } : {}) })
         return { deny: 'run_with_secret: pedido de aprovação aberto ao humano. Repete exatamente esta chamada depois da aprovação.' }
       }
       return deny('bloqueado pelo approval-gate.')

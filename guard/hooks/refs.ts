@@ -12,3 +12,4 @@ export const AGENTS_DEFAULT: PrumoGuardAgent[] = []
 export const USAGE_DEFAULT: PrumoGuardUsage = { contextPercent: null, usd: null, rate: '' }
 export const BRAKE_DEFAULT: PrumoGuardBrake = { paused: false, reason: null, loopStartUsd: null, tokens: 0 }
 export const RULES_DEFAULT: PrumoGuardRule[] = []
+export const RULES_PROJECT_DEFAULT: string | null = null

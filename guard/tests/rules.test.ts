@@ -25,6 +25,16 @@ test('parseRulesFile recusa o ficheiro inteiro quando algo não bate', () => {
   expect(parseRulesFile(JSON.stringify({ project: '/p', rules: 'x' }), '/p')).toBeNull()
 })
 
+test('parseRulesFile recusa um createdAt que não seja uma data ISO', () => {
+  expect(parseRulesFile(file([{ ...LEVEL, createdAt: 'ontem' }]), '/p')).toBeNull()
+  expect(parseRulesFile(file([{ ...LEVEL, createdAt: '15 Oct 2026' }]), '/p')).toBeNull()
+  expect(parseRulesFile(file([{ ...LEVEL, createdAt: '2026-13-45T99:00:00Z' }]), '/p')).toBeNull()
+  expect(parseRulesFile(file([{ ...LEVEL, createdAt: '2026-10-15T15:00:00Z' }]), '/p')).toHaveLength(1)
+})
+
+// Uma regra command só é válida com o commandId do próprio comando.
+const valid = async <R extends { command: string }>(r: R) => ({ ...r, commandId: await approvalIdOf(r.command) })
+
 const PROJECT = '/p'
 const GATE = '/h/.claude/plugins/cache/prumo/prumo-secops/1.0.1/hooks/pre-tool-approval-gate.sh'
 const BAND = { plugin: 'prumo-guard', surface: 'terminal', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 12, bodyColumns: 80, scroll: { offset: 0, bodyRows: 12 }, view: {} } } as const
@@ -49,6 +59,12 @@ type World = {
   writeFails?: boolean
   denyCommand?: string
   failCommand?: string
+  // A raiz que o `sh` do projectRoot devolve; muda com um `cd` da sessão.
+  root?: string
+  // As escritas em approvals/ (caminho e texto), e `log` com 'ficheiro' por cada uma, pela ordem;
+  // um teste pode intercalar-lhe as escritas do átomo.
+  written: Record<string, string>
+  log: string[]
 }
 
 async function rulesFileOf(project = PROJECT): Promise<string> {
@@ -59,7 +75,7 @@ async function rulesFileOf(project = PROJECT): Promise<string> {
 // classificação) dá o nível de `levels`; um comando fora de `levels` passa. Com um
 // approvals/<id> do nível certo, o tool.call passa e apaga o ficheiro, como o gate faz.
 function world(on: On, w: Partial<World> = {}): World {
-  const s: World = { files: {}, levels: {}, gateRuns: 0, reached: 0, toasts: [], status: '', opened: [], ...w }
+  const s: World = { files: {}, levels: {}, gateRuns: 0, reached: 0, toasts: [], status: '', opened: [], written: {}, log: [], ...w }
   mock.env(on, { HOME: '/h' })
   on('clock.now', () => ({ value: 1_000_000 }))
   on('clock.every', () => ({ deny: 'sem relógio no teste' }))
@@ -71,10 +87,18 @@ function world(on: On, w: Partial<World> = {}): World {
   on('fs.read', (_$, e) => (s.files[e.path] !== undefined ? { value: s.files[e.path] as string } : { deny: 'ENOENT' }))
   on('fs.stat', (_$, e) => (s.files[e.path] !== undefined ? { value: { kind: 'file' as const, size: 1, mtimeMs: 0, isLink: false } } : { deny: 'ENOENT' }))
   on('fs.exists', (_$, e) => ({ value: s.files[e.path] !== undefined }))
-  on('fs.write', (_$, e) => { if (s.writeFails && e.path.includes('/approvals/')) return { deny: 'EIO' }; s.files[e.path] = e.text; return { value: undefined } })
+  on('fs.write', (_$, e) => {
+    if (s.writeFails && e.path.includes('/approvals/')) return { deny: 'EIO' }
+    if (e.path.includes('/approvals/')) {
+      s.written[e.path] = e.text
+      s.log.push('ficheiro')
+    }
+    s.files[e.path] = e.text
+    return { value: undefined }
+  })
   on('process.run', async (_$, e) => {
     const [bin, ...rest] = e.argv
-    if (bin === 'sh') return res(0, `${PROJECT}\n`)
+    if (bin === 'sh') return res(0, `${s.root ?? PROJECT}\n`)
     if (bin === 'mkdir') return s.mkdirFails ? res(1, '', 'mkdir: falhou') : res(0)
     if (bin === 'rm') { delete s.files[rest[rest.length - 1] as string]; return res(0) }
     if (bin === 'bash' && rest[0] === GATE) {
@@ -145,7 +169,7 @@ test('1 ativa a regra oferecida e a linha de estado conta-a', async ($, on) => {
 test('2 deixa a regra no ficheiro; 3 apaga-a', async ($, on) => {
   const s = world(on)
   const path = await rulesFileOf()
-  s.files[path] = JSON.stringify({ project: PROJECT, rules: [LEVEL, COMMAND] })
+  s.files[path] = JSON.stringify({ project: PROJECT, rules: [LEVEL, await valid(COMMAND)] })
   await start($)
   const band = await $.ui.mount(BAND)
   await band.press({ key: 'rule-later' })
@@ -164,6 +188,57 @@ test('um ficheiro de regras inválido é ignorado com aviso', async ($, on) => {
   const band = await $.ui.mount(BAND)
   expect(await band.find({ text: /sem painel/ })).toBeDefined()
   await band.unmount()
+})
+
+test('uma regra command que mostra um comando e traz o id de outro invalida o ficheiro', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1', [N1B]: 'N1' } })
+  const forged = { ...COMMAND, command: N1, commandId: await approvalIdOf(N1B) }
+  s.files[await rulesFileOf()] = JSON.stringify({ project: PROJECT, rules: [LEVEL, forged] })
+  await start($)
+  expect(s.toasts.some(t => t.includes('inválido'))).toBe(true)
+  const band = await $.ui.mount(BAND)
+  expect(await band.find({ text: /sem painel/ })).toBeDefined()
+  await band.unmount()
+  expect((await $.tool.call({ tool: 'Bash', command: N1B })).isError).toBe(true)
+  expect(s.status).toContain('pendente')
+})
+
+test('a band de arranque usa os dígitos 7, 8 e 9', async ($, on) => {
+  const s = world(on)
+  s.files[await rulesFileOf()] = file([LEVEL])
+  await start($)
+  const band = await $.ui.mount(BAND)
+  expect(await band.findAll({ type: 'Button' })).toHaveLength(3)
+  const drawn = JSON.stringify(await band.drawn())
+  for (const k of ['7', '8', '9']) expect(drawn).toContain(`"hotkey":"${k}"`)
+  expect(drawn).not.toMatch(/"hotkey":"[1-5]"/)
+  await band.unmount()
+})
+
+test('um novo session.start não volta a oferecer uma regra já ativa', async ($, on) => {
+  const s = world(on)
+  s.files[await rulesFileOf()] = file([LEVEL])
+  await start($)
+  const band = await $.ui.mount(BAND)
+  await band.press({ key: 'rule-activate' })
+  await band.unmount()
+  await start($)
+  const again = await $.ui.mount(BAND)
+  expect(await again.find({ text: /sem painel/ })).toBeDefined()
+  await again.unmount()
+  expect(s.status).toContain('regras N1: 1 ativa(s)')
+})
+
+test('o comando de uma regra aparece numa só linha na band e no painel', async ($, on) => {
+  const s = world(on)
+  s.files[await rulesFileOf()] = file([await valid({ ...COMMAND, command: 'echo a\n\techo b' })])
+  await start($)
+  const band = await $.ui.mount(BAND)
+  expect(await band.find({ text: /este comando: echo a {2}echo b/ })).toBeDefined()
+  await band.unmount()
+  const pane = await $.ui.mount(PANE)
+  expect(await pane.find({ text: /este comando: echo a {2}echo b/ })).toBeDefined()
+  await pane.unmount()
 })
 
 const rulesIn = async (s: World) => parseRulesFile(s.files[await rulesFileOf()] as string, PROJECT) ?? []
@@ -277,9 +352,33 @@ test('com o gate a sair 1 ou em falta, abre-se o pedido normal', async ($, on) =
   await createRule($, N1, 'rule-level')
   s.gateExit = 1
   expect((await $.tool.call({ tool: 'Bash', command: N1B })).isError).toBe(true)
+  expect(s.status).toContain('pendente')
+  const band = await $.ui.mount(BAND)
+  await band.press({ key: 'deny' })
+  await band.unmount()
+  expect(s.status).not.toContain('pendente')
   s.gateExit = undefined
   s.gateMissing = true
   expect((await $.tool.call({ tool: 'Bash', command: N1B })).isError).toBe(true)
+  expect(s.status).toContain('pendente')
+})
+
+test('a aprovação por regra é de uma vez, expira em 5 minutos e o registo entra antes do ficheiro', async ($, on) => {
+  const log: string[] = []
+  on('state.set', { plugin: 'prumo-guard', key: 'approvals' }, (_$, e, next) => {
+    log.push('registo')
+    return next(e)
+  })
+  const s = world(on, { levels: { [N1]: 'N1', [N1B]: 'N1' }, log })
+  await createRule($, N1, 'rule-level')
+  log.length = 0
+  const r = await $.tool.call({ tool: 'Bash', command: N1B })
+  expect(String(r.context ?? '')).toContain('regra do projeto')
+  const text = s.written[`/h/.prumo/approvals/${await approvalIdOf(N1B)}`]
+  expect(text).toContain('scope=once\n')
+  expect(text).toContain(`expires=${Math.floor((1_000_000 + 300_000) / 1000)}\n`)
+  // O registo da regra, o ficheiro, e o registo marcado usado.
+  expect(log).toEqual(['registo', 'ficheiro', 'registo'])
 })
 
 test('um ficheiro alterado depois da ativação não muda a regra ativa', async ($, on) => {
@@ -378,10 +477,99 @@ test('o painel lista as regras; revogar apaga do ficheiro e da sessão', async (
   const rule = (await rulesIn(s))[0]
   const pane = await $.ui.mount(PANE)
   expect(await pane.find({ text: /todos os N1 neste projeto/ })).toBeDefined()
-  expect(await pane.find({ text: /ativa/ })).toBeDefined()
+  expect(await pane.find({ text: /^ativa$/ })).toBeDefined()
+  expect(await pane.find({ text: /^inativa$/ })).toBeUndefined()
   await pane.press({ key: `revoke:${rule?.id}` })
   expect(await rulesIn(s)).toEqual([])
   expect(await pane.find({ text: /Sem regras neste projeto/ })).toBeDefined()
   await pane.unmount()
   expect((await $.tool.call({ tool: 'Bash', command: N1B })).isError).toBe(true)
+})
+
+test('o painel marca inativa uma regra do ficheiro que não foi ativada', async ($, on) => {
+  const s = world(on)
+  s.files[await rulesFileOf()] = file([LEVEL])
+  await start($)
+  const pane = await $.ui.mount(PANE)
+  expect(await pane.find({ text: /^inativa$/ })).toBeDefined()
+  expect(await pane.find({ text: /^ativa$/ })).toBeUndefined()
+  await pane.unmount()
+})
+
+test('uma regra ativa que saiu do ficheiro continua no painel e pode ser revogada', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1', [N1B]: 'N1' } })
+  const path = await rulesFileOf()
+  s.files[path] = file([LEVEL])
+  await start($)
+  const band = await $.ui.mount(BAND)
+  await band.press({ key: 'rule-activate' })
+  await band.unmount()
+  // Um re-arranque com o ficheiro já sem a regra: o espelho deixa de a ter, a sessão não.
+  s.files[path] = file([])
+  await start($)
+  const pane = await $.ui.mount(PANE)
+  expect(await pane.find({ text: /todos os N1 neste projeto/ })).toBeDefined()
+  expect(await pane.find({ text: /^ativa$/ })).toBeDefined()
+  await pane.press({ key: `revoke:${LEVEL.id}` })
+  expect(await pane.find({ text: /Sem regras neste projeto/ })).toBeDefined()
+  await pane.unmount()
+  expect(s.status).not.toContain('regras N1')
+  expect((await $.tool.call({ tool: 'Bash', command: N1B })).isError).toBe(true)
+})
+
+test('depois de um cd para outro repositório, criar e revogar regras só toca no ficheiro do projeto do arranque', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1' } })
+  await start($)
+  s.root = '/outro'
+  await createRule($, N1, 'rule-level')
+  const rule = (await rulesIn(s))[0]
+  expect(rule?.kind).toBe('level')
+  const pane = await $.ui.mount(PANE)
+  await pane.press({ key: `revoke:${rule?.id}` })
+  await pane.unmount()
+  expect(await rulesIn(s)).toEqual([])
+  expect(s.files[await rulesFileOf('/outro')]).toBeUndefined()
+})
+
+test('criar e revogar partem do ficheiro em disco, não da cópia da sessão', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1' } })
+  const path = await rulesFileOf()
+  s.files[path] = file([LEVEL])
+  await start($)
+  // Outra sessão no mesmo projeto grava uma regra depois do arranque desta.
+  const other = await valid(COMMAND)
+  s.files[path] = file([LEVEL, other])
+  await createRule($, N1, 'rule-command')
+  const created = await rulesIn(s)
+  expect(created).toHaveLength(3)
+  expect(created.slice(0, 2)).toEqual([LEVEL, other])
+  expect(created[2]).toMatchObject({ kind: 'command', command: N1 })
+  const pane = await $.ui.mount(PANE)
+  await pane.press({ key: `revoke:${LEVEL.id}` })
+  await pane.unmount()
+  expect((await rulesIn(s)).map(r => r.id)).toEqual([other.id, created[2]?.id])
+})
+
+test('um ficheiro inválido em disco é substituído a partir do espelho da sessão', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1' } })
+  const path = await rulesFileOf()
+  s.files[path] = file([LEVEL])
+  await start($)
+  s.files[path] = '{"forjado":true}'
+  await createRule($, N1, 'rule-level')
+  const rules = await rulesIn(s)
+  expect(rules).toHaveLength(2)
+  expect(rules[0]).toEqual(LEVEL)
+})
+
+test('um ficheiro apagado depois do arranque fica só com a regra nova', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1' } })
+  const path = await rulesFileOf()
+  s.files[path] = file([LEVEL])
+  await start($)
+  delete s.files[path]
+  await createRule($, N1, 'rule-level')
+  const rules = await rulesIn(s)
+  expect(rules).toHaveLength(1)
+  expect(rules[0]?.id).not.toBe(LEVEL.id)
 })

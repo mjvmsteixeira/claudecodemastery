@@ -117,6 +117,16 @@ test('o pedido aparece na band acima do prompt e não abre o painel com foco', a
   await band.unmount()
 })
 
+test('em N1 o painel /prumo-guard-approvals também mostra as opções 4 e 5', async ($, on) => {
+  stubs(on, () => DENIAL)
+  await $.tool.call(BASH)
+  const ui = await $.ui.mount(MOUNT)
+  expect(await ui.findAll({ type: 'Button' })).toHaveLength(5)
+  expect(await ui.find({ text: /Este comando, sempre neste projeto/ })).toBeDefined()
+  expect(await ui.find({ text: /Todos os N1 neste projeto/ })).toBeDefined()
+  await ui.unmount()
+})
+
 test('a band responde ao pedido: "só esta" escreve o ficheiro e a band volta ao normal', async ($, on) => {
   const seen = stubs(on, () => DENIAL)
   await $.tool.call(BASH)

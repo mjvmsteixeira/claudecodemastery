@@ -37,7 +37,7 @@ export const FORGED_RACE_NOTE =
 
 export async function requestApproval(
   $: EngineInterface,
-  req: { id: string; level: PrumoGuardLevel; command: string; agentId?: string; singleUse?: boolean },
+  req: { id: string; level: PrumoGuardLevel; command: string; agentId?: string; singleUse?: boolean; noRules?: true },
 ): Promise<void> {
   const requestedAt = await $.clock.now()
   await update($, pending, list =>
@@ -219,7 +219,7 @@ export function registerApproval(on: On): void {
           <Button key="ttl" hotkey="2" plain label="10 minutos" onPress={() => void decide($, p, 'ttl')} />
           <Button key="deny" hotkey="3" plain label="Negar" onPress={() => void decide($, p, 'deny')} />
         </Box>
-        {p.level === 'N1' && !p.singleUse ? (
+        {p.level === 'N1' && !p.singleUse && !p.noRules ? (
           <Box columnGap={2}>
             <Button key="rule-command" hotkey="4" plain label="Este comando, sempre neste projeto" onPress={() => void decideRule($, p, 'command')} />
             <Button key="rule-level" hotkey="5" plain label="Todos os N1 neste projeto" onPress={() => void decideRule($, p, 'level')} />
@@ -258,7 +258,7 @@ export function registerApproval(on: On): void {
           <Button key="ttl" hotkey="2" plain label="10 minutos" onPress={() => void decide($, p, 'ttl')} />
           <Button key="deny" hotkey="3" plain label="Negar" onPress={() => void decide($, p, 'deny')} />
         </Box>
-        {p.level === 'N1' && !p.singleUse ? (
+        {p.level === 'N1' && !p.singleUse && !p.noRules ? (
           <Box columnGap={2}>
             <Button key="rule-command" hotkey="4" plain label="Este comando, sempre neste projeto" onPress={() => void decideRule($, p, 'command')} />
             <Button key="rule-level" hotkey="5" plain label="Todos os N1 neste projeto" onPress={() => void decideRule($, p, 'level')} />

@@ -8,6 +8,8 @@ export type PrumoGuardPending = {
   agentId?: string
   // run_with_secret: a aprovação serve uma só chamada, também com "10 minutos".
   singleUse?: boolean
+  // Pedido do approval-gate aberto pelo run_with_secret: sem as opções 4 e 5 (regras do projeto).
+  noRules?: true
 }
 
 // O que a pessoa decidiu no diálogo, guardado pelo mod: um approvals/<id> só serve com o registo
@@ -58,6 +60,7 @@ declare module 'claude-code' {
       rulesFile: PrumoGuardRule[]
       rulesOffered: PrumoGuardRule[]
       rulesActive: PrumoGuardRule[]
+      rulesProject: string | null
     }
   }
 }
