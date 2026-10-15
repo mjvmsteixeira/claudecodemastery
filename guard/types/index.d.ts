@@ -35,6 +35,12 @@ export type PrumoGuardRepeat = {
 }
 export type PrumoGuardBrake = { paused: boolean; reason: string | null; loopStartUsd: number | null; tokens: number }
 
+// Uma regra de aprovação do projeto (~/.prumo/rules/<sha256 do projeto>.json). Só N1. Só vale numa
+// sessão depois de a pessoa a ativar; o match usa a cópia tirada nesse momento (rulesActive).
+export type PrumoGuardRule =
+  | { id: string; kind: 'level'; level: 'N1'; createdAt: string }
+  | { id: string; kind: 'command'; level: 'N1'; commandId: string; command: string; createdAt: string }
+
 declare module 'claude-code' {
   interface PluginState {
     'prumo-guard': {
@@ -49,6 +55,9 @@ declare module 'claude-code' {
       usage: PrumoGuardUsage
       repeat: PrumoGuardRepeat
       brake: PrumoGuardBrake
+      rulesFile: PrumoGuardRule[]
+      rulesOffered: PrumoGuardRule[]
+      rulesActive: PrumoGuardRule[]
     }
   }
 }
