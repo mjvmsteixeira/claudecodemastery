@@ -45,6 +45,12 @@ Aberto a 2026-08-02.
 
 ---
 
+## B14 · `secret-read`: falso positivo com `.key` em filtros jq
+
+**Estado:** em aberto. Medido a 2026-10-15 com o base 1.0.0 instalado, três vezes na mesma sessão (a terceira foi um `git commit -m` cuja mensagem só mencionava o `.key`): `jq -r '.plugins | to_entries[] | select(.key | …)' ~/.claude/plugins/installed_plugins.json` foi bloqueado com `o conteúdo de .key entraria no contexto`. O acesso a campo `.key` do jq (o par de `to_entries`) é lido como o ficheiro `.key`. Contorno: passar o filtro num ficheiro (`jq -f filtro.jq`). Correção provável: não tratar como caminho as palavras dentro do filtro entre aspas de `jq`/`yq`, e fixar com casos de corpus (`jq '.[] | .key' x.json` → allow; `cat .key` → block).
+
+---
+
 ## B1 · Identidade do embedder do MemPalace — **FECHADO** (2026-08-03)
 
 **Resolvido com `mempalace palace set-embedder --model minilm`.** Identidade gravada em `palace/mempalace_embedder.json` (`minilm`, dim 384), coerente com o `embedding_model` do `config.json`. Verificado pelo comportamento: a operação que antes emitia o `EmbedderIdentityUnknownWarning` para as duas colecções — `repair --dry-run` — deixou de emitir qualquer aviso.
