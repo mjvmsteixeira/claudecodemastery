@@ -1,10 +1,10 @@
 import { atom, read, update } from 'claude-code'
 import { APPROVALS_DEFAULT, PENDING_DEFAULT } from './refs.ts'
 import type { EngineInterface, On } from 'claude-code'
-import type { PrumoGuardApproval, PrumoGuardLevel, PrumoGuardPending } from '../types'
+import type { PrumoGuardApproval, PrumoGuardLevel, PrumoGuardPending, PrumoGuardRule } from '../types'
 import { approvalIdOf, displayCommand, parseGateDenial, quoteCommand } from './approval-parse.ts'
 import { prumoHome } from './config.ts'
-import { addRule } from './rules.tsx'
+import { addRule, ruleFor } from './rules.tsx'
 import { refreshStatus } from './status.ts'
 
 // O validador só lê átomos declarados no próprio ficheiro quando se escreve (update); a leitura usa o de refs.ts.
@@ -145,18 +145,25 @@ export async function sweepForgedFile($: EngineInterface, id: string): Promise<b
   return true
 }
 
+function ruleNote(rule: PrumoGuardRule): string {
+  return `prumo-guard: aprovado pela regra do projeto (N1, ${rule.kind === 'level' ? 'todos os N1' : 'este comando'}, ${rule.id}).`
+}
+
 export function registerApproval(on: On): void {
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const id = await approvalIdOf(e.command)
     const refused = await checkApprovalFile($, id)
     if (refused) return { deny: refused }
+    const rule = await ruleFor($, e.command, id)
+    if (rule) await grant($, id, 'N1', 'once')
     const ran = await next(e)
     if (ran.deny !== undefined) return ran
     if (ran.isError !== true) {
       // O comando correu (ou foi autorizado). Varre um ficheiro forjado que tenha aparecido na
       // janela entre a verificação acima e a leitura do gate: assim não sobrevive para autorizar o
       // próximo comando, e o modelo fica avisado.
-      return (await sweepForgedFile($, id)) ? { ...ran, context: [FORGED_RACE_NOTE] } : ran
+      if (await sweepForgedFile($, id)) return { ...ran, context: [FORGED_RACE_NOTE] }
+      return rule ? { ...ran, context: [ruleNote(rule)] } : ran
     }
     const req = parseGateDenial(ran.text ?? '', id)
     if (!req) return ran

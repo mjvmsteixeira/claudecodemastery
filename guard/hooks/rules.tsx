@@ -1,8 +1,9 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, On } from 'claude-code'
 import type { PrumoGuardRule } from '../types'
-import { displayCommand, sha256Hex } from './approval-parse.ts'
+import { displayCommand, parseGateDenial, sha256Hex } from './approval-parse.ts'
 import { prumoHome } from './config.ts'
+import { latestPluginDir } from './plugin-paths.ts'
 import { RULES_DEFAULT } from './refs.ts'
 import { refreshStatus } from './status.ts'
 
@@ -160,4 +161,23 @@ export function registerRules(on: On): void {
       </Box>
     )
   })
+}
+
+// Com regras ativas, classifica o Bash correndo o approval-gate como o run_with_secret faz. Só um
+// N1 com uma regra que bata devolve a regra; qualquer outra saída (0, N2, N3, erro, gate em falta)
+// devolve null e o Bash segue para o gate como sempre.
+export async function ruleFor($: EngineInterface, command: string, id: string): Promise<PrumoGuardRule | null> {
+  const active = await read($, rulesActive)
+  if (active.length === 0) return null
+  const secops = await latestPluginDir($, 'prumo-secops')
+  if (!secops) return null
+  const gate = await $.process
+    .run(['bash', `${secops}/hooks/pre-tool-approval-gate.sh`], {
+      stdin: JSON.stringify({ tool_name: 'Bash', tool_input: { command } }),
+      env: { CLAUDE_PLUGIN_ROOT: secops },
+      timeoutMs: 5000,
+    })
+    .catch(() => null)
+  if (!gate || gate.exitCode !== 2 || parseGateDenial(gate.stderr, id)?.level !== 'N1') return null
+  return active.find(r => r.kind === 'command' && r.commandId === id) ?? active.find(r => r.kind === 'level') ?? null
 }

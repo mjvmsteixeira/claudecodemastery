@@ -76,7 +76,7 @@ function world(on: On, w: Partial<World> = {}): World {
     if (bin === 'bash' && rest[0] === GATE) {
       s.gateRuns++
       if (s.gateExit !== undefined) return res(s.gateExit)
-      const command = JSON.parse(String(e.stdin)).tool_input.command as string
+      const command = JSON.parse(String(e.init?.stdin)).tool_input.command as string
       const level = s.levels[command]
       return level ? res(2, '', banner(level, await approvalIdOf(command))) : res(0)
     }
@@ -208,4 +208,83 @@ test('com um pedido e uma regra por decidir, a band mostra o pedido', async ($, 
   await band.press({ key: 'deny' })
   expect(await band.find({ text: /regra do projeto/ })).toBeDefined()
   await band.unmount()
+})
+
+// Cria uma regra pela opção 4 ou 5 no primeiro pedido de `command`.
+// `$` como any: o kit não exporta o tipo do `$` dos testes.
+async function createRule($: any, command: string, key: 'rule-level' | 'rule-command') { // eslint-disable-line @typescript-eslint/no-explicit-any
+  await $.tool.call({ tool: 'Bash', command })
+  const band = await $.ui.mount(BAND)
+  await band.press({ key })
+  await band.unmount()
+}
+
+test('com uma regra level ativa, um N1 novo corre sem pedido e com nota', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1', [N1B]: 'N1' } })
+  await createRule($, N1, 'rule-level')
+  const r = await $.tool.call({ tool: 'Bash', command: N1B })
+  expect(r.isError).toBeUndefined()
+  expect(String(r.context ?? '')).toContain('regra do projeto')
+  expect(s.status).not.toContain('pendente')
+})
+
+test('um N2 não é aprovado por uma regra level', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1', [N2]: 'N2' } })
+  await createRule($, N1, 'rule-level')
+  const r = await $.tool.call({ tool: 'Bash', command: N2 })
+  expect(r.isError).toBe(true)
+  expect(s.status).toContain('1 aprovação(ões) pendente(s)')
+})
+
+test('uma regra command só aprova o mesmo comando', async ($, on) => {
+  world(on, { levels: { [N1]: 'N1', [N1B]: 'N1' } })
+  await createRule($, N1, 'rule-command')
+  expect((await $.tool.call({ tool: 'Bash', command: N1B })).isError).toBe(true)
+  expect((await $.tool.call({ tool: 'Bash', command: N1 })).isError).toBeUndefined()
+})
+
+test('sem regras ativas o gate não corre a mais', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1' } })
+  await $.tool.call({ tool: 'Bash', command: N1 })
+  expect(s.gateRuns).toBe(0)
+})
+
+test('um comando que o gate deixa passar não escreve aprovação nem nota', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1' } })
+  await createRule($, N1, 'rule-level')
+  const before = Object.keys(s.files).filter(k => k.includes('/approvals/')).length
+  const r = await $.tool.call({ tool: 'Bash', command: 'ls -la' })
+  expect(String(r.context ?? '')).not.toContain('regra do projeto')
+  expect(Object.keys(s.files).filter(k => k.includes('/approvals/')).length).toBe(before)
+})
+
+test('com o gate a sair 1 ou em falta, abre-se o pedido normal', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1', [N1B]: 'N1' } })
+  await createRule($, N1, 'rule-level')
+  s.gateExit = 1
+  expect((await $.tool.call({ tool: 'Bash', command: N1B })).isError).toBe(true)
+  s.gateExit = undefined
+  s.gateMissing = true
+  expect((await $.tool.call({ tool: 'Bash', command: N1B })).isError).toBe(true)
+})
+
+test('um ficheiro alterado depois da ativação não muda a regra ativa', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1', [N1B]: 'N1' } })
+  const path = await rulesFileOf()
+  const only = { ...COMMAND, commandId: await approvalIdOf(N1), command: N1 }
+  s.files[path] = JSON.stringify({ project: PROJECT, rules: [only] })
+  await start($)
+  const band = await $.ui.mount(BAND)
+  await band.press({ key: 'rule-activate' })
+  await band.unmount()
+  s.files[path] = JSON.stringify({ project: PROJECT, rules: [LEVEL] })
+  expect((await $.tool.call({ tool: 'Bash', command: N1B })).isError).toBe(true)
+  expect((await $.tool.call({ tool: 'Bash', command: N1 })).isError).toBeUndefined()
+})
+
+test('se a escrita de rules/ falhar, a regra vale nesta sessão', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1', [N1B]: 'N1' }, mkdirFails: true })
+  await createRule($, N1, 'rule-level')
+  expect(s.toasts.some(t => t.includes('só nesta sessão'))).toBe(true)
+  expect((await $.tool.call({ tool: 'Bash', command: N1B })).isError).toBeUndefined()
 })
