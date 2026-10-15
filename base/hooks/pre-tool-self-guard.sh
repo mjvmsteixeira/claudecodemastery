@@ -17,7 +17,7 @@
 # e só assim se apanha. No Bash não há simulação (best effort):
 #   · verbo de escrita (incluindo curl, wget, scp, rsync) numa cláusula que
 #     nomeie um ficheiro protegido ou o próprio ~/.prumo, ou redirecção para lá;
-#   · `cd`/`pushd` para ~/.prumo ou approvals/, ou uma variável com esse
+#   · `cd`/`pushd` para ~/.prumo, approvals/ ou rules/, ou uma variável com esse
 #     caminho ou com o de um ficheiro protegido, numa linha que escreva (verbo
 #     ou `>`); o mesmo para .claude quando a linha nomeia um settings.json;
 #   · `ln` (quaisquer opções) com um argumento que contenha `.prumo`, relativo
@@ -185,7 +185,7 @@ REDIR_SETTINGS_RE=">&?[[:space:]]*[^[:space:]]*${SETTINGS_RE}"
 VERB_RE='(^|[[:space:]/\\(`])(rm|mv|cp|ln|touch|unlink|truncate|install|tee|chmod|chown|dd|curl|wget|fetch|scp|sftp|ftp|rsync|python[0-9.]*|perl|ruby|node|osascript)([[:space:]]|$)|sed[[:space:]]+(-[a-zA-Z]*i|--in-place)'
 # O próprio diretório como alvo (`cp x ~/.prumo/`, `rm -rf ~/.prumo`, `curl --output-dir ~/.prumo`).
 PROT_DIR_RE="(${DIRS})/?([[:space:];&|)]|\$)"
-# Mudar para o diretório (ou para approvals/), ou guardar numa variável esse diretório ou um
+# Mudar para o diretório (ou para approvals/ ou rules/), ou guardar numa variável esse diretório ou um
 # ficheiro protegido, e escrever depois por caminho relativo ou pela variável. Um subdiretório
 # não protegido (`~/.prumo/backups`, `~/.prumo/log`) não conta.
 PROT_TARGET="(${DIRS})(/?([[:space:];&|)]|\$)|/(${NAMES}))"
