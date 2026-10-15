@@ -48,6 +48,7 @@ type World = {
   mkdirFails?: boolean
   writeFails?: boolean
   denyCommand?: string
+  failCommand?: string
 }
 
 async function rulesFileOf(project = PROJECT): Promise<string> {
@@ -81,6 +82,11 @@ function world(on: On, w: Partial<World> = {}): World {
       if (s.gateExit !== undefined) return res(s.gateExit)
       const command = JSON.parse(String(e.init?.stdin)).tool_input.command as string
       const level = s.levels[command]
+      const af = `/h/.prumo/approvals/${await approvalIdOf(command)}`
+      if (level && s.files[af]?.includes(`level=${level}`)) {
+        if (s.files[af]?.includes('scope=once')) delete s.files[af]
+        return res(0)
+      }
       return level ? res(2, '', banner(level, await approvalIdOf(command))) : res(0)
     }
     return res(0, 'host')
@@ -97,6 +103,7 @@ function world(on: On, w: Partial<World> = {}): World {
     s.reached++
     const command = (e as unknown as { command: string }).command
     if (s.denyCommand === command) return { deny: 'x' }
+    if (s.failCommand === command) return { result: '', text: 'erro', isError: true }
     const id = await approvalIdOf(command)
     const file = `/h/.prumo/approvals/${id}`
     const level = s.levels[command]
@@ -319,6 +326,12 @@ test('depois de uma aprovação por regra que o gate nega, não sobra ficheiro',
 })
 
 test('se a escrita da aprovação falhar, o pedido humano abre-se como hoje', async ($, on) => {
+  let records: PrumoGuardApproval[] = []
+  on('state.set', { plugin: 'prumo-guard', key: 'approvals' }, (_$, e, next) => {
+    records = e.value as PrumoGuardApproval[]
+    return next(e)
+  })
+  const idOfB = await approvalIdOf(N1B)
   const s = world(on, { levels: { [N1]: 'N1', [N1B]: 'N1' } })
   await createRule($, N1, 'rule-level')
   s.writeFails = true
@@ -328,4 +341,26 @@ test('se a escrita da aprovação falhar, o pedido humano abre-se como hoje', as
   expect(r.isError).toBe(true)
   expect(s.reached).toBe(reached + 1)
   expect(s.status).toContain('pendente')
+  const usable = records.filter(r => r.id === idOfB && r.scope === 'once' && !r.used)
+  expect(usable).toEqual([])
+})
+
+test('depois de uma aprovação por regra que dá erro, não sobra ficheiro', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1', [N1B]: 'N1' } })
+  await createRule($, N1, 'rule-level')
+  s.failCommand = N1B
+  const r = await $.tool.call({ tool: 'Bash', command: N1B })
+  expect(r.isError).toBe(true)
+  expect(s.files[`/h/.prumo/approvals/${await approvalIdOf(N1B)}`]).toBeUndefined()
+})
+
+test('com uma regra ativa, a aprovação humana de uma vez de um N2 continua a servir', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1', [N2]: 'N2' } })
+  await createRule($, N1, 'rule-level')
+  expect((await $.tool.call({ tool: 'Bash', command: N2 })).isError).toBe(true)
+  const band = await $.ui.mount(BAND)
+  await band.press({ key: 'once' })
+  await band.unmount()
+  expect(s.files[`/h/.prumo/approvals/${await approvalIdOf(N2)}`]).toContain('scope=once')
+  expect((await $.tool.call({ tool: 'Bash', command: N2 })).isError).toBeUndefined()
 })

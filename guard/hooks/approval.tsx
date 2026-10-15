@@ -60,11 +60,12 @@ async function tell($: EngineInterface, text: string, agentId?: string): Promise
 
 // A aprovação escrita pelo diálogo e pelas regras do projeto: o registo entra antes do ficheiro,
 // porque um ficheiro sem registo é tratado como forjado e apagado.
-async function grant($: EngineInterface, id: string, level: PrumoGuardLevel, scope: 'once' | 'ttl'): Promise<void> {
+async function grant($: EngineInterface, id: string, level: PrumoGuardLevel, scope: 'once' | 'ttl'): Promise<number> {
   const expires = Math.floor(((await $.clock.now()) + (scope === 'ttl' ? TTL_MS : ONCE_MS)) / 1000)
   const record: PrumoGuardApproval = { id, level, scope, expires, used: false }
   await update($, approvals, list => [...(list ?? []).filter(r => r.id !== id), record].slice(-50))
   await $.fs.write(`${await prumoHome($)}/approvals/${id}`, `level=${level}\nexpires=${expires}\nscope=${scope}\n`)
+  return expires
 }
 
 // Opções 4 e 5: grava a regra do projeto e aprova o comando atual como "Só esta".
@@ -152,28 +153,41 @@ function ruleNote(rule: PrumoGuardRule): string {
 export function registerApproval(on: On): void {
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const id = await approvalIdOf(e.command)
+    const file = `${await prumoHome($)}/approvals/${id}`
+    // Com um approvals/<id> à entrada, o gate real vai consumi-lo: classificar antes gastaria a
+    // aprovação humana, por isso a regra só entra quando não há ficheiro.
+    const hadFile = await $.fs.stat(file).then(() => true, () => false)
     const refused = await checkApprovalFile($, id)
     if (refused) return { deny: refused }
-    const file = `${await prumoHome($)}/approvals/${id}`
-    const dropFile = () => $.process.run(['rm', '-f', file]).then(() => undefined, () => undefined)
-    let rule = await ruleFor($, e.command, id).catch(() => null)
+    // Só apaga o ficheiro que esta aprovação por regra escreveu (mesmo expires, uma vez).
+    const dropFile = async (expires: number) => {
+      try {
+        const text = await $.fs.read(file)
+        if (text.includes(`expires=${expires}\n`) && text.includes('scope=once')) await $.process.run(['rm', '-f', file])
+      } catch {}
+    }
+    let rule = hadFile ? null : await ruleFor($, e.command, id).catch(() => null)
+    let expires: number | undefined
     if (rule) {
       // A aprovação da regra é gasta já, como a de "Só esta": o gate só lê o ficheiro e, se este
       // ficar no disco, não pode servir a um comando sem regra nem pessoa. Se falhar, segue como hoje.
       try {
-        await grant($, id, 'N1', 'once')
+        expires = await grant($, id, 'N1', 'once')
         await spendHumanRecord($, id, 'N1', false)
       } catch {
         rule = null
-        await dropFile()
+        if (expires !== undefined) await dropFile(expires)
+        try {
+          await update($, approvals, list => (list ?? []).filter(r => !(r.id === id && r.scope === 'once' && !r.used)))
+        } catch {}
       }
     }
     const ran = await next(e)
     if (ran.deny !== undefined) {
-      if (rule) await dropFile()
+      if (rule && expires !== undefined) await dropFile(expires)
       return ran
     }
-    if (ran.isError === true && rule) await dropFile()
+    if (ran.isError === true && rule && expires !== undefined) await dropFile(expires)
     if (ran.isError !== true) {
       // O comando correu (ou foi autorizado). Varre um ficheiro forjado que tenha aparecido na
       // janela entre a verificação acima e a leitura do gate: assim não sobrevive para autorizar o
