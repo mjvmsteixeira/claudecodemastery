@@ -39,6 +39,10 @@ Aberto a 2026-08-02.
 - `run_with_secret` é experimental e desligado por omissão (`secretExec.enabled`). O único controlo real é a aprovação humana por chamada (uso único, não forjável com o prumo-guard ativo). A lista de recusa do `argv` é defesa em profundidade e best effort; escapes conhecidos, encontrados em revisão e não fechados: psql `-o '|cmd'`/`--output='|cmd'`, opções longas abreviadas (`--fil`), `\g (opções) | cmd`; mysql `pager`/`tee`/`\P`/`\T`; gh `api -iq 'env…'`/`-pq` com jq que lê o ambiente, e subcomandos que correm git no `cwd` (`pr checkout`, `repo sync`, `pr create`) e leem o `.git/config`. Aprovar = confiar no comando com o segredo; manter desligado em loops sem supervisão.
 - O registo é da sessão: uma aprovação dada noutra sessão do Claude Code para o mesmo comando não serve nesta, e o ficheiro é apagado.
 
+## B13 · `secret-read`: falso positivo com `*` em texto livre
+
+**Estado:** em aberto. Medido a 2026-10-15 com o base 1.0.0 instalado: um `python3 -I - <<'EOF'` cujo texto continha negrito Markdown (`**…**`) foi bloqueado com `o conteúdo de .** entraria no contexto`. O scan do comando inteiro trata qualquer palavra com `*` como glob e testa-a contra os nomes de segredos; `.**` casa com `.env`. Contorno: escrever o script num ficheiro (`Write`) e correr `python3 -I ficheiro.py`. Correção provável: não testar como glob as palavras de um heredoc (`<<'EOF'` … `EOF`) nem as que não começam por um caminho plausível, e fixar com um caso de corpus (heredoc com `**negrito**` → allow; `cat .env*` → block).
+
 ---
 
 ## B1 · Identidade do embedder do MemPalace — **FECHADO** (2026-08-03)

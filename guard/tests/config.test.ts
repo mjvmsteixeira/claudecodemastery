@@ -55,3 +55,19 @@ test('sem PRUMO_HOME lê de $HOME/.prumo/guard.json', async ($, on) => {
   await configLine($, on, { HOME: '/h' }, path => { paths.push(path); return { deny: 'ENOENT' } })
   expect(paths.filter(p => p.endsWith('guard.json'))).toEqual(['/h/.prumo/guard.json'])
 })
+
+async function brakeLine($: Engine, on: On, read: () => { value: string } | { deny: string }): Promise<string> {
+  mock.env(on, { HOME: '/h' })
+  on('fs.read', () => read())
+  on('fs.stat', () => ({ deny: 'ENOENT' }))
+  const r = await $.command.run(cmd('prumo-guard'))
+  return (r.text ?? '').split('\n').find(l => l.startsWith('travão:')) ?? ''
+}
+
+test('/prumo-guard mostra o travão desligado por omissão', async ($, on) => {
+  expect(await brakeLine($, on, () => ({ deny: 'ENOENT' }))).toBe('travão: desligado (guard.json → brake.enabled)')
+})
+
+test('/prumo-guard mostra o travão ligado quando a pessoa o liga', async ($, on) => {
+  expect(await brakeLine($, on, () => ({ value: '{"brake":{"enabled":true}}' }))).toBe('travão: ligado')
+})

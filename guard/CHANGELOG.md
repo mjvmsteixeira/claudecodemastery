@@ -2,6 +2,15 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.0.1 — 2026-10-15
+
+**O travão passa a ser opt-in.** Na 1.0.0 atuava por omissão e, fora de um loop ralph, contava o custo da sessão inteira a partir de zero: numa sessão interativa longa pausava e, acima de 120% do orçamento, cortava turnos. Agora só atua com `brake.enabled: true` no `~/.prumo/guard.json` (ação humana); por omissão não pausa, não veta o `Stop` e não corta turnos.
+
+- `GuardConfig.brake.enabled` (default `false`), verificado no orçamento em USD, nos tokens e nas repetições.
+- `/prumo-guard` mostra `travão: ligado` ou `travão: desligado (guard.json → brake.enabled)`.
+- Testes: com o travão desligado, 41,44 USD sobre 20 não pausam nem cortam o turno; repetições e tokens não pausam; `enabled: false` explícito ignora o orçamento.
+- Migração: quem quer o travão acrescenta `"enabled": true` à secção `brake`.
+
 ## v1.0.0 — 2026-10-14
 
 **Primeira release do prumo-guard.** O `run_with_secret` é experimental, está desligado por omissão e pede aprovação humana a cada chamada; o travão pausa em cada disparo e só corta o turno acima de 120% do orçamento em USD.

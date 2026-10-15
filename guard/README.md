@@ -55,7 +55,9 @@ Acima do prompt, enquanto houver loop do ralph, subagentes, fase, testes ou paus
 
 ### Travão do loop
 
-Põe o loop em pausa (estado, aviso, notificação) e anula o re-prompt do ralph no `Stop` quando:
+**Desligado por omissão (opt-in).** Só atua com `"brake": { "enabled": true }` em `~/.prumo/guard.json`, uma ação humana. Desligado, não pausa, não anula o re-prompt do ralph e não corta turnos; o painel continua a mostrar custo e contexto. `/prumo-guard` mostra `travão: ligado` ou `travão: desligado`.
+
+Ligado, põe o loop em pausa (estado, aviso, notificação) e anula o re-prompt do ralph no `Stop` quando:
 
 - o custo desde o início do loop atinge `brake.usdBudget` (USD);
 - os tokens acumulados atingem `brake.tokenBudget` (0 desliga);
@@ -138,6 +140,7 @@ Caminho: `$PRUMO_HOME/guard.json` (`~/.prumo/guard.json` por omissão). Cada sec
 | `redact.prompt` | `true` | Redige também o que a pessoa escreve |
 | `redact.readPii` | `false` | Aplica PII a resultados de `Read`, `Grep`, `Glob` |
 | `redact.internalIps` | `false` | Redige IPs privados |
+| `brake.enabled` | `false` | Liga o travão (opt-in); desligado, nenhum dos limites abaixo atua |
 | `brake.usdBudget` | `20` | Orçamento em USD por loop (0 desliga) |
 | `brake.tokenBudget` | `0` | Orçamento de tokens (0 desliga) |
 | `brake.repeatLimit` | `4` | Repetições seguidas que acionam o travão (0 desliga) |
