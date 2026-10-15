@@ -2,6 +2,10 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.0.1 — 2026-10-15
+
+**O `self-guard` protege `~/.prumo/rules/`**, as regras de aprovação por projeto do prumo-guard 1.1.0, tal como já protegia `~/.prumo/approvals/`. Bloqueia as escritas por Write/Edit, redirecção, verbos de escrita, `cd` e variável, e é best effort no Bash. Ler continua permitido. Corpus `sg-62` a `sg-67`.
+
 ## v1.0.0 — 2026-10-14
 
 ### Mudanças que bloqueiam
