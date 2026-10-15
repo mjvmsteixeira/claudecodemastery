@@ -2,6 +2,10 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.0.4 — 2026-10-15
+
+**A redação aparece como `RGPD`.** A linha de estado mostra `prumo dev · RGPD on` em vez de `redação on`, e o `/prumo-guard` e a resposta do `/prumo-guard-redact` usam o mesmo nome. As descrições dos comandos explicam o termo: "RGPD (redação de segredos e dados pessoais)". O comando continua a chamar-se `/prumo-guard-redact`, e o comportamento não muda.
+
 ## v1.0.3 — 2026-10-15
 
 **A band explica que o dígito vai sem Enter, e os botões ficam legíveis em terminais estreitos.** Medido no terminal real, em tmux a 65 colunas: o dígito fica um instante no prompt antes de carregar no botão. Com Enter a seguir, sai como mensagem e o pedido fica por decidir. A 1.0.2 também colava `1: Só esta2: 10 minutos` (um `Text` só com um espaço perde-se) e partia a dica numa coluna estreita ao lado dos botões.

@@ -55,7 +55,7 @@ test('pela pessoa, /prumo-guard-redact off desliga a redação', async ($, on) =
   on('state.set', { plugin: 'prumo-guard', key: 'redactOn' }, (_$, e, next) => { sets.push(e.value); return next(e) })
   on('ui.status', () => ({ value: undefined }))
   const r = await $.command.run(cmd('prumo-guard-redact', 'off', { kind: 'composer' }))
-  expect(r.text).toContain('Redação off')
+  expect(r.text).toContain('RGPD off')
   expect(sets).toEqual([false])
 })
 
@@ -73,7 +73,7 @@ test('/prumo-guard mostra modo, redação e configuração', async ($, on) => {
   env(on, { HOME: '/h', PRUMO_OPERATING_MODE: 'dev' })
   const r = await $.command.run(cmd('prumo-guard'))
   expect(r.text).toContain('modo: dev')
-  expect(r.text).toContain('redação: on')
+  expect(r.text).toContain('RGPD: on')
   expect(r.text).toContain('/h/.prumo/guard.json')
 })
 
@@ -111,7 +111,7 @@ test('o arranque regista os comandos e a linha de estado inclui o modo e a reda�
   await $.session.start({ cwd: '/h', surface: null, isInteractive: false })
   expect(seen.commands).toContain('prumo-guard-mode')
   expect(seen.commands).toContain('prumo-guard-approvals')
-  expect(status).toBe('prumo prod · redação on')
+  expect(status).toBe('prumo prod · RGPD on')
 })
 
 test('/prumo-guard mostra o aviso de um redact.json inválido', async ($, on) => {

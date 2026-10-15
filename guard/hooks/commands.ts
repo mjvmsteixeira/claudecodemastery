@@ -27,9 +27,9 @@ export async function setRedact($: EngineInterface, value: boolean): Promise<voi
 }
 
 export async function startCommands($: EngineInterface): Promise<void> {
-  await $.command.register({ name: 'prumo-guard', description: 'Estado do prumo-guard: modo, redação e aprovações pendentes' })
+  await $.command.register({ name: 'prumo-guard', description: 'Estado do prumo-guard: modo, RGPD (redação) e aprovações pendentes' })
   await $.command.register({ name: 'prumo-guard-mode', description: 'Muda o modo operacional prumo (prod, dev ou lab). Só pela pessoa.', argumentHint: 'prod|dev|lab' })
-  await $.command.register({ name: 'prumo-guard-redact', description: 'Liga ou desliga a redação de segredos e PII nesta sessão. Só pela pessoa.', argumentHint: 'on|off' })
+  await $.command.register({ name: 'prumo-guard-redact', description: 'Liga ou desliga o RGPD (redação de segredos e dados pessoais) nesta sessão. Só pela pessoa.', argumentHint: 'on|off' })
   await $.command.register({ name: 'prumo-guard-approvals', description: 'Abre o painel de aprovações pendentes' })
 }
 
@@ -40,7 +40,7 @@ export function registerCommands(on: On): void {
     const problem = await redactConfigProblem($)
     const lines = [
       `modo: ${mode}`,
-      `redação: ${(await read($, redactOn)) ? 'on' : 'off'} · ${await read($, redactHits)} valor(es) redigido(s) nesta sessão`,
+      `RGPD: ${(await read($, redactOn)) ? 'on' : 'off'} · ${await read($, redactHits)} valor(es) redigido(s) nesta sessão`,
       ...(problem ? [`aviso: ${problem}`] : []),
       `travão: ${cfg.brake.enabled ? 'ligado' : 'desligado (guard.json → brake.enabled)'}`,
       `orçamento: ${cfg.brake.usdBudget} USD · repetição: ${cfg.brake.repeatLimit} · ips internos: ${cfg.redact.internalIps ? 'on' : 'off'}`,
@@ -63,7 +63,7 @@ export function registerCommands(on: On): void {
     const value = parseOnOff(e.args)
     if (value === null) return { text: 'Uso: /prumo-guard-redact on|off' }
     await setRedact($, value)
-    return { text: `Redação ${value ? 'on' : 'off'} nesta sessão.` }
+    return { text: `RGPD ${value ? 'on' : 'off'} nesta sessão (redação de segredos e dados pessoais).` }
   })
 
   on('command.run', { command: 'prumo-guard-approvals' }, async $ => {
