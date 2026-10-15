@@ -105,12 +105,93 @@ fi
 if [ -z "$LEVEL" ] && match 'git[[:space:]]+push[[:space:]]+([^[:space:]]+[[:space:]]+)*(-f\b|--force\b|--force-with-lease\b)'; then
   LEVEL="N1"
 fi
+# ────────────────────────────────────────────────────────────────────────────
+# Scratchpad do Claude Code · apagar lá dentro não pede aprovação
+# ────────────────────────────────────────────────────────────────────────────
+# /private/tmp/claude-<uid>/… (ou /tmp/claude-<uid>/…) é o directório temporário
+# privado de cada sessão. Apagar lá dentro é rotina e era o pedido de aprovação
+# mais frequente (`rm -f $S/sessao.id`). Só conta quando TODOS os alvos de todos
+# os `rm` do comando ficam lá dentro. Na dúvida, não conta, e as regras de rm
+# abaixo aplicam-se como antes:
+#   - lê o comando cru (as newlines separam comandos; no $CMD viram espaços e
+#     `S=x<nl>rm $S` ficaria igual a `S=x rm $S`, onde $S não é o x);
+#   - só resolve atribuições no início do comando, antes de qualquer outra coisa
+#     (`false && S=…; rm $S/` deixa S por definir e o rm seria de /), com valor
+#     literal, e cujo nome não volte a aparecer fora de `$S`/`${S}`;
+#   - um rm que não seja o comando da sua cláusula (`xargs rm`, `bash -c "rm…"`,
+#     `find -exec rm`) desqualifica, tal como `..`, `$`, `~`, chavetas e `\`;
+#   - o rm segue symlinks nos componentes intermédios e no final com barra:
+#     esses não podem ser symlinks nem ter globs.
+rm_scratch_only() {
+  local cmd subst head pair name val clause w root rest p comp i n
+  local found=0 state opts_done skip_next
+  local -a words comps
+  cmd=$(printf '%s' "$RAW_CMD" | tr '\t\n' ' ;')
+  # Com outro IFS, um $S/a sem aspas parte-se em nomes relativos ao cwd.
+  case "$cmd" in *IFS*) return 1 ;; esac
+  subst=$cmd
+  head=$(printf '%s' "$cmd" | grep -oE '^([[:space:]]*(export[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*=[A-Za-z0-9_./@%+:,=-]+[[:space:]]*(;|&&))+' || true)
+  while IFS= read -r pair; do
+    [ -n "$pair" ] || continue
+    name=${pair%%=*}; val=${pair#*=}
+    [ "$(printf '%s' "$cmd" | sed -E 's/\$\{?[A-Za-z_][A-Za-z0-9_]*//g' | tr -c 'A-Za-z0-9_' '\n' | grep -cx "$name" || true)" = 1 ] || return 1
+    subst=$(printf '%s' "$subst" | sed -E "s#\\\$\\{${name}\\}#${val}#g; s#\\\$${name}([^A-Za-z0-9_]|\$)#${val}\\1#g")
+  done < <(printf '%s' "$head" | grep -oE '[A-Za-z_][A-Za-z0-9_]*=[A-Za-z0-9_./@%+:,=-]+' || true)
+  while IFS= read -r clause; do
+    read -ra words <<< "$clause"
+    [ "${#words[@]}" -gt 0 ] || continue
+    state='cmd'; opts_done=0; skip_next=0
+    for w in "${words[@]}"; do
+      w=${w//\"/}; w=${w//\'/}
+      if [ "$state" = cmd ]; then
+        case "$w" in
+          rm|*/rm|\\rm) state='rm' ;;
+          command) ;;
+          *) state='other' ;;
+        esac
+        continue
+      fi
+      if [ "$state" = other ]; then
+        case "$w" in rm|*/rm|\\rm) return 1 ;; esac
+        continue
+      fi
+      if [ "$skip_next" = 1 ]; then skip_next=0; continue; fi
+      if [[ "$w" =~ ^[0-9]*[\<\>]+$ ]]; then skip_next=1; continue; fi
+      if [[ "$w" =~ ^[0-9]*[\<\>] ]]; then continue; fi
+      if [ "$opts_done" = 0 ]; then
+        case "$w" in --) opts_done=1; continue ;; -*) continue ;; esac
+      fi
+      found=1
+      case "$w" in *..*|*'$'*|*\\*|*'~'*|*'{'*|*'}'*|*'['*) return 1 ;; esac
+      [[ "$w" =~ ^((/private)?/tmp/claude-[0-9]+)/([^/].*)$ ]] || return 1
+      root=${BASH_REMATCH[1]}; rest=${BASH_REMATCH[3]}
+      [ -L "$root" ] && return 1
+      IFS=/ read -ra comps <<< "$rest"
+      n=${#comps[@]}; p=$root
+      for ((i = 0; i < n; i++)); do
+        comp=${comps[$i]}
+        [ -n "$comp" ] || return 1
+        p="$p/$comp"
+        if [ "$i" -lt $((n - 1)) ] || [ "${w%/}" != "$w" ]; then
+          case "$comp" in *'*'*|*'?'*) return 1 ;; esac
+          [ -L "$p" ] && return 1
+        fi
+      done
+    done
+  done < <(printf '%s\n' "$subst" | tr ';&|()`' '\n')
+  [ "$found" = 1 ]
+}
+RM_SCRATCH_ONLY=""
+if match '(^|[[:space:]]|/|\\|\(|`)rm[[:space:]]' && rm_scratch_only; then
+  RM_SCRATCH_ONLY=1
+fi
+
 # rm de $HOME ou /tmp com flags variáveis
 # shellcheck disable=SC2016  # regex literal: casa a string '$HOME', não expande
-if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\|\(|`)rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*\$HOME(/|[[:space:]]|$)'; then
+if [ -z "$LEVEL" ] && [ -z "$RM_SCRATCH_ONLY" ] && match '(^|[[:space:]]|/|\\|\(|`)rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*\$HOME(/|[[:space:]]|$)'; then
   LEVEL="N1"
 fi
-if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\|\(|`)rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*/tmp(/|[[:space:]]|$)'; then
+if [ -z "$LEVEL" ] && [ -z "$RM_SCRATCH_ONLY" ] && match '(^|[[:space:]]|/|\\|\(|`)rm[[:space:]]+([-][^/[:space:]]+[[:space:]]+)*/tmp(/|[[:space:]]|$)'; then
   LEVEL="N1"
 fi
 # Catch-all: rm com flag recursiva/força (-r, -f, -rf, -fr, --recursive,
@@ -122,7 +203,7 @@ fi
 # Fronteira de palavra obrigatória: sem ela, "deploy --confirm -f" e
 # "terraform -force x" batiam falsamente porque "confirm"/"terraform" contêm
 # "rm" como substring, seguido de "-f"/"-force" que a classe de flags aceita.
-if [ -z "$LEVEL" ] && match '(^|[[:space:]]|/|\\|\(|`)rm[[:space:]]+(-[a-zA-Z]*[rf][a-zA-Z]*|--recursive|--force)\b'; then
+if [ -z "$LEVEL" ] && [ -z "$RM_SCRATCH_ONLY" ] && match '(^|[[:space:]]|/|\\|\(|`)rm[[:space:]]+(-[a-zA-Z]*[rf][a-zA-Z]*|--recursive|--force)\b'; then
   LEVEL="N1"
 fi
 

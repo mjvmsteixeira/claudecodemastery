@@ -43,8 +43,9 @@ export async function requestApproval(
     [...(list ?? []).filter(p => p.id !== req.id), { ...req, requestedAt }].slice(-20),
   )
   await refreshStatus($)
-  void $.ui.open({ id: APPROVAL_PANE, title: 'prumo · aprovação', focus: true, closeOnEscape: true, rows: 10 })
-  void $.ui.notify(`Aprovação ${req.level} pedida: ${req.command.slice(0, 80)}`, { title: 'prumo-guard' })
+  // O pedido aparece na band acima do prompt (ui.render AbovePrompt, abaixo), não num painel com
+  // foco: esse tirava o teclado a quem estava a trabalhar. O /prumo-guard-approvals abre o painel.
+  void $.ui.notify(`Aprovação ${req.level} pedida: ${req.command.slice(0, 80)} · 1/2/3 com o prompt vazio`, { title: 'prumo-guard' })
 }
 
 async function tell($: EngineInterface, text: string, agentId?: string): Promise<void> {
@@ -151,6 +152,38 @@ export function registerApproval(on: On): void {
     return { ...ran, context: [MODEL_NOTE] }
   }).catch(($, e, next) => (next.called ? next(e) : { deny: 'prumo-guard: a verificação da aprovação falhou antes de o comando correr; nada correu.' }))
 
+  // Registado antes do painel do loop (panel.tsx), fica por fora dele: com um pedido pendente a
+  // band é este; sem pedidos, ou com um inquérito do Claude Code, passa. Um dígito com o prompt
+  // vazio carrega num botão da band, e quem está a escrever no prompt continua a escrever.
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    if (e.props.hasSurvey) return next(e)
+    const list = await read($, pending)
+    const p = list[list.length - 1]
+    if (!p) return next(e)
+    const { Box, Text, Button } = $.ui.resolve(e)
+    const shown = displayCommand(p.command, SHOWN_MAX)
+    return (
+      <Box flexDirection="column">
+        <Text color="yellow">prumo · aprovação {p.level} · o agente quer correr:</Text>
+        <Box>
+          <Button key="once" hotkey="1" plain label="Só esta" onPress={() => void decide($, p, 'once')} />
+          <Text> </Text>
+          <Button key="ttl" hotkey="2" plain label="10 minutos" onPress={() => void decide($, p, 'ttl')} />
+          <Text> </Text>
+          <Button key="deny" hotkey="3" plain label="Negar" onPress={() => void decide($, p, 'deny')} />
+          <Text dimColor>  · dígito com o prompt vazio · /prumo-guard-approvals abre o painel</Text>
+        </Box>
+        <Text bold>{shown.text}</Text>
+        {shown.omitted > 0 ? (
+          <Text dimColor>comando com {p.command.length} caracteres; mostra-se o início e o fim, a aprovação cobre-o inteiro</Text>
+        ) : null}
+        {p.agentId ? <Text dimColor>subagente {p.agentId}</Text> : null}
+        {p.singleUse ? <Text dimColor>run_with_secret: a aprovação serve uma só chamada, também com 10 minutos.</Text> : null}
+        {list.length > 1 ? <Text dimColor>+{list.length - 1} pedido(s) na fila</Text> : null}
+      </Box>
+    )
+  })
+
   on('ui.render', { component: 'Pane', requestId: APPROVAL_PANE }, async ($, e) => {
     const { Box, Text, Button } = $.ui.resolve(e)
     const list = await read($, pending)
@@ -168,10 +201,13 @@ export function registerApproval(on: On): void {
         {p.singleUse ? <Text dimColor>run_with_secret: a aprovação serve uma só chamada, também com 10 minutos.</Text> : null}
         {list.length > 1 ? <Text dimColor>+{list.length - 1} pedido(s) na fila</Text> : null}
         <Box>
-          <Button key="once" hotkey="1" variant="primary" label="Só esta" onPress={() => void decide($, p, 'once')} />
-          <Button key="ttl" hotkey="2" label="10 minutos" onPress={() => void decide($, p, 'ttl')} />
-          <Button key="deny" hotkey="3" label="Negar" onPress={() => void decide($, p, 'deny')} />
+          <Button key="once" hotkey="1" plain label="Só esta" onPress={() => void decide($, p, 'once')} />
+          <Text> </Text>
+          <Button key="ttl" hotkey="2" plain label="10 minutos" onPress={() => void decide($, p, 'ttl')} />
+          <Text> </Text>
+          <Button key="deny" hotkey="3" plain label="Negar" onPress={() => void decide($, p, 'deny')} />
         </Box>
+        <Text dimColor>Esc fecha o painel; o pedido continua na band acima do prompt.</Text>
       </Box>
     )
   })

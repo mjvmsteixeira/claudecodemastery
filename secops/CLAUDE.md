@@ -165,6 +165,8 @@ Em `prod`/`dev` só o `env` autoriza, e autoriza o nível inteiro na sessão, n�
 
 **Segundo canal, por comando.** A mensagem de bloqueio traz `approval-id: <id>`; o humano cria `~/.prumo/approvals/<id>` e autoriza só esse comando (`approvals.log`: `via=approval-file`). O `self-guard` do prumo-base bloqueia as escritas do agente nesse directório que nomeiam o caminho na linha (redirecção, verbos de escrita incluindo `curl -o`/`wget -O`, `cd` ou variável para `~/.prumo`); indirecções em vários passos escapam-lhe (best effort). Por isso o gate também valida o ficheiro: só serve um `expires` até 10 minutos, o máximo que o prumo-guard escreve, e uma aprovação forjada nunca dura mais do que isso. O `pre-tool-agent-readonly.sh` impede os agentes read-only de mutar estado e respeita o modo.
 
+**Scratchpad do Claude Code.** Um `rm` cujos alvos ficam todos em `/private/tmp/claude-<uid>/` ou `/tmp/claude-<uid>/` não pede aprovação: é o directório temporário privado da sessão. Atribuições só no início do comando, sem `..`, sem symlinks pelo caminho e sem `rm` indirecto; na dúvida, aplica-se o N1 de sempre (detalhe no `CHANGELOG.md` 1.0.1).
+
 **O modo `lab` sem o marker degrada para `prod`** — o mais restritivo, de propósito. Até 2026-08-01 fazia-o em silêncio, e quem exportava `PRUMO_OPERATING_MODE=lab` à mão levava bloqueios de prod sem explicação. Agora avisa em stderr, uma vez por processo.
 
 **Auditoria:** `PRUMO_APPROVE`, `PRUMO_PII_DISABLE`, `PRUMO_SECOND_OPINION_BYPASS` são audit-tracked em `${PRUMO_LOG_DIR}/` — `approvals.log` para o approval-gate, decisão `bypass` em `telemetry.tsv` para os outros dois.
