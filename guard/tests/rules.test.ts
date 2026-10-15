@@ -364,3 +364,24 @@ test('com uma regra ativa, a aprovação humana de uma vez de um N2 continua a s
   expect(s.files[`/h/.prumo/approvals/${await approvalIdOf(N2)}`]).toContain('scope=once')
   expect((await $.tool.call({ tool: 'Bash', command: N2 })).isError).toBeUndefined()
 })
+
+test('/prumo-guard-rules abre o painel com foco', async ($, on) => {
+  const s = world(on)
+  const r = await $.command.run(cmd('prumo-guard-rules'))
+  expect(s.opened).toEqual([{ id: 'prumo-guard-rules', focus: true }])
+  expect(r.text).toContain('aberto')
+})
+
+test('o painel lista as regras; revogar apaga do ficheiro e da sessão', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1', [N1B]: 'N1' } })
+  await createRule($, N1, 'rule-level')
+  const rule = (await rulesIn(s))[0]
+  const pane = await $.ui.mount(PANE)
+  expect(await pane.find({ text: /todos os N1 neste projeto/ })).toBeDefined()
+  expect(await pane.find({ text: /ativa/ })).toBeDefined()
+  await pane.press({ key: `revoke:${rule?.id}` })
+  expect(await rulesIn(s)).toEqual([])
+  expect(await pane.find({ text: /Sem regras neste projeto/ })).toBeDefined()
+  await pane.unmount()
+  expect((await $.tool.call({ tool: 'Bash', command: N1B })).isError).toBe(true)
+})

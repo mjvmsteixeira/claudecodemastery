@@ -161,6 +161,30 @@ export function registerRules(on: On): void {
       </Box>
     )
   })
+
+  on('command.run', { command: 'prumo-guard-rules' }, async $ => {
+    await $.ui.open({ id: RULES_PANE, title: 'prumo · regras do projeto', focus: true, closeOnEscape: true, rows: 12 })
+    return { text: 'Painel de regras aberto.' }
+  })
+
+  on('ui.render', { component: 'Pane', requestId: RULES_PANE }, async ($, e) => {
+    const { Box, Text, Button } = $.ui.resolve(e)
+    const rules = await read($, rulesFile)
+    if (rules.length === 0) return <Text dimColor>Sem regras neste projeto.</Text>
+    const active = new Set((await read($, rulesActive)).map(r => r.id))
+    return (
+      <Box flexDirection="column">
+        {rules.map(r => (
+          <Box key={r.id} columnGap={2}>
+            <Text color={active.has(r.id) ? 'green' : undefined} dimColor={!active.has(r.id)}>{active.has(r.id) ? 'ativa' : 'inativa'}</Text>
+            <Text>{describe(r, 120)}</Text>
+            <Button key={`revoke:${r.id}`} plain label="Revogar" onPress={() => void revokeRule($, r.id)} />
+          </Box>
+        ))}
+        <Text dimColor>Esc fecha o painel. Ativar uma regra inativa: na band, quando a sessão arranca.</Text>
+      </Box>
+    )
+  })
 }
 
 // Com regras ativas, classifica o Bash correndo o approval-gate como o run_with_secret faz. Só um
