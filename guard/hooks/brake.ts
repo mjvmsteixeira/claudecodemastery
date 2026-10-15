@@ -70,7 +70,7 @@ export async function brakeTurnComplete($: EngineInterface, e: HookInput<'turn.c
     await update($, brakeRef, s => ({ ...(s ?? BRAKE_DEFAULT), tokens: (s?.tokens ?? 0) + add }))
     const cfg = await loadConfig($)
     const b = await read($, brakeRef)
-    if (cfg.brake.tokenBudget > 0 && b.tokens >= cfg.brake.tokenBudget) {
+    if (cfg.brake.enabled && cfg.brake.tokenBudget > 0 && b.tokens >= cfg.brake.tokenBudget) {
       await trip($, `orçamento de tokens atingido (${b.tokens} de ${cfg.brake.tokenBudget})`)
     }
   }
@@ -82,6 +82,7 @@ export async function brakeMeasure($: EngineInterface, e: HookInput<'session.mea
   const usd = e.cost?.usd
   if (usd === undefined) return r
   const cfg = await loadConfig($)
+  if (!cfg.brake.enabled) return r
   const b = await read($, brakeRef)
   const spent = usd - (b.loopStartUsd ?? 0)
   const budget = cfg.brake.usdBudget
@@ -97,6 +98,7 @@ export async function brakeToolCall($: EngineInterface, e: HookInput<'tool.call'
   // Declarar a fase não é trabalho do loop: repetir a mesma fase não conta como repetição.
   if (e.tool === LOOP_PHASE_TOOL) return ran
   const cfg = await loadConfig($)
+  if (!cfg.brake.enabled) return ran
   const limit = cfg.brake.repeatLimit
   let s = await read($, repeatRef)
   let reason: string | null = null

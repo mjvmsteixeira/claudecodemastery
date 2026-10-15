@@ -2,9 +2,13 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-2026.10.0 — prumo-base 1.0.0 · prumo-secops 1.0.0 · prumo-devkit 1.0.0 · prumo-design 1.0.0 · prumo-guard 1.0.0**
+Estado actual: **prumo-base 1.0.0 · prumo-secops 1.0.0 · prumo-devkit 1.0.0 · prumo-design 1.0.0 · prumo-guard 1.0.1**
 
-**Convenção de tags: `prumo-<plugin>-v<versão>`, uma por plugin e por release.** Todas as tags actuais apontam para o commit onde o `plugin.json` desse plugin tem essa versão — invariante verificável com `git show <tag>:<plugin>/.claude-plugin/plugin.json`.
+**Convenção de tags: `prumo-<plugin>-v<versão>`, uma por plugin e por release.** Todas as tags actuais apontam para o commit onde o `plugin.json` desse plugin tem essa versão — invariante verificável com `git show <tag>:<plugin>/.claude-plugin/plugin.json`. Releases coordenadas do marketplace inteiro levam também uma tag de calendário (`prumo-2026.10.0`).
+
+## prumo-guard 1.0.1 — 2026-10-15
+
+O travão do prumo-guard passa a ser opt-in (`brake.enabled: true` no `~/.prumo/guard.json`). Na 1.0.0 atuava por omissão e, numa sessão interativa longa, pausava e cortava turnos por contar o custo da sessão inteira. Detalhe em `guard/CHANGELOG.md`.
 
 As tags legacy `v0.5.0`, `v0.5.1` e `v0.6.0` são anteriores à convenção e não identificam o plugin (a `v0.5.1` era do devkit, não do base, apesar de a numeração o sugerir). Ficam como estão, por já estarem publicadas; não usar como referência.
 

@@ -90,7 +90,7 @@ Ficheiros em `~/.prumo/` do utilizador final, protegidos contra escrita pelo age
 ```json
 {
   "redact": { "enabled": true, "prompt": true, "readPii": false, "internalIps": false },
-  "brake": { "usdBudget": 20, "tokenBudget": 0, "repeatLimit": 4 },
+  "brake": { "enabled": true, "usdBudget": 20, "tokenBudget": 0, "repeatLimit": 4 },
   "workspace": { "extraRoots": ["/srv/acme/projetos"] },
   "friday": { "enabled": false },
   "agents": { "hidden": [] },

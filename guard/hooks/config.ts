@@ -2,7 +2,7 @@ import type { EngineInterface } from 'claude-code'
 
 export type GuardConfig = {
   redact: { enabled: boolean; prompt: boolean; readPii: boolean; internalIps: boolean }
-  brake: { usdBudget: number; tokenBudget: number; repeatLimit: number }
+  brake: { enabled: boolean; usdBudget: number; tokenBudget: number; repeatLimit: number }
   workspace: { extraRoots: string[] }
   friday: { enabled: boolean }
   agents: { hidden: string[] }
@@ -13,7 +13,8 @@ export type GuardConfig = {
 
 export const DEFAULTS: GuardConfig = {
   redact: { enabled: true, prompt: true, readPii: false, internalIps: false },
-  brake: { usdBudget: 20, tokenBudget: 0, repeatLimit: 4 },
+  // O travão é opt-in: só atua com brake.enabled true (ação humana no guard.json).
+  brake: { enabled: false, usdBudget: 20, tokenBudget: 0, repeatLimit: 4 },
   workspace: { extraRoots: [] },
   friday: { enabled: false },
   agents: { hidden: [] },

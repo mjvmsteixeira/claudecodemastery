@@ -42,6 +42,7 @@ export function registerCommands(on: On): void {
       `modo: ${mode}`,
       `redação: ${(await read($, redactOn)) ? 'on' : 'off'} · ${await read($, redactHits)} valor(es) redigido(s) nesta sessão`,
       ...(problem ? [`aviso: ${problem}`] : []),
+      `travão: ${cfg.brake.enabled ? 'ligado' : 'desligado (guard.json → brake.enabled)'}`,
       `orçamento: ${cfg.brake.usdBudget} USD · repetição: ${cfg.brake.repeatLimit} · ips internos: ${cfg.redact.internalIps ? 'on' : 'off'}`,
       `configuração: ${await prumoHome($)}/guard.json`,
     ]
