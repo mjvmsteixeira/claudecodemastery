@@ -109,12 +109,22 @@ test('o pedido aparece na band acima do prompt e não abre o painel com foco', a
   expect(await band.find({ text: /prompt vazio/ })).toBeDefined()
   // O dígito fica um instante no prompt antes de carregar no botão; com Enter vai como mensagem.
   expect(await band.find({ text: /sem Enter/ })).toBeDefined()
-  expect(await band.findAll({ type: 'Button' })).toHaveLength(3)
+  expect(await band.findAll({ type: 'Button' })).toHaveLength(5)
   // Os botões ficam numa linha própria, separados pelo gap da caixa (um Text só com espaço perde-se).
   const drawn = JSON.stringify(await band.drawn())
   expect(drawn).toContain('"columnGap":2')
   expect(drawn).not.toContain('" "')
   await band.unmount()
+})
+
+test('em N1 o painel /prumo-guard-approvals também mostra as opções 4 e 5', async ($, on) => {
+  stubs(on, () => DENIAL)
+  await $.tool.call(BASH)
+  const ui = await $.ui.mount(MOUNT)
+  expect(await ui.findAll({ type: 'Button' })).toHaveLength(5)
+  expect(await ui.find({ text: /Este comando, sempre neste projeto/ })).toBeDefined()
+  expect(await ui.find({ text: /Todos os N1 neste projeto/ })).toBeDefined()
+  await ui.unmount()
 })
 
 test('a band responde ao pedido: "só esta" escreve o ficheiro e a band volta ao normal', async ($, on) => {

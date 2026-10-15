@@ -2,6 +2,21 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.1.0 — 2026-10-15
+
+**Regras de aprovação por projeto.** Num pedido N1, `4: Este comando, sempre neste projeto` ou `5: Todos os N1 neste projeto` grava uma regra em `~/.prumo/rules/<sha256 do projeto>.json` e aprova o comando atual. A regra fica ativa nesta sessão.
+
+- **Arranque.** Ao abrir uma sessão no projeto, a band mostra cada regra com `7: Ativar nesta sessão · 8: Agora não · 9: Revogar`. Os dígitos 7/8/9 não coincidem com os 1 a 5 do pedido, por isso um pedido que surja no instante do toque não recebe o dígito destinado à regra. Uma regra só vale depois desse dígito, por isso uma regra escrita pelo agente nunca se ativa sozinha. O match usa a cópia tirada na ativação.
+- **Projeto.** É a raiz git do diretório da sessão no arranque, ou o próprio diretório sem git. Fica fixo durante a sessão: um `cd` posterior não o muda. A regra ativa acompanha a sessão e não o diretório, por isso depois de um `cd` para outro repositório uma regra "todos os N1" continua a aprovar N1.
+- **Como aprova.** Com regras ativas, o mod classifica cada Bash correndo o approval-gate. Num N1 com uma regra que bata, escreve o mesmo `approvals/<id>` de uso único do `1: Só esta`. O tecto de 10 minutos do gate não muda, e o modelo recebe a nota `aprovado pela regra do projeto`.
+- **Âmbito.** Só N1: o N2, o N3 e o `run_with_secret` pedem sempre, e o pedido do `run_with_secret` não mostra as opções 4 e 5. Uma regra "todos os N1" não limita os caminhos que o comando toca.
+- **Integridade da oferta.** Uma regra `command` só é válida se o sha256 do texto bater com o `commandId`; se alguma regra falhar, o ficheiro inteiro é ignorado. Assim o comando mostrado na band é exatamente o que a regra aprova. O `createdAt` tem de ser uma data ISO.
+- **Sessões concorrentes.** Ao criar ou revogar, o mod relê o ficheiro do disco e junta as alterações em vez de o sobrescrever. Se o ficheiro estiver inválido, substitui-o pelo espelho da sessão.
+- **`/prumo-guard-rules`** lista as regras do ficheiro e as ativas nesta sessão, e revoga-as: revogar desativa a regra e tira-a do ficheiro. A linha de estado mostra `regras N1: <n> ativa(s)`.
+- **Erros.** Um ficheiro de regras inválido é ignorado com aviso. Se a escrita falhar, a regra vale só nesta sessão. Com o gate em falta ou uma saída inesperada, o pedido segue como sempre.
+- **Dependência.** Requer o prumo-base 1.0.1 para o self-guard proteger `~/.prumo/rules/`, que é best effort. A defesa real é a ativação no arranque.
+- **Residuais (BACKLOG B15, B16).** A band e o painel mostram o comando numa linha e não neutralizam quebras de linha nem caracteres de controlo; duas escritas de regras em paralelo na mesma sessão podem perder uma atualização.
+
 ## v1.0.4 — 2026-10-15
 
 **A redação aparece como `RGPD`.** A linha de estado mostra `prumo dev · RGPD on` em vez de `redação on`, e o `/prumo-guard` e a resposta do `/prumo-guard-redact` usam o mesmo nome. As descrições dos comandos explicam o termo: "RGPD (redação de segredos e dados pessoais)". O comando continua a chamar-se `/prumo-guard-redact`, e o comportamento não muda.

@@ -219,6 +219,7 @@ test('o session.end espera pelo flush periódico em voo antes de escrever o rest
   let releaseWrite: () => void = () => {}
   const writeGate = new Promise<void>(r => { releaseWrite = r })
   let firstWrite = true
+  let armed = false
   mock.env(on, { HOME: '/h', USER: 'ana' })
   on('session.cwd', () => ({ value: '/p' }))
   on('session.id', () => ({ value: 'sess-1' }))
@@ -233,7 +234,7 @@ test('o session.end espera pelo flush periódico em voo antes de escrever o rest
   on('fs.stat', () => ({ deny: 'ENOENT' }))
   on('fs.write', () => ({ value: undefined }))
   on('process.run', async (_$, e) => {
-    if (e.argv[0] === 'sh' && firstWrite) {
+    if (e.argv[0] === 'sh' && armed && firstWrite) {
       firstWrite = false
       await writeGate
     }
@@ -247,6 +248,8 @@ test('o session.end espera pelo flush periódico em voo antes de escrever o rest
   on('session.end', (_$, e) => ({ sessionId: e.sessionId }))
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   await $.session.start(START)
+  armed = true
+  done.length = 0
   await $.tool.call({ tool: 'Bash', command: 'ls' })
   tick()
   for (let i = 0; i < 50 && firstWrite; i++) await new Promise<void>(r => setTimeout(r, 2))

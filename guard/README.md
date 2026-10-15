@@ -36,6 +36,14 @@ Depois de o comando correr, o mod varre um `approvals/<id>` que tenha surgido se
 
 Riscos residuais (BACKLOG B12): sem o prumo-guard instalado, o approval-gate sozinho continua a confiar no ficheiro (até 10 minutos); o `self-guard` do prumo-base continua best effort no Bash para escritas por caminho relativo depois de um `cd` e para um symlink para `~/.prumo` criado sem a literal `.prumo`; o registo é da sessão, por isso uma aprovação dada noutra sessão do Claude Code para o mesmo comando não serve nesta (o ficheiro é apagado); e a janela de **um único comando** entre a verificação do mod e a leitura do gate noutro processo não fica fechada — a barreira efetiva para esse comando é o prompt de permissão do Bash.
 
+### Regras do projeto
+
+Num pedido N1, `4: Este comando, sempre neste projeto` e `5: Todos os N1 neste projeto` gravam uma regra em `~/.prumo/rules/<sha256 do projeto>.json`, ativam-na nesta sessão e aprovam o comando atual. O projeto é a raiz git do diretório da sessão no arranque, ou o próprio diretório sem git, e fica fixo durante a sessão.
+
+Em cada sessão nova, a band mostra as regras do projeto, uma a uma: `7: Ativar nesta sessão · 8: Agora não · 9: Revogar`. **Uma regra só vale depois desse dígito**, por isso um ficheiro escrito pelo agente nunca se ativa sozinho, e a regra ativa é a cópia tirada nesse momento. Uma regra `command` só é válida se o sha256 do texto bater com o `commandId` (senão o ficheiro inteiro é ignorado), por isso o comando mostrado na band é exatamente o que a regra aprova. Com regras ativas, o mod corre o approval-gate antes de cada Bash. Num N1 com uma regra que bata, escreve o `approvals/<id>` de uso único, e o tecto de 10 minutos do gate não muda.
+
+Só N1; o `run_with_secret` pede sempre, sem as opções 4 e 5. Uma regra "todos os N1" cobre **qualquer** N1 numa sessão deste projeto e não limita os caminhos que o comando toca: um `rm -rf` fora do projeto, corrido daqui, também passa. A regra ativa acompanha a sessão e não o diretório: depois de um `cd` para outro repositório, continua a aprovar N1. `/prumo-guard-rules` lista as regras (do ficheiro e as ativas nesta sessão) e revoga-as. A linha de estado mostra `regras N1: <n> ativa(s)`. Sessões concorrentes juntam as alterações ao ficheiro em vez de o sobrescrever. O self-guard do prumo-base 1.0.1 protege `~/.prumo/rules/` (best effort). Residuais no BACKLOG B15 e B16.
+
 ### Redação de segredos e PII
 
 Antes de o conteúdo chegar ao modelo, os valores sensíveis são trocados por `[prumo:CLASSE]`. Aplica-se a resultados de ferramentas, mensagens de ferramentas, anexos, contexto de hooks e entregas (`session.append`) e ao texto que a pessoa escreve (`prompt.submit`, desligável com `redact.prompt`).
@@ -122,6 +130,7 @@ Writer do `friday-state` no processo, desligado por omissão (ver secção abaix
 | `/prumo-guard-mode prod\|dev\|lab` | Muda o modo operacional (`~/.prumo/mode`; `lab` escreve também o marker `lab-mode`) | sim |
 | `/prumo-guard-redact on\|off` | Liga ou desliga o RGPD (redação) nesta sessão | sim |
 | `/prumo-guard-approvals` | Abre o pedido pendente num painel com foco (o `Esc` fecha-o; o pedido continua na band) | não |
+| `/prumo-guard-rules` | Lista as regras de aprovação do projeto e revoga-as | não |
 | `/prumo-guard-resume` | Rearma o travão | sim |
 | `/prumo-guard-stop` | Termina o loop do ralph | sim |
 | `/prumo-guard-agents [hide\|show <agente>]` | Lista ou altera os agentes escondidos | só para alterar |

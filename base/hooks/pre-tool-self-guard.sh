@@ -4,7 +4,7 @@
 # O agente não muda o modo operacional, as aprovações nem a configuração dos
 # guards. Protege:
 #   ${PRUMO_HOME:-~/.prumo}/{mode,lab-mode,audit-active,org.json,guard.json,
-#                            redact.json,secret-exec.json} e approvals/
+#                            redact.json,secret-exec.json}, approvals/ e rules/
 #   em qualquer .claude/settings.json ou settings.local.json: env.PRUMO_*,
 #   enabledPlugins prumo-*, permissions.defaultMode e disableAllHooks
 #
@@ -17,7 +17,7 @@
 # e só assim se apanha. No Bash não há simulação (best effort):
 #   · verbo de escrita (incluindo curl, wget, scp, rsync) numa cláusula que
 #     nomeie um ficheiro protegido ou o próprio ~/.prumo, ou redirecção para lá;
-#   · `cd`/`pushd` para ~/.prumo ou approvals/, ou uma variável com esse
+#   · `cd`/`pushd` para ~/.prumo, approvals/ ou rules/, ou uma variável com esse
 #     caminho ou com o de um ficheiro protegido, numa linha que escreva (verbo
 #     ou `>`); o mesmo para .claude quando a linha nomeia um settings.json;
 #   · `ln` (quaisquer opções) com um argumento que contenha `.prumo`, relativo
@@ -85,7 +85,7 @@ is_protected_file() {
   local f d n
   f=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
   d=$(printf '%s' "$PRUMO_DIR_REAL" | tr '[:upper:]' '[:lower:]')
-  case "$f" in "$d/approvals"|"$d/approvals/"*) return 0 ;; esac
+  case "$f" in "$d/approvals"|"$d/approvals/"*|"$d/rules"|"$d/rules/"*) return 0 ;; esac
   for n in $PROTECTED_NAMES; do [ "$f" = "$d/$n" ] && return 0; done
   return 1
 }
@@ -175,7 +175,7 @@ HOME_REAL=$(cd "$HOME" 2>/dev/null && pwd -P)
 [ -n "$HOME_REAL" ] && [ "$HOME_REAL" != "$HOME" ] && DIRS="$DIRS|$(re_escape "$HOME_REAL")/\\.prumo"
 [ "$PRUMO_DIR_REAL" != "$HOME/.prumo" ] && DIRS="$DIRS|$(re_escape "$PRUMO_DIR_REAL")"
 [ -n "${PRUMO_HOME:-}" ] && DIRS="$DIRS|$(re_escape "$PRUMO_HOME")"
-NAMES='(mode|lab-mode|audit-active|org\.json|guard\.json|redact\.json|secret-exec\.json)([^A-Za-z0-9._-]|$)|approvals([^A-Za-z0-9._-]|$)'
+NAMES='(mode|lab-mode|audit-active|org\.json|guard\.json|redact\.json|secret-exec\.json)([^A-Za-z0-9._-]|$)|(approvals|rules)([^A-Za-z0-9._-]|$)'
 PROT_RE="(${DIRS})/(${NAMES})"
 SETTINGS_RE='\.claude/settings(\.local)?\.json'
 REDIR_PROT_RE=">&?[[:space:]]*(${DIRS})/(${NAMES})"
@@ -185,7 +185,7 @@ REDIR_SETTINGS_RE=">&?[[:space:]]*[^[:space:]]*${SETTINGS_RE}"
 VERB_RE='(^|[[:space:]/\\(`])(rm|mv|cp|ln|touch|unlink|truncate|install|tee|chmod|chown|dd|curl|wget|fetch|scp|sftp|ftp|rsync|python[0-9.]*|perl|ruby|node|osascript)([[:space:]]|$)|sed[[:space:]]+(-[a-zA-Z]*i|--in-place)'
 # O próprio diretório como alvo (`cp x ~/.prumo/`, `rm -rf ~/.prumo`, `curl --output-dir ~/.prumo`).
 PROT_DIR_RE="(${DIRS})/?([[:space:];&|)]|\$)"
-# Mudar para o diretório (ou para approvals/), ou guardar numa variável esse diretório ou um
+# Mudar para o diretório (ou para approvals/ ou rules/), ou guardar numa variável esse diretório ou um
 # ficheiro protegido, e escrever depois por caminho relativo ou pela variável. Um subdiretório
 # não protegido (`~/.prumo/backups`, `~/.prumo/log`) não conta.
 PROT_TARGET="(${DIRS})(/?([[:space:];&|)]|\$)|/(${NAMES}))"

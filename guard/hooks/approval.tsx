@@ -1,9 +1,10 @@
 import { atom, read, update } from 'claude-code'
 import { APPROVALS_DEFAULT, PENDING_DEFAULT } from './refs.ts'
 import type { EngineInterface, On } from 'claude-code'
-import type { PrumoGuardApproval, PrumoGuardLevel, PrumoGuardPending } from '../types'
+import type { PrumoGuardApproval, PrumoGuardLevel, PrumoGuardPending, PrumoGuardRule } from '../types'
 import { approvalIdOf, displayCommand, parseGateDenial, quoteCommand } from './approval-parse.ts'
 import { prumoHome } from './config.ts'
+import { addRule, ruleFor } from './rules.tsx'
 import { refreshStatus } from './status.ts'
 
 // O validador só lê átomos declarados no próprio ficheiro quando se escreve (update); a leitura usa o de refs.ts.
@@ -36,7 +37,7 @@ export const FORGED_RACE_NOTE =
 
 export async function requestApproval(
   $: EngineInterface,
-  req: { id: string; level: PrumoGuardLevel; command: string; agentId?: string; singleUse?: boolean },
+  req: { id: string; level: PrumoGuardLevel; command: string; agentId?: string; singleUse?: boolean; noRules?: true },
 ): Promise<void> {
   const requestedAt = await $.clock.now()
   await update($, pending, list =>
@@ -57,6 +58,22 @@ async function tell($: EngineInterface, text: string, agentId?: string): Promise
   }
 }
 
+// A aprovação escrita pelo diálogo e pelas regras do projeto: o registo entra antes do ficheiro,
+// porque um ficheiro sem registo é tratado como forjado e apagado.
+async function grant($: EngineInterface, id: string, level: PrumoGuardLevel, scope: 'once' | 'ttl'): Promise<number> {
+  const expires = Math.floor(((await $.clock.now()) + (scope === 'ttl' ? TTL_MS : ONCE_MS)) / 1000)
+  const record: PrumoGuardApproval = { id, level, scope, expires, used: false }
+  await update($, approvals, list => [...(list ?? []).filter(r => r.id !== id), record].slice(-50))
+  await $.fs.write(`${await prumoHome($)}/approvals/${id}`, `level=${level}\nexpires=${expires}\nscope=${scope}\n`)
+  return expires
+}
+
+// Opções 4 e 5: grava a regra do projeto e aprova o comando atual como "Só esta".
+async function decideRule($: EngineInterface, p: PrumoGuardPending, kind: 'command' | 'level'): Promise<void> {
+  await addRule($, kind, p.id, p.command)
+  await decide($, p, 'once')
+}
+
 async function decide($: EngineInterface, p: PrumoGuardPending, choice: 'once' | 'ttl' | 'deny'): Promise<void> {
   await update($, pending, list => (list ?? []).filter(x => x.id !== p.id))
   if ((await read($, pending)).length === 0) await $.ui.close({ id: APPROVAL_PANE })
@@ -66,11 +83,7 @@ async function decide($: EngineInterface, p: PrumoGuardPending, choice: 'once' |
     await tell($, `prumo-guard: o humano negou ${p.level} para \`${shown}\` (citado numa só linha). Não o corras nem o contornes.`, p.agentId)
     return
   }
-  const expires = Math.floor(((await $.clock.now()) + (choice === 'ttl' ? TTL_MS : ONCE_MS)) / 1000)
-  // O registo entra antes do ficheiro: um ficheiro sem registo é tratado como forjado e apagado.
-  const record: PrumoGuardApproval = { id: p.id, level: p.level, scope: choice, expires, used: false }
-  await update($, approvals, list => [...(list ?? []).filter(r => r.id !== p.id), record].slice(-50))
-  await $.fs.write(`${await prumoHome($)}/approvals/${p.id}`, `level=${p.level}\nexpires=${expires}\nscope=${choice}\n`)
+  await grant($, p.id, p.level, choice)
   const span = p.singleUse ? 'uma vez (o run_with_secret gasta-a na primeira chamada)' : choice === 'ttl' ? 'durante 10 minutos' : 'uma vez'
   await tell($, `prumo-guard: aprovado ${p.level} ${span} para \`${shown}\` (citado numa só linha). Podes repetir exatamente o comando que foi bloqueado.`, p.agentId)
 }
@@ -133,18 +146,54 @@ export async function sweepForgedFile($: EngineInterface, id: string): Promise<b
   return true
 }
 
+function ruleNote(rule: PrumoGuardRule): string {
+  return `prumo-guard: aprovado pela regra do projeto (N1, ${rule.kind === 'level' ? 'todos os N1' : 'este comando'}, ${rule.id}).`
+}
+
 export function registerApproval(on: On): void {
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const id = await approvalIdOf(e.command)
+    const file = `${await prumoHome($)}/approvals/${id}`
+    // Com um approvals/<id> à entrada, o gate real vai consumi-lo: classificar antes gastaria a
+    // aprovação humana, por isso a regra só entra quando não há ficheiro.
+    const hadFile = await $.fs.stat(file).then(() => true, () => false)
     const refused = await checkApprovalFile($, id)
     if (refused) return { deny: refused }
+    // Só apaga o ficheiro que esta aprovação por regra escreveu (mesmo expires, uma vez).
+    const dropFile = async (expires: number) => {
+      try {
+        const text = await $.fs.read(file)
+        if (text.includes(`expires=${expires}\n`) && text.includes('scope=once')) await $.process.run(['rm', '-f', file])
+      } catch {}
+    }
+    let rule = hadFile ? null : await ruleFor($, e.command, id).catch(() => null)
+    let expires: number | undefined
+    if (rule) {
+      // A aprovação da regra é gasta já, como a de "Só esta": o gate só lê o ficheiro e, se este
+      // ficar no disco, não pode servir a um comando sem regra nem pessoa. Se falhar, segue como hoje.
+      try {
+        expires = await grant($, id, 'N1', 'once')
+        await spendHumanRecord($, id, 'N1', false)
+      } catch {
+        rule = null
+        if (expires !== undefined) await dropFile(expires)
+        try {
+          await update($, approvals, list => (list ?? []).filter(r => !(r.id === id && r.scope === 'once' && !r.used)))
+        } catch {}
+      }
+    }
     const ran = await next(e)
-    if (ran.deny !== undefined) return ran
+    if (ran.deny !== undefined) {
+      if (rule && expires !== undefined) await dropFile(expires)
+      return ran
+    }
+    if (ran.isError === true && rule && expires !== undefined) await dropFile(expires)
     if (ran.isError !== true) {
       // O comando correu (ou foi autorizado). Varre um ficheiro forjado que tenha aparecido na
       // janela entre a verificação acima e a leitura do gate: assim não sobrevive para autorizar o
       // próximo comando, e o modelo fica avisado.
-      return (await sweepForgedFile($, id)) ? { ...ran, context: [FORGED_RACE_NOTE] } : ran
+      if (await sweepForgedFile($, id)) return { ...ran, context: [FORGED_RACE_NOTE] }
+      return rule ? { ...ran, context: [ruleNote(rule)] } : ran
     }
     const req = parseGateDenial(ran.text ?? '', id)
     if (!req) return ran
@@ -170,6 +219,12 @@ export function registerApproval(on: On): void {
           <Button key="ttl" hotkey="2" plain label="10 minutos" onPress={() => void decide($, p, 'ttl')} />
           <Button key="deny" hotkey="3" plain label="Negar" onPress={() => void decide($, p, 'deny')} />
         </Box>
+        {p.level === 'N1' && !p.singleUse && !p.noRules ? (
+          <Box columnGap={2}>
+            <Button key="rule-command" hotkey="4" plain label="Este comando, sempre neste projeto" onPress={() => void decideRule($, p, 'command')} />
+            <Button key="rule-level" hotkey="5" plain label="Todos os N1 neste projeto" onPress={() => void decideRule($, p, 'level')} />
+          </Box>
+        ) : null}
         <Text dimColor>só o dígito, sem Enter, com o prompt vazio · /prumo-guard-approvals abre o painel</Text>
         <Text bold>{shown.text}</Text>
         {shown.omitted > 0 ? (
@@ -203,6 +258,12 @@ export function registerApproval(on: On): void {
           <Button key="ttl" hotkey="2" plain label="10 minutos" onPress={() => void decide($, p, 'ttl')} />
           <Button key="deny" hotkey="3" plain label="Negar" onPress={() => void decide($, p, 'deny')} />
         </Box>
+        {p.level === 'N1' && !p.singleUse && !p.noRules ? (
+          <Box columnGap={2}>
+            <Button key="rule-command" hotkey="4" plain label="Este comando, sempre neste projeto" onPress={() => void decideRule($, p, 'command')} />
+            <Button key="rule-level" hotkey="5" plain label="Todos os N1 neste projeto" onPress={() => void decideRule($, p, 'level')} />
+          </Box>
+        ) : null}
         <Text dimColor>Esc fecha o painel; o pedido continua na band acima do prompt.</Text>
       </Box>
     )

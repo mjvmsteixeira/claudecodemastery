@@ -51,6 +51,18 @@ Aberto a 2026-08-02.
 
 ---
 
+## B15 · Ofertas de regras: quebras de linha e caracteres de controlo
+
+**Estado:** em aberto. A band de arranque e o painel mostram o comando numa linha, mas trocam `\n` por espaço: `git status\nrm -rf x` aparece como `git status rm -rf x`. Também não neutralizam ESC/ANSI, `\b`, `\v` nem U+2028. Uma oferta forjada coerente, que passa a verificação do sha256, pode assim parecer mais inócua do que é. Correção provável: mostrar `⏎` no lugar das quebras e escapar os caracteres de controlo no `describe`, e aplicar o mesmo à band e ao painel de aprovação.
+
+---
+
+## B16 · Escritas concorrentes de regras na mesma sessão
+
+**Estado:** em aberto. Duas revogações, ou uma criação e uma revogação, em paralelo podem perder uma atualização. Neste caso, uma regra revogada continua no ficheiro e volta como oferta inativa no arranque seguinte. A regra ativa da sessão fica correta. Este problema já existia antes do ramo. Correção provável: serializar `addRule` e `revokeRule` numa cadeia de promises do módulo.
+
+---
+
 ## B1 · Identidade do embedder do MemPalace — **FECHADO** (2026-08-03)
 
 **Resolvido com `mempalace palace set-embedder --model minilm`.** Identidade gravada em `palace/mempalace_embedder.json` (`minilm`, dim 384), coerente com o `embedding_model` do `config.json`. Verificado pelo comportamento: a operação que antes emitia o `EmbedderIdentityUnknownWarning` para as duas colecções — `repair --dry-run` — deixou de emitir qualquer aviso.

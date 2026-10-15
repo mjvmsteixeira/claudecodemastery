@@ -3,6 +3,7 @@ import { registerApproval } from './approval.tsx'
 import { startAuditTrail } from './audit-trail.ts'
 import { registerBrake, startBrake } from './brake.ts'
 import { registerCommands, startCommands } from './commands.ts'
+import { registerRules, startRules } from './rules.tsx'
 import { registerRedaction, startRedaction } from './redact.ts'
 import { registerFriday } from './friday.ts'
 import { registerObservers } from './observers.ts'
@@ -16,6 +17,7 @@ export const register: Register = on => {
   // Primeiro: o despachante dos eventos partilhados é o hook mais exterior (ver observers.ts).
   registerObservers(on)
   registerApproval(on)
+  registerRules(on)
   registerRedaction(on)
   registerCommands(on)
   registerPanel(on)
@@ -31,6 +33,7 @@ export const register: Register = on => {
     await startAuditTrail($)
     await startSecretTool($)
     await startAgents($)
+    await startRules($)
     await refreshStatus($)
     return next(e)
   })

@@ -8,6 +8,8 @@ export type PrumoGuardPending = {
   agentId?: string
   // run_with_secret: a aprovação serve uma só chamada, também com "10 minutos".
   singleUse?: boolean
+  // Pedido do approval-gate aberto pelo run_with_secret: sem as opções 4 e 5 (regras do projeto).
+  noRules?: true
 }
 
 // O que a pessoa decidiu no diálogo, guardado pelo mod: um approvals/<id> só serve com o registo
@@ -35,6 +37,12 @@ export type PrumoGuardRepeat = {
 }
 export type PrumoGuardBrake = { paused: boolean; reason: string | null; loopStartUsd: number | null; tokens: number }
 
+// Uma regra de aprovação do projeto (~/.prumo/rules/<sha256 do projeto>.json). Só N1. Só vale numa
+// sessão depois de a pessoa a ativar; o match usa a cópia tirada nesse momento (rulesActive).
+export type PrumoGuardRule =
+  | { id: string; kind: 'level'; level: 'N1'; createdAt: string }
+  | { id: string; kind: 'command'; level: 'N1'; commandId: string; command: string; createdAt: string }
+
 declare module 'claude-code' {
   interface PluginState {
     'prumo-guard': {
@@ -49,6 +57,10 @@ declare module 'claude-code' {
       usage: PrumoGuardUsage
       repeat: PrumoGuardRepeat
       brake: PrumoGuardBrake
+      rulesFile: PrumoGuardRule[]
+      rulesOffered: PrumoGuardRule[]
+      rulesActive: PrumoGuardRule[]
+      rulesProject: string | null
     }
   }
 }

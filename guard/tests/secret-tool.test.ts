@@ -5,7 +5,7 @@ import { stubStart } from './start-stubs.ts'
 import type { PrumoGuardApproval, PrumoGuardPending } from '../types'
 import { approvalIdOf } from '../hooks/approval-parse.ts'
 
-const gateDenial = (id: string) => `[prumo-secops/approval-gate] Operação N2 detectada:\n  x\n\napproval-id: ${id}\n`
+const gateDenial = (id: string, level = 'N2') => `[prumo-secops/approval-gate] Operação ${level} detectada:\n  x\n\napproval-id: ${id}\n`
 const TOOL = 'mcp__prumo-guard__run_with_secret'
 const GUARD = '/h/.prumo/guard.json'
 const EXEC = '/h/.prumo/secret-exec.json'
@@ -19,6 +19,7 @@ const TMP = '/tmp/rws.T'
 const ISOLATED = { HOME: TMP, XDG_CONFIG_HOME: TMP, XDG_DATA_HOME: TMP }
 const FORGED = 'aprovação não reconhecida: o ficheiro não foi criado pelo diálogo do prumo-guard'
 const MOUNT = { plugin: 'prumo-guard', surface: 'terminal', component: 'Pane', props: { title: 'prumo · aprovação', isFocused: true, bodyColumns: 80, placement: 'inline', scroll: { offset: 0, bodyRows: 10 }, view: {} }, requestId: 'prumo-guard-approval' } as const
+const BAND = { plugin: 'prumo-guard', surface: 'terminal', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: true, maxRows: 10, bodyColumns: 80, scroll: { offset: 0, bodyRows: 10 }, view: {} } } as const
 
 const res = (exitCode: number, stdout = '', stderr = '') => ({
   value: { exitCode, stdout, stderr, isStdoutTruncated: false, isStderrTruncated: false },
@@ -37,6 +38,8 @@ type Opts = {
   files?: Record<string, string>
   guards?: Record<string, { exit: number; stderr?: string }>
   gateId?: string
+  // O nível do banner do approval-gate quando sai 2; por omissão N2.
+  gateLevel?: 'N1' | 'N2'
   // guard.json: por omissão liga o run_with_secret; null tira o ficheiro.
   guardJson?: string | null
   // Conteúdo de qualquer approvals/<id> sem entrada em `files`; null = não existe.
@@ -141,7 +144,7 @@ function stubs(on: On, gateExit = 0, opts: Opts = {}) {
     if (a.includes('pre-tool-approval-gate.sh')) {
       state.payloads.push(e.init?.stdin ?? '')
       const id = opts.gateId ?? (await approvalIdOf(JSON.parse(e.init?.stdin ?? '{}').tool_input.command))
-      return res(gateExit, '', gateExit === 2 ? gateDenial(id) : '')
+      return res(gateExit, '', gateExit === 2 ? gateDenial(id, opts.gateLevel) : '')
     }
     const guard = Object.keys(opts.guards ?? {}).find(g => a.endsWith(g))
     if (a.includes('/hooks/pre-tool-')) {
@@ -354,6 +357,21 @@ test('approval-gate bloqueia depois da aprovação por chamada: pedido do gate, 
   expect(s.removed).toEqual([])
   expect(s.runs.some(r => r.includes('vault-read-field.sh'))).toBe(false)
   expect(ran(s)).toEqual([])
+})
+
+test('o pedido N1 que o gate abre pelo run_with_secret não oferece regras do projeto', async ($, on) => {
+  const s = stubs(on, 2, { gateLevel: 'N1' })
+  await $.tool.call(call(['psql', '-c', 'select 1'], { PGPASSWORD: 'kv/db#pw' }))
+  expect(s.pending[0]?.level).toBe('N1')
+  expect(s.pending[0]?.noRules).toBe(true)
+  const band = await $.ui.mount(BAND)
+  expect(await band.findAll({ type: 'Button' })).toHaveLength(3)
+  expect(await band.find({ text: /Todos os N1 neste projeto/ })).toBeUndefined()
+  await band.unmount()
+  const pane = await $.ui.mount(MOUNT)
+  expect(await pane.findAll({ type: 'Button' })).toHaveLength(3)
+  expect(await pane.find({ text: /Todos os N1 neste projeto/ })).toBeUndefined()
+  await pane.unmount()
 })
 
 test('uma chamada que não cabe no painel de aprovação é recusada sem pedido', async ($, on) => {
