@@ -2,6 +2,7 @@ import { test, expect, mock } from 'claude-code/testing'
 import type { On } from 'claude-code'
 import { approvalIdOf, sha256Hex } from '../hooks/approval-parse.ts'
 import { cmd } from './start-stubs.ts'
+import type { PrumoGuardApproval } from '../types'
 import { parseRulesFile } from '../hooks/rules.tsx'
 
 const H = 'a'.repeat(64)
@@ -45,6 +46,8 @@ type World = {
   gateMissing?: boolean
   gateExit?: number
   mkdirFails?: boolean
+  writeFails?: boolean
+  denyCommand?: string
 }
 
 async function rulesFileOf(project = PROJECT): Promise<string> {
@@ -67,7 +70,7 @@ function world(on: On, w: Partial<World> = {}): World {
   on('fs.read', (_$, e) => (s.files[e.path] !== undefined ? { value: s.files[e.path] as string } : { deny: 'ENOENT' }))
   on('fs.stat', (_$, e) => (s.files[e.path] !== undefined ? { value: { kind: 'file' as const, size: 1, mtimeMs: 0, isLink: false } } : { deny: 'ENOENT' }))
   on('fs.exists', (_$, e) => ({ value: s.files[e.path] !== undefined }))
-  on('fs.write', (_$, e) => { s.files[e.path] = e.text; return { value: undefined } })
+  on('fs.write', (_$, e) => { if (s.writeFails && e.path.includes('/approvals/')) return { deny: 'EIO' }; s.files[e.path] = e.text; return { value: undefined } })
   on('process.run', async (_$, e) => {
     const [bin, ...rest] = e.argv
     if (bin === 'sh') return res(0, `${PROJECT}\n`)
@@ -93,6 +96,7 @@ function world(on: On, w: Partial<World> = {}): World {
   on('tool.call', async (_$, e) => {
     s.reached++
     const command = (e as unknown as { command: string }).command
+    if (s.denyCommand === command) return { deny: 'x' }
     const id = await approvalIdOf(command)
     const file = `/h/.prumo/approvals/${id}`
     const level = s.levels[command]
@@ -239,8 +243,11 @@ test('um N2 não é aprovado por uma regra level', async ($, on) => {
 test('uma regra command só aprova o mesmo comando', async ($, on) => {
   world(on, { levels: { [N1]: 'N1', [N1B]: 'N1' } })
   await createRule($, N1, 'rule-command')
+  expect((await $.tool.call({ tool: 'Bash', command: N1 })).isError).toBeUndefined() // gasta a aprovação humana de createRule
   expect((await $.tool.call({ tool: 'Bash', command: N1B })).isError).toBe(true)
-  expect((await $.tool.call({ tool: 'Bash', command: N1 })).isError).toBeUndefined()
+  const r = await $.tool.call({ tool: 'Bash', command: N1 })
+  expect(r.isError).toBeUndefined()
+  expect(String(r.context ?? '')).toContain('regra do projeto')
 })
 
 test('sem regras ativas o gate não corre a mais', async ($, on) => {
@@ -287,4 +294,38 @@ test('se a escrita de rules/ falhar, a regra vale nesta sessão', async ($, on) 
   await createRule($, N1, 'rule-level')
   expect(s.toasts.some(t => t.includes('só nesta sessão'))).toBe(true)
   expect((await $.tool.call({ tool: 'Bash', command: N1B })).isError).toBeUndefined()
+})
+
+test('a aprovação da regra fica gasta no registo', async ($, on) => {
+  let records: PrumoGuardApproval[] = []
+  on('state.set', { plugin: 'prumo-guard', key: 'approvals' }, (_$, e, next) => {
+    records = e.value as PrumoGuardApproval[]
+    return next(e)
+  })
+  world(on, { levels: { [N1]: 'N1', [N1B]: 'N1' } })
+  await createRule($, N1, 'rule-level')
+  await $.tool.call({ tool: 'Bash', command: N1 })
+  await $.tool.call({ tool: 'Bash', command: N1B })
+  const id = await approvalIdOf(N1B)
+  expect(records.find(r => r.id === id)?.used).toBe(true)
+})
+
+test('depois de uma aprovação por regra que o gate nega, não sobra ficheiro', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1', [N1B]: 'N1' } })
+  await createRule($, N1, 'rule-level')
+  s.denyCommand = N1B
+  await $.tool.call({ tool: 'Bash', command: N1B })
+  expect(s.files[`/h/.prumo/approvals/${await approvalIdOf(N1B)}`]).toBeUndefined()
+})
+
+test('se a escrita da aprovação falhar, o pedido humano abre-se como hoje', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1', [N1B]: 'N1' } })
+  await createRule($, N1, 'rule-level')
+  s.writeFails = true
+  const reached = s.reached
+  const r = await $.tool.call({ tool: 'Bash', command: N1B })
+  expect(r.deny).toBeUndefined()
+  expect(r.isError).toBe(true)
+  expect(s.reached).toBe(reached + 1)
+  expect(s.status).toContain('pendente')
 })

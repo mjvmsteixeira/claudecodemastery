@@ -154,10 +154,26 @@ export function registerApproval(on: On): void {
     const id = await approvalIdOf(e.command)
     const refused = await checkApprovalFile($, id)
     if (refused) return { deny: refused }
-    const rule = await ruleFor($, e.command, id)
-    if (rule) await grant($, id, 'N1', 'once')
+    const file = `${await prumoHome($)}/approvals/${id}`
+    const dropFile = () => $.process.run(['rm', '-f', file]).then(() => undefined, () => undefined)
+    let rule = await ruleFor($, e.command, id).catch(() => null)
+    if (rule) {
+      // A aprovação da regra é gasta já, como a de "Só esta": o gate só lê o ficheiro e, se este
+      // ficar no disco, não pode servir a um comando sem regra nem pessoa. Se falhar, segue como hoje.
+      try {
+        await grant($, id, 'N1', 'once')
+        await spendHumanRecord($, id, 'N1', false)
+      } catch {
+        rule = null
+        await dropFile()
+      }
+    }
     const ran = await next(e)
-    if (ran.deny !== undefined) return ran
+    if (ran.deny !== undefined) {
+      if (rule) await dropFile()
+      return ran
+    }
+    if (ran.isError === true && rule) await dropFile()
     if (ran.isError !== true) {
       // O comando correu (ou foi autorizado). Varre um ficheiro forjado que tenha aparecido na
       // janela entre a verificação acima e a leitura do gate: assim não sobrevive para autorizar o
