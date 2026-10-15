@@ -2,6 +2,17 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.0.1 — 2026-10-15
+
+**`approval-gate`: apagar dentro do scratchpad do Claude Code deixa de pedir aprovação.** Era o pedido N1 mais frequente (`S=/private/tmp/claude-501/…/scratchpad; rm -f $S/sessao.id`). Um `rm` passa sem pedido quando **todos** os alvos de **todos** os `rm` do comando ficam dentro de `/private/tmp/claude-<uid>/` ou `/tmp/claude-<uid>/`. Na dúvida, as regras de antes aplicam-se:
+
+- só se resolvem atribuições literais no início do comando (`S=…;`, `S=…&&`, `export S=…;` ou numa linha própria), e só se o nome não voltar a aparecer fora de `$S`/`${S}`; `false && S=…; rm -rf $S/` e `S=… rm -rf $S/` continuam N1, tal como qualquer comando que mexa no `IFS`;
+- um `rm` que não é o comando da sua cláusula (`xargs rm`, `bash -c "rm …"`, `find -exec rm`, um `rm` num subshell fora do scratchpad) desqualifica o comando inteiro;
+- alvos com `..`, `$`, `~`, chavetas, `[` ou `\` continuam N1;
+- o `rm` segue symlinks nos componentes intermédios e no último quando leva barra: esses não podem ser symlinks nem ter globs.
+
+A verificação dos symlinks é feita quando o hook corre (TOCTOU: um symlink criado depois, noutro processo, escapa-lhe). Os outros N1 (`git push -f`, `| curl`, `| tee`), o N2 e o N3 não mudam. Corpus `ap-18`…`ap-28` e `scripts/eval/scratch-rm-test.sh` (symlinks reais), também no CI.
+
 ## v1.0.0 — 2026-10-14
 
 ### Mudanças que bloqueiam

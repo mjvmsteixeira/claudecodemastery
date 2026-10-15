@@ -10,6 +10,7 @@ const OTHER = '99d1bcb64075fd96988ea63c4cb782b548a91c03119b14e637e4ffd476449808'
 const denial = (preview: string, id: string) => `[prumo-secops/approval-gate] Operação N1 detectada:\n  ${preview}\n\napproval-id: ${id}\n`
 const DENIAL = denial('git push --force origin feature', ID)
 const MOUNT = { plugin: 'prumo-guard', surface: 'terminal', component: 'Pane', props: { title: 'prumo · aprovação', isFocused: true, bodyColumns: 80, placement: 'inline', scroll: { offset: 0, bodyRows: 10 }, view: {} }, requestId: 'prumo-guard-approval' } as const
+const BAND = { plugin: 'prumo-guard', surface: 'terminal', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: true, maxRows: 10, bodyColumns: 80, scroll: { offset: 0, bodyRows: 10 }, view: {} } } as const
 
 type Seen = {
   writes: Array<{ path: string; text: string }>
@@ -79,6 +80,7 @@ function stubs(on: On, texts: () => string, ran?: () => Ran, disk: Disk = {}): S
     seen.reached++
     return ran ? ran() : { result: '', text: texts(), isError: true }
   })
+  on('ui.render', { component: 'AbovePrompt' }, () => ({ type: 'Text', children: ['sem painel'] }))
   return seen
 }
 
@@ -91,9 +93,59 @@ test('bloqueio do gate abre pedido pendente e diz ao modelo para não contornar'
   expect(String(ran.context ?? '')).toContain('exatamente')
   expect(seen.pending[0]?.id).toBe(ID)
   expect(seen.pending[0]?.level).toBe('N1')
-  expect(seen.opened).toEqual(['prumo-guard-approval'])
   expect(seen.notified.length).toBe(1)
   expect(seen.notified[0]).toContain('N1')
+})
+
+// --- o pedido não tira o teclado à pessoa ---
+
+test('o pedido aparece na band acima do prompt e não abre o painel com foco', async ($, on) => {
+  const seen = stubs(on, () => DENIAL)
+  await $.tool.call(BASH)
+  expect(seen.opened).toEqual([])
+  const band = await $.ui.mount(BAND)
+  expect(await band.find({ text: /aprovação N1/ })).toBeDefined()
+  expect(await band.find({ text: /git push --force origin feature/ })).toBeDefined()
+  expect(await band.find({ text: /prompt vazio/ })).toBeDefined()
+  expect(await band.findAll({ type: 'Button' })).toHaveLength(3)
+  await band.unmount()
+})
+
+test('a band responde ao pedido: "só esta" escreve o ficheiro e a band volta ao normal', async ($, on) => {
+  const seen = stubs(on, () => DENIAL)
+  await $.tool.call(BASH)
+  const band = await $.ui.mount(BAND)
+  await band.press({ key: 'once' })
+  expect(seen.writes[0]?.path).toBe(`/h/.prumo/approvals/${ID}`)
+  expect(seen.writes[0]?.text).toContain('scope=once')
+  expect(seen.appended[0]).toContain('aprovado')
+  expect(await band.find({ text: /sem painel/ })).toBeDefined()
+  await band.unmount()
+})
+
+test('a band cede a um inquérito do Claude Code', async ($, on) => {
+  stubs(on, () => DENIAL)
+  await $.tool.call(BASH)
+  const band = await $.ui.mount({ ...BAND, props: { ...BAND.props, hasSurvey: true } })
+  expect(await band.find({ text: /sem painel/ })).toBeDefined()
+  expect(await band.find({ text: /aprovação N1/ })).toBeUndefined()
+  await band.unmount()
+})
+
+test('sem pedidos a band passa ao painel do loop', async ($, on) => {
+  stubs(on, () => DENIAL)
+  const band = await $.ui.mount(BAND)
+  expect(await band.find({ text: /sem painel/ })).toBeDefined()
+  await band.unmount()
+})
+
+test('o painel diz as teclas e que o Esc o fecha sem perder o pedido', async ($, on) => {
+  stubs(on, () => DENIAL)
+  await $.tool.call(BASH)
+  const ui = await $.ui.mount(MOUNT)
+  expect(await ui.find({ text: /Esc fecha/ })).toBeDefined()
+  expect(await ui.find({ text: /band/ })).toBeDefined()
+  await ui.unmount()
 })
 
 test('aprovar "só esta" escreve o ficheiro e remove o pendente', async ($, on) => {

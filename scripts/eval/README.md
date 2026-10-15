@@ -18,6 +18,7 @@ já introduziram regressões que só um review manual apanhou.
 | `approval-file-test.sh` | canal de aprovação por ficheiro do approval-gate: `once`, `ttl`, expirado, nível errado, tecto de 10 minutos no `expires` |
 | `cef-marker-test.sh` | o `post-tool-cef-wazuh.sh` sai cedo quando o prumo-guard já regista a sessão (marker `run/cef-mod.<sessão>`) |
 | `guard-paths-test.sh` | caminhos que o corpus não exprime no self-guard e no secret-read: symlinks, `..`, maiúsculas, espaços, stdin vazio |
+| `scratch-rm-test.sh` | isenção do scratchpad no approval-gate com ficheiros reais: symlinks em componentes intermédios e no final com barra continuam N1 |
 | `vault-read-field-test.sh` | `vault-read-field.sh` com um `vault` falso: token da cache, campo pedido, sem eco de tokens |
 | `mod-audit-test.sh` | (precisa do CLI `claude`) o `mod-audit.sh` distingue mods de plugins clássicos e conta os gating hooks |
 
@@ -33,8 +34,8 @@ já introduziram regressões que só um review manual apanhou.
 
 Exit `0` se tudo bate certo; exit `1` se houver mismatch (serve de gate).
 Corre também dentro do `scripts/validate.sh` (secção 9), logo entra no CI, a par
-dos quatro testes de contrato acima (`approval-file`, `cef-marker`, `guard-paths`,
-`vault-read-field`). O `mod-audit-test.sh` e o `claude plugin test` de cada mod
+dos cinco testes de contrato acima (`approval-file`, `cef-marker`, `guard-paths`,
+`scratch-rm`, `vault-read-field`). O `mod-audit-test.sh` e o `claude plugin test` de cada mod
 correm no `validate.sh` quando o CLI `claude` existe (no CI, não existe).
 
 **Hermético:** cada caso corre com `HOME` sandbox — não toca no teu `~/.prumo`.

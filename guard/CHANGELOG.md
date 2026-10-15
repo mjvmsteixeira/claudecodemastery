@@ -2,6 +2,15 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.0.2 — 2026-10-15
+
+**O pedido de aprovação deixa de tirar o teclado.** Na 1.0.1 cada recusa do approval-gate abria o painel `prumo · aprovação` com foco: com o prompt vazio o painel ficava com as teclas, e os botões `[ Só esta ][ 10 minutos ][ Negar ]` não diziam que `1`/`2`/`3` respondiam nem que o `Esc` o fechava. Quem estava a trabalhar ficava sem prompt.
+
+- O pedido aparece na band acima do prompt: `1: Só esta · 2: 10 minutos · 3: Negar`, um dígito com o prompt vazio responde, e quem está a escrever continua a escrever. Com um inquérito do Claude Code aberto, a band cede-lhe o lugar. Vale também para os pedidos do `run_with_secret`.
+- O painel continua no `/prumo-guard-approvals`, com foco, as teclas à vista e a linha `Esc fecha o painel; o pedido continua na band acima do prompt.`
+- A notificação acrescenta `1/2/3 com o prompt vazio`.
+- Funciona com o prumo-secops 1.0.0; com o 1.0.1 há menos pedidos, porque apagar dentro do scratchpad do Claude Code deixa de pedir aprovação.
+
 ## v1.0.1 — 2026-10-15
 
 **O travão passa a ser opt-in.** Na 1.0.0 atuava por omissão e, fora de um loop ralph, contava o custo da sessão inteira a partir de zero: numa sessão interativa longa pausava e, acima de 120% do orçamento, cortava turnos. Agora só atua com `brake.enabled: true` no `~/.prumo/guard.json` (ação humana); por omissão não pausa, não veta o `Stop` e não corta turnos.
