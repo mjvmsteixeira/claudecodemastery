@@ -110,6 +110,22 @@ export async function revokeRule($: EngineInterface, ruleId: string): Promise<vo
   await refreshStatus($)
 }
 
+// A regra criada nas opções 4 e 5 do pedido: fica ativa nesta sessão e vai para o ficheiro do
+// projeto. Se a escrita falhar, vale só nesta sessão.
+export async function addRule($: EngineInterface, kind: 'command' | 'level', commandId: string, command: string): Promise<PrumoGuardRule> {
+  const createdAt = new Date(await $.clock.now()).toISOString()
+  const id = `r-${(await sha256Hex(`${kind}|${commandId}|${createdAt}`)).slice(0, 12)}`
+  const rule: PrumoGuardRule =
+    kind === 'level' ? { id, kind: 'level', level: 'N1', createdAt } : { id, kind: 'command', level: 'N1', commandId, command, createdAt }
+  await update($, rulesActive, list => [...(list ?? []), rule])
+  const rules = [...(await read($, rulesFile)), rule]
+  await update($, rulesFile, () => rules)
+  const project = await projectRoot($)
+  if (!project || !(await saveRules($, project, rules))) $.ui.toast('prumo-guard: não foi possível gravar rules/ — a regra vale só nesta sessão')
+  await refreshStatus($)
+  return rule
+}
+
 export async function decideOffered($: EngineInterface, rule: PrumoGuardRule, choice: 'activate' | 'later' | 'revoke'): Promise<void> {
   await update($, rulesOffered, list => (list ?? []).filter(r => r.id !== rule.id))
   if (choice === 'activate') await update($, rulesActive, list => [...(list ?? []).filter(r => r.id !== rule.id), rule])

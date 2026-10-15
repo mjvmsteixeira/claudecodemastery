@@ -109,7 +109,7 @@ test('o pedido aparece na band acima do prompt e não abre o painel com foco', a
   expect(await band.find({ text: /prompt vazio/ })).toBeDefined()
   // O dígito fica um instante no prompt antes de carregar no botão; com Enter vai como mensagem.
   expect(await band.find({ text: /sem Enter/ })).toBeDefined()
-  expect(await band.findAll({ type: 'Button' })).toHaveLength(3)
+  expect(await band.findAll({ type: 'Button' })).toHaveLength(5)
   // Os botões ficam numa linha própria, separados pelo gap da caixa (um Text só com espaço perde-se).
   const drawn = JSON.stringify(await band.drawn())
   expect(drawn).toContain('"columnGap":2')

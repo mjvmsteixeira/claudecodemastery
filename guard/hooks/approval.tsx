@@ -4,6 +4,7 @@ import type { EngineInterface, On } from 'claude-code'
 import type { PrumoGuardApproval, PrumoGuardLevel, PrumoGuardPending } from '../types'
 import { approvalIdOf, displayCommand, parseGateDenial, quoteCommand } from './approval-parse.ts'
 import { prumoHome } from './config.ts'
+import { addRule } from './rules.tsx'
 import { refreshStatus } from './status.ts'
 
 // O validador só lê átomos declarados no próprio ficheiro quando se escreve (update); a leitura usa o de refs.ts.
@@ -57,6 +58,21 @@ async function tell($: EngineInterface, text: string, agentId?: string): Promise
   }
 }
 
+// A aprovação escrita pelo diálogo e pelas regras do projeto: o registo entra antes do ficheiro,
+// porque um ficheiro sem registo é tratado como forjado e apagado.
+async function grant($: EngineInterface, id: string, level: PrumoGuardLevel, scope: 'once' | 'ttl'): Promise<void> {
+  const expires = Math.floor(((await $.clock.now()) + (scope === 'ttl' ? TTL_MS : ONCE_MS)) / 1000)
+  const record: PrumoGuardApproval = { id, level, scope, expires, used: false }
+  await update($, approvals, list => [...(list ?? []).filter(r => r.id !== id), record].slice(-50))
+  await $.fs.write(`${await prumoHome($)}/approvals/${id}`, `level=${level}\nexpires=${expires}\nscope=${scope}\n`)
+}
+
+// Opções 4 e 5: grava a regra do projeto e aprova o comando atual como "Só esta".
+async function decideRule($: EngineInterface, p: PrumoGuardPending, kind: 'command' | 'level'): Promise<void> {
+  await addRule($, kind, p.id, p.command)
+  await decide($, p, 'once')
+}
+
 async function decide($: EngineInterface, p: PrumoGuardPending, choice: 'once' | 'ttl' | 'deny'): Promise<void> {
   await update($, pending, list => (list ?? []).filter(x => x.id !== p.id))
   if ((await read($, pending)).length === 0) await $.ui.close({ id: APPROVAL_PANE })
@@ -66,11 +82,7 @@ async function decide($: EngineInterface, p: PrumoGuardPending, choice: 'once' |
     await tell($, `prumo-guard: o humano negou ${p.level} para \`${shown}\` (citado numa só linha). Não o corras nem o contornes.`, p.agentId)
     return
   }
-  const expires = Math.floor(((await $.clock.now()) + (choice === 'ttl' ? TTL_MS : ONCE_MS)) / 1000)
-  // O registo entra antes do ficheiro: um ficheiro sem registo é tratado como forjado e apagado.
-  const record: PrumoGuardApproval = { id: p.id, level: p.level, scope: choice, expires, used: false }
-  await update($, approvals, list => [...(list ?? []).filter(r => r.id !== p.id), record].slice(-50))
-  await $.fs.write(`${await prumoHome($)}/approvals/${p.id}`, `level=${p.level}\nexpires=${expires}\nscope=${choice}\n`)
+  await grant($, p.id, p.level, choice)
   const span = p.singleUse ? 'uma vez (o run_with_secret gasta-a na primeira chamada)' : choice === 'ttl' ? 'durante 10 minutos' : 'uma vez'
   await tell($, `prumo-guard: aprovado ${p.level} ${span} para \`${shown}\` (citado numa só linha). Podes repetir exatamente o comando que foi bloqueado.`, p.agentId)
 }
@@ -170,6 +182,12 @@ export function registerApproval(on: On): void {
           <Button key="ttl" hotkey="2" plain label="10 minutos" onPress={() => void decide($, p, 'ttl')} />
           <Button key="deny" hotkey="3" plain label="Negar" onPress={() => void decide($, p, 'deny')} />
         </Box>
+        {p.level === 'N1' && !p.singleUse ? (
+          <Box columnGap={2}>
+            <Button key="rule-command" hotkey="4" plain label="Este comando, sempre neste projeto" onPress={() => void decideRule($, p, 'command')} />
+            <Button key="rule-level" hotkey="5" plain label="Todos os N1 neste projeto" onPress={() => void decideRule($, p, 'level')} />
+          </Box>
+        ) : null}
         <Text dimColor>só o dígito, sem Enter, com o prompt vazio · /prumo-guard-approvals abre o painel</Text>
         <Text bold>{shown.text}</Text>
         {shown.omitted > 0 ? (
@@ -203,6 +221,12 @@ export function registerApproval(on: On): void {
           <Button key="ttl" hotkey="2" plain label="10 minutos" onPress={() => void decide($, p, 'ttl')} />
           <Button key="deny" hotkey="3" plain label="Negar" onPress={() => void decide($, p, 'deny')} />
         </Box>
+        {p.level === 'N1' && !p.singleUse ? (
+          <Box columnGap={2}>
+            <Button key="rule-command" hotkey="4" plain label="Este comando, sempre neste projeto" onPress={() => void decideRule($, p, 'command')} />
+            <Button key="rule-level" hotkey="5" plain label="Todos os N1 neste projeto" onPress={() => void decideRule($, p, 'level')} />
+          </Box>
+        ) : null}
         <Text dimColor>Esc fecha o painel; o pedido continua na band acima do prompt.</Text>
       </Box>
     )

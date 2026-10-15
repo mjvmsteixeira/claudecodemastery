@@ -154,3 +154,58 @@ test('um ficheiro de regras inválido é ignorado com aviso', async ($, on) => {
   expect(await band.find({ text: /sem painel/ })).toBeDefined()
   await band.unmount()
 })
+
+const rulesIn = async (s: World) => parseRulesFile(s.files[await rulesFileOf()] as string, PROJECT) ?? []
+
+test('em N1 a band mostra as opções 4 e 5', async ($, on) => {
+  world(on, { levels: { [N1]: 'N1' } })
+  await $.tool.call({ tool: 'Bash', command: N1 })
+  const band = await $.ui.mount(BAND)
+  expect(await band.findAll({ type: 'Button' })).toHaveLength(5)
+  expect(await band.find({ text: /Todos os N1 neste projeto/ })).toBeDefined()
+  await band.unmount()
+})
+
+test('em N2 não há opções 4 e 5', async ($, on) => {
+  world(on, { levels: { [N2]: 'N2' } })
+  await $.tool.call({ tool: 'Bash', command: N2 })
+  const band = await $.ui.mount(BAND)
+  expect(await band.findAll({ type: 'Button' })).toHaveLength(3)
+  await band.unmount()
+})
+
+test('5 grava a regra level, ativa-a e aprova o comando atual uma vez', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1' } })
+  await $.tool.call({ tool: 'Bash', command: N1 })
+  const band = await $.ui.mount(BAND)
+  await band.press({ key: 'rule-level' })
+  await band.unmount()
+  const rules = await rulesIn(s)
+  expect(rules).toHaveLength(1)
+  expect(rules[0]?.kind).toBe('level')
+  expect(s.files[`/h/.prumo/approvals/${await approvalIdOf(N1)}`]).toContain('scope=once')
+  expect(s.status).toContain('regras N1: 1 ativa(s)')
+})
+
+test('4 grava a regra command com o id do pedido', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1' } })
+  await $.tool.call({ tool: 'Bash', command: N1 })
+  const band = await $.ui.mount(BAND)
+  await band.press({ key: 'rule-command' })
+  await band.unmount()
+  const rules = await rulesIn(s)
+  expect(rules[0]).toMatchObject({ kind: 'command', commandId: await approvalIdOf(N1), command: N1 })
+})
+
+test('com um pedido e uma regra por decidir, a band mostra o pedido', async ($, on) => {
+  const s = world(on, { levels: { [N1]: 'N1' } })
+  s.files[await rulesFileOf()] = JSON.stringify({ project: PROJECT, rules: [LEVEL] })
+  await start($)
+  await $.tool.call({ tool: 'Bash', command: N1 })
+  const band = await $.ui.mount(BAND)
+  expect(await band.find({ text: /aprovação N1/ })).toBeDefined()
+  expect(await band.find({ text: /regra do projeto/ })).toBeUndefined()
+  await band.press({ key: 'deny' })
+  expect(await band.find({ text: /regra do projeto/ })).toBeDefined()
+  await band.unmount()
+})
