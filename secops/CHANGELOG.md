@@ -2,6 +2,19 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.0.2 — 2026-10-18
+
+**`second-opinion`: o `sh -c` de um `docker exec` deixa de carregar o modelo.**
+
+**O problema.** Cada `docker exec <contentor> sh -c '…'` caía na zona-cinzenta por causa do `sh -c`. Correr testes num contentor (`docker exec … sh -c 'vendor/bin/phpunit'`) consultava o Ollama a cada 10 s, e o `qwen3-coder:30b` (20 GB) ficava sempre carregado. Medido a 18/10/2026: memória *wired* a 21 GB num Mac de 32 GB e swap cheio.
+
+**A correcção.**
+- Antes de testar a zona-cinzenta, sai o invólucro `docker [compose] exec … sh|bash -c` e `pct exec … sh -c`.
+- O script lá dentro continua a ser verificado, com as aspas neutralizadas, para `'eval` e `bash'` colados à aspa não escaparem.
+- `base64 -d`, `eval`, `curl | bash`, um `sh -c` aninhado ou um `bash -c` noutra cláusula continuam a disparar.
+
+**Corpus.** Casos `so-08`…`so-15`. Os três benignos falham com o hook anterior e passam com este; os cinco de ameaça bloqueiam nos dois.
+
 ## v1.0.1 — 2026-10-15
 
 **`approval-gate`: apagar dentro do scratchpad do Claude Code deixa de pedir aprovação.** Era o pedido N1 mais frequente (`S=/private/tmp/claude-501/…/scratchpad; rm -f $S/sessao.id`). Um `rm` passa sem pedido quando **todos** os alvos de **todos** os `rm` do comando ficam dentro de `/private/tmp/claude-<uid>/` ou `/tmp/claude-<uid>/`. Na dúvida, as regras de antes aplicam-se:
