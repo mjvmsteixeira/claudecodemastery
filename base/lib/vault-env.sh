@@ -72,7 +72,15 @@ else
   }
 fi
 
+VAULT_CONTAINER="${VAULT_CONTAINER:-vault}"
 export VAULT_HOME VAULT_INIT VAULT_ADDR VAULT_MODE
+
+# O VAULT_MODE escolhe o cliente (CLI nativo preferido), não diz onde o
+# servidor corre: com o `vault` do Homebrew e o servidor num container, o modo
+# é native. O docker-compose.yml em $VAULT_HOME é o sinal do container.
+vault_server_in_docker() {
+  [ "$VAULT_MODE" = "docker" ] || [ -f "$VAULT_HOME/docker-compose.yml" ] || [ -f "$VAULT_HOME/docker-compose.yaml" ]
+}
 
 vault_unseal() {
   [ -f "$VAULT_INIT" ] || return 1
@@ -116,11 +124,11 @@ _vlog() {
 }
 
 # ────────────────────────────────────────────────────────────────────────────
-# vault_container_running · só faz sentido em modo docker
-# Devolve 0 se container running, 1 caso contrário (ou em modo native)
+# vault_container_running · só faz sentido com o servidor num container
+# Devolve 0 se container running, 1 caso contrário (ou servidor nativo)
 # ────────────────────────────────────────────────────────────────────────────
 vault_container_running() {
-  [ "$VAULT_MODE" = "docker" ] || return 1
+  vault_server_in_docker || return 1
   command -v docker >/dev/null 2>&1 || return 1
   docker info >/dev/null 2>&1 || return 1
   local status
@@ -139,7 +147,7 @@ vault_container_running() {
 # Controlada por PRUMO_VAULT_AUTO_UP — não é chamada implicitamente em prod.
 # ────────────────────────────────────────────────────────────────────────────
 vault_container_up() {
-  [ "$VAULT_MODE" = "docker" ] || return 0   # native mode = nothing to start
+  vault_server_in_docker || return 0   # servidor nativo = nada a arrancar
 
   if vault_container_running; then
     _vlog "info" "container already running"
