@@ -52,12 +52,21 @@ _prumo_rotate_logs() {
 }
 _prumo_rotate_logs
 
+# Este hook é idempotente: correr de novo à mão dessela com as chaves de
+# $VAULT_INIT, sem pedir nada. É o que as notas abaixo mandam fazer.
+SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+RERUN="bash '$SELF'"
+
 # ─────────────────────────────────────────────────────────────────────────────
-# Modo docker: se daemon ou container ausentes, decide baseado em modo.
+# Servidor em Docker: se daemon ou container ausentes, decide baseado em modo.
+# Vale também em modo native com o servidor num container (vault_server_in_docker):
+# antes, com o Docker parado, o hook dizia "auto-unseal failed" e mandava para o
+# `ops-vault.sh unseal`, que pede as chaves à mão.
 # ─────────────────────────────────────────────────────────────────────────────
-if [ "$VAULT_MODE" = "docker" ]; then
+if vault_server_in_docker; then
   if ! docker info >/dev/null 2>&1; then
-    _vlog "skip" "docker daemon down — silencioso"
+    _vlog "skip" "docker daemon down"
+    [ -f "$VAULT_INIT" ] && emit "Vault unavailable: the Docker daemon is not running. After starting Docker the Vault comes up sealed; unseal it without typing keys by running: $RERUN"
     exit 0
   fi
 
@@ -65,12 +74,13 @@ if [ "$VAULT_MODE" = "docker" ]; then
 
   if [ "$STATUS" != "running" ]; then
     # Container ausente ou parado. Em dev/lab (ou com PRUMO_VAULT_AUTO_UP=1)
-    # tenta arrancar via docker compose up -d no $VAULT_HOME. Em prod fica
-    # silencioso — operador humano arranca via ./ops-vault.sh.
+    # tenta arrancar via docker compose up -d no $VAULT_HOME. Em prod não
+    # arranca — operador humano arranca via ./ops-vault.sh.
     if vault_arrange_up; then
       _vlog "action" "container brought up at session start"
     else
       _vlog "skip" "container not running and auto-up not allowed/possible"
+      [ -f "$VAULT_INIT" ] && emit "Vault unavailable: container '$VAULT_CONTAINER' is $STATUS. Start it (cd \$VAULT_HOME && docker compose up -d), then unseal without typing keys: $RERUN"
       exit 0
     fi
   fi
@@ -85,9 +95,17 @@ if vault_ready; then
   _vlog "ok" "vault operational at session start (mode=$VAULT_MODE)"
   emit "Vault operational ($VAULT_ADDR, mode=$VAULT_MODE). Project secrets live under secret/projects/<name>/; shared secrets under secret/ai/, secret/tokens/, secret/credentials/, secret/infrastructure/. Use /vault-list, /vault-set, /vault-audit, /vault-backup during the session. For server health (HA, seal, audit device, AppRoles), use /prumo-vault-doctor if prumo-secops is installed."
 elif [ -f "$VAULT_INIT" ]; then
-  # Vault configurado nesta máquina mas auto-unseal falhou — vale a pena flag.
-  _vlog "warn" "vault sealed and auto-unseal failed"
-  emit "Vault is sealed and auto-unseal failed. Run: cd \$VAULT_HOME && ./ops-vault.sh unseal — or run /prumo-vault-doctor for full diagnosis (if prumo-secops is installed)."
+  # Vault configurado nesta máquina mas não ficou operacional. Distinguir
+  # "não responde" (re-correr o hook resolve) de "selado apesar das chaves"
+  # (aí sim, chaves à mão).
+  sealed="$(V status -format=json 2>/dev/null | jq -r '.sealed | tostring' 2>/dev/null || true)"
+  if [ "$sealed" = "true" ]; then
+    _vlog "warn" "vault still sealed after unseal with $VAULT_INIT"
+    emit "Vault is still sealed: the unseal keys in $VAULT_INIT did not unseal it. Unseal by hand (prompts for keys): cd \$VAULT_HOME && ./ops-vault.sh unseal — or run /prumo-vault-doctor for full diagnosis (if prumo-secops is installed)."
+  else
+    _vlog "warn" "vault not reachable at $VAULT_ADDR"
+    emit "Vault not reachable at $VAULT_ADDR (mode=$VAULT_MODE). Start the server, then unseal without typing keys: $RERUN — or run /prumo-vault-doctor for full diagnosis (if prumo-secops is installed)."
+  fi
 fi
 
 # Sem init file e not ready → Vault não configurado nesta máquina. Silencioso.

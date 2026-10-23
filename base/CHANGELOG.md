@@ -2,6 +2,14 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.0.2 — 2026-10-23
+
+**O aviso de arranque do Vault diz a causa certa e o comando certo.** Com o `vault` do Homebrew instalado e o servidor num container, o `VAULT_MODE` é `native`. Com o Docker parado, o hook não reconhecia o caso: dizia "auto-unseal failed" e mandava correr `./ops-vault.sh unseal`, que pede as chaves à mão, quando bastava voltar a correr o hook depois de arrancar o Docker.
+
+- **`vault_server_in_docker`** (`lib/vault-env.sh`): o servidor é um container se o modo for `docker` ou se houver `docker-compose.yml` em `$VAULT_HOME`. O `vault_container_running` e o `vault_container_up` usam-na. Antes, em modo `native`, o `vault_container_up` devolvia sucesso sem arrancar nada. `VAULT_CONTAINER` tem valor por omissão nos dois modos.
+- **O hook distingue quatro casos e só manda pedir chaves no último:** Docker parado, container parado, Vault sem resposta e Vault selado mesmo depois das chaves de `vault-init.json`. Nos três primeiros, a nota indica o caminho do próprio hook, que é idempotente e dessela sem pedir nada.
+- **Em modo docker, o Docker parado deixa de ser silencioso** quando o Vault está configurado na máquina (`vault-init.json` presente). Sem `vault-init.json`, o hook continua calado.
+
 ## v1.0.1 — 2026-10-15
 
 **O `self-guard` protege `~/.prumo/rules/`**, as regras de aprovação por projeto do prumo-guard 1.1.0, tal como já protegia `~/.prumo/approvals/`. Bloqueia as escritas por Write/Edit, redirecção, verbos de escrita, `cd` e variável, e é best effort no Bash. Ler continua permitido. Corpus `sg-62` a `sg-67`.
