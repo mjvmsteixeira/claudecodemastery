@@ -179,7 +179,7 @@ test('a banda mostra a pausa e o motivo', async ($, on) => {
   on('ui.render', { component: 'AbovePrompt' }, () => ({ type: 'Text', children: ['sem painel'] }))
   await measure($, 2)
   const ui = await $.ui.mount(BAND)
-  expect(await ui.find({ text: /\[pausa\] orçamento atingido/ })).toBeDefined()
+  expect(await ui.find({ text: /PAUSA  orçamento atingido \(.*\) · ferramentas recusadas/ })).toBeDefined()
   await ui.unmount()
 })
 

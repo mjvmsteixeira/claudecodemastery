@@ -1,8 +1,10 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, On } from 'claude-code'
+import type { EngineInterface, On, RenderChildren } from 'claude-code'
 import type { HookInput, HookNext, HookResult } from './hook-types.ts'
 import type { PrumoGuardLoop } from '../types'
+import { loadConfig } from './config.ts'
 import { parseRalphState } from './loop-state.ts'
+import { bar, levelColor, levelOf, resetText, windowLabel } from './panel-format.ts'
 import { AGENTS_DEFAULT, BRAKE_DEFAULT, LOOP_DEFAULT, PHASE_DEFAULT, TESTS_DEFAULT, USAGE_DEFAULT } from './refs.ts'
 import { refreshStatus } from './status.ts'
 import { isTestCommand, parseTestSummary } from './test-summary.ts'
@@ -28,8 +30,29 @@ export async function readLoop($: EngineInterface): Promise<PrumoGuardLoop> {
   }
 }
 
-function fmtUsd(usd: number | null): string {
-  return usd === null ? '' : `${usd.toFixed(2).replace('.', ',')} USD`
+const WIDE_COLUMNS = 110
+const RALPH_PHRASE: Record<string, string> = {
+  suspended: 'loop do ralph suspenso',
+  failed: 'loop do ralph não foi suspenso',
+  other: 'loop do ralph de outra sessão (não tocado)',
+}
+
+function fmtMoney(n: number): string {
+  return n.toFixed(2).replace('.', ',')
+}
+
+function fmtBudget(n: number): string {
+  return Number.isInteger(n) ? String(n) : fmtMoney(n)
+}
+
+type Measure = { label: string; pct: number; reset: string | null; alert: string | null }
+
+function alertFor(kind: string, pct: number, reset: string | null): string | null {
+  const when = reset === null ? '' : /^\d+h\d\d$/.test(reset) ? ` — reinicia em ${reset}` : ` — reinicia ${reset}`
+  if (kind === 'ctx') return `▲ contexto a ${pct}% — compacta em breve (/compact)`
+  if (kind === 'five_hour') return `▲ limite de 5 horas a ${pct}%${when}`
+  if (kind === 'seven_day') return `▲ limite de 7 dias a ${pct}%${when}`
+  return null
 }
 
 export async function startPanel($: EngineInterface): Promise<void> {
@@ -110,17 +133,97 @@ export function registerPanel(on: On): void {
     if (e.props.hasSurvey || (!loop.active && agents.length === 0 && !tests && !phase && !brake.paused)) return next(e)
     const { Box, Text } = $.ui.resolve(e)
     const now = await $.clock.now()
-    const head = [
-      loop.active ? `ralph ${loop.iteration ?? '?'}/${loop.maxIterations ?? '?'}` : null,
-      phase ? `fase ${phase}` : null,
-      usage.contextPercent !== null ? `ctx ${Math.round(usage.contextPercent)}%` : null,
-      fmtUsd(usage.usd) || null,
-      usage.windows.map(w => `${w.kind} ${Math.round(w.percent)}%`).join(' · ') || null,
-    ].filter(Boolean).join(' · ')
+    const cfg = await loadConfig($)
+    const t = cfg.panel
+    const wide = e.props.bodyColumns >= WIDE_COLUMNS
+
+    const headParts = [loop.active ? `ralph ${loop.iteration ?? '?'}/${loop.maxIterations ?? '?'}` : null, phase].filter(Boolean)
+    const head = headParts.length > 0 ? `◆ ${headParts.join(' · ')}` : null
+
+    const raw: { kind: string; label: string; percent: unknown; resetsAt?: string }[] = [
+      { kind: 'ctx', label: 'ctx', percent: usage.contextPercent },
+      ...(usage.windows ?? []).map(w => ({ kind: w.kind, label: windowLabel(w.kind), percent: w.percent, resetsAt: w.resetsAt })),
+    ]
+    const measures: Measure[] = raw
+      .filter((m): m is typeof m & { percent: number } => typeof m.percent === 'number' && Number.isFinite(m.percent))
+      .map(m => {
+        const pct = Math.round(m.percent)
+        const reset = resetText(m.resetsAt, now)
+        return { label: m.label, pct, reset, alert: levelOf(pct, t) === 'crit' ? alertFor(m.kind, pct, reset) : null }
+      })
+
+    const usd = typeof usage.usd === 'number' && Number.isFinite(usage.usd) ? usage.usd : null
+    const budget = cfg.brake.enabled && cfg.brake.usdBudget > 0 ? cfg.brake.usdBudget : null
+    const spentPct = usd !== null && budget !== null ? Math.round((usd / budget) * 100) : null
+    const cost =
+      usd === null ? null : budget === null ? (
+        <Text color="subtle" wrap="truncate-end">{`${fmtMoney(usd)} USD`}</Text>
+      ) : (
+        <Text wrap="truncate-end">
+          <Text color={levelColor(levelOf(spentPct ?? 0, t))}>{fmtMoney(usd)}</Text>
+          {`/${fmtBudget(budget)} USD`}
+        </Text>
+      )
+
+    const alerts = measures.map(m => m.alert).filter((a): a is string => a !== null)
+    if (usd !== null && budget !== null && spentPct !== null && levelOf(spentPct, t) === 'crit') {
+      alerts.push(`▲ orçamento a ${spentPct}% (${fmtMoney(usd)}/${fmtBudget(budget)} USD)`)
+    }
+
+    const pctText = (m: Measure) => {
+      const level = levelOf(m.pct, t)
+      return <Text color={levelColor(level)} bold={level === 'crit'}>{`${m.pct}%`}</Text>
+    }
+
+    const hasLine = head !== null || measures.length > 0 || cost !== null
+    let main: RenderChildren = null
+    if (hasLine && wide) {
+      main = (
+        <Box key="linha" flexDirection="row" columnGap={3}>
+          {head ? <Text color="claude" wrap="truncate-end">{head}</Text> : null}
+          {measures.map(m => {
+            const b = bar(m.pct)
+            const c = levelColor(levelOf(m.pct, t))
+            return (
+              <Text wrap="truncate-end">
+                {`${m.label} `}
+                <Text color={c}>{'█'.repeat(b.filled)}</Text>
+                <Text color="subtle">{'░'.repeat(b.empty)}</Text>
+                {' '}
+                {pctText(m)}
+                {m.reset ? <Text color="subtle">{` ↻ ${m.reset}`}</Text> : null}
+              </Text>
+            )
+          })}
+          {cost}
+        </Box>
+      )
+    } else if (hasLine) {
+      const parts: RenderChildren[] = []
+      const sep = () => (parts.length > 0 ? ' · ' : '')
+      if (head) parts.push(head)
+      for (const m of measures) {
+        const short = m.reset && /^\d+h\d\d$/.test(m.reset) ? ` ↻${m.reset}` : ''
+        parts.push(sep(), `${m.label} `, pctText(m), short)
+      }
+      if (cost) parts.push(sep(), cost)
+      main = <Text wrap="truncate-end">{parts}</Text>
+    }
+
+    const pauseText = [brake.reason ?? 'travão acionado', 'ferramentas recusadas', brake.ralph ? RALPH_PHRASE[brake.ralph] : undefined, '/prumo-guard-resume']
+      .filter(Boolean)
+      .join(' · ')
+
     return (
       <Box flexDirection="column">
-        {brake.paused ? <Text color="red">[pausa] {brake.reason ?? 'travão acionado'}</Text> : null}
-        {head ? <Text>{head}</Text> : null}
+        {brake.paused ? (
+          <Text wrap="truncate-end">
+            <Text backgroundColor="error" color="inverseText" bold>{' PAUSA '}</Text>
+            <Text color="error">{` ${pauseText}`}</Text>
+          </Text>
+        ) : null}
+        {main}
+        {alerts.map(a => <Text color="error" wrap="truncate-end">{a}</Text>)}
         {agents.length > 0 ? (
           <Text dimColor>
             subagentes: {agents.map(a => `${a.type.split(':').pop()} ${Math.round((now - a.startedAt) / 60000)}m`).join(' · ')}
