@@ -71,3 +71,16 @@ test('/prumo-guard mostra o travão desligado por omissão', async ($, on) => {
 test('/prumo-guard mostra o travão ligado quando a pessoa o liga', async ($, on) => {
   expect(await brakeLine($, on, () => ({ value: '{"brake":{"enabled":true}}' }))).toBe('travão: ligado')
 })
+
+test('um guard.json com a chave friday antiga é aceite sem aviso', async ($, on) => {
+  const toasts: string[] = []
+  on('ui.toast', (_$, e) => { toasts.push(e.text); return { value: undefined } })
+  mock.env(on, { HOME: '/h' })
+  on('fs.read', (_$, e) => (e.path.endsWith('/guard.json') ? { value: '{"friday":{"enabled":true},"brake":{"enabled":true}}' } : { deny: 'ENOENT' }))
+  on('fs.stat', () => ({ deny: 'ENOENT' }))
+  const r = await $.command.run(cmd('prumo-guard'))
+  const lines = (r.text ?? '').split('\n')
+  expect(lines.find(l => l.startsWith('travão:'))).toBe('travão: ligado')
+  expect(r.text ?? '').not.toContain('friday')
+  expect(toasts).toEqual([])
+})

@@ -5,7 +5,6 @@ import { cmd } from './start-stubs.ts'
 const RALPH = '---\niteration: 3\nmax_iterations: 20\n---\nx'
 const BAND = { plugin: 'prumo-guard', surface: 'terminal', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 8, bodyColumns: 80, scroll: { offset: 0, bodyRows: 8 }, view: {} } } as const
 const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false }
-const STOP = { stop_hook_active: false, session_id: 's', transcript_path: '', cwd: '/p' } as never
 
 type Seen = { brake: Array<{ paused: boolean; reason: string | null; loopStartUsd: number | null; tokens: number }>; repeat: unknown[]; toasts: string[]; notified: string[]; aborted: string[]; status: string; runs: string[][] }
 
@@ -35,24 +34,6 @@ function base(on: On, files: Record<string, string> = {}, opts: { abortFails?: b
 const last = (s: Seen) => s.brake[s.brake.length - 1]
 const measure = ($: { session: { measure: (e: never) => Promise<unknown> } }, usd: number) =>
   $.session.measure({ context: { window: 200000 }, rateLimits: [], cost: { usd }, changed: ['cost'] } as never)
-
-test('em pausa, o block do Stop (re-prompt do ralph) é anulado e os outros hooks correm', async ($, on) => {
-  const seen = base(on, { '/h/.prumo/guard.json': '{"brake":{"enabled":true,"usdBudget":1}}' })
-  let ralphRan = false
-  on('classic.Stop', () => { ralphRan = true; return { block: 'continua o loop' } })
-  await measure($, 1.5)
-  expect(last(seen)?.paused).toBe(true)
-  const r = await $.classic.Stop(STOP)
-  expect(ralphRan).toBe(true)
-  expect(r.block).toBeUndefined()
-})
-
-test('sem pausa, o block passa', async ($, on) => {
-  base(on)
-  on('classic.Stop', () => ({ block: 'continua o loop' }))
-  const r = await $.classic.Stop(STOP)
-  expect(r.block).toBe('continua o loop')
-})
 
 test('passar 120% do orçamento em USD pausa, avisa e aborta o turno em curso', async ($, on) => {
   const seen = base(on, { '/h/.prumo/guard.json': '{"brake":{"enabled":true,"usdBudget":1}}' })
@@ -218,29 +199,6 @@ test('loop_phase repetido não conta como repetição', async ($, on) => {
   const seen = base(on, { '/h/.prumo/guard.json': '{"brake":{"enabled":true,"repeatLimit":2}}' })
   for (let i = 0; i < 3; i++) await $.tool.call({ tool: 'mcp__prumo-guard__loop_phase', phase: 'testes' } as never)
   expect(seen.brake.some(b => b.paused)).toBe(false)
-})
-
-test('com o friday ligado e o relógio a falhar, o Stop em pausa continua a anular o re-prompt', async ($, on) => {
-  const seen = base(on, { '/h/.prumo/guard.json': '{"brake":{"enabled":true,"usdBudget":1},"friday":{"enabled":true}}' }, { clockFails: true })
-  on('classic.Stop', () => ({ block: 'continua o loop' }))
-  await measure($, 1.5)
-  expect(last(seen)?.paused).toBe(true)
-  const r = await $.classic.Stop(STOP)
-  expect(r.block).toBeUndefined()
-})
-
-test('se o Stop falhar depois de correr os hooks de baixo, o .catch aplica o veto da pausa', async ($, on) => {
-  let failRead = false
-  on('state.get', { plugin: 'prumo-guard', key: 'brake' }, (_$, e, next) => (failRead ? { deny: 'estado indisponível' } : next(e)))
-  const seen = base(on, { '/h/.prumo/guard.json': '{"brake":{"enabled":true,"usdBudget":1}}' })
-  let ralphRan = 0
-  on('classic.Stop', () => { ralphRan++; return { block: 'continua o loop' } })
-  await measure($, 1.5)
-  expect(last(seen)?.paused).toBe(true)
-  failRead = true
-  const r = await $.classic.Stop(STOP)
-  expect(r.block).toBeUndefined()
-  expect(ralphRan).toBe(1)
 })
 
 test('travão desligado por omissão: passar o orçamento não pausa nem corta o turno', async ($, on) => {

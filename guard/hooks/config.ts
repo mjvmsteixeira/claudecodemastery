@@ -4,7 +4,6 @@ export type GuardConfig = {
   redact: { enabled: boolean; prompt: boolean; readPii: boolean; internalIps: boolean }
   brake: { enabled: boolean; usdBudget: number; tokenBudget: number; repeatLimit: number }
   workspace: { extraRoots: string[] }
-  friday: { enabled: boolean }
   agents: { hidden: string[] }
   mempalace: { staleDays: number }
   cef: { enabled: boolean }
@@ -16,7 +15,6 @@ export const DEFAULTS: GuardConfig = {
   // O travão é opt-in: só atua com brake.enabled true (ação humana no guard.json).
   brake: { enabled: false, usdBudget: 20, tokenBudget: 0, repeatLimit: 4 },
   workspace: { extraRoots: [] },
-  friday: { enabled: false },
   agents: { hidden: [] },
   mempalace: { staleDays: 90 },
   cef: { enabled: true },
@@ -66,7 +64,6 @@ export async function loadConfig($: EngineInterface): Promise<GuardConfig> {
     redact: section(raw, 'redact'),
     brake: section(raw, 'brake'),
     workspace: section(raw, 'workspace'),
-    friday: section(raw, 'friday'),
     agents: section(raw, 'agents'),
     mempalace: section(raw, 'mempalace'),
     cef: section(raw, 'cef'),
