@@ -13,16 +13,20 @@ const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isS
 
 type Seen = { brake: Array<{ paused: boolean; reason: string | null; loopStartUsd: number | null; tokens: number }>; repeat: unknown[]; toasts: string[]; notified: string[]; aborted: string[]; status: string; runs: string[][] }
 
-function base(on: On, files: Record<string, string> = {}, opts: { abortFails?: boolean; clockFails?: boolean; mvFails?: boolean } = {}): Seen {
+function base(on: On, files: Record<string, string> = {}, opts: { abortFails?: boolean; clockFails?: boolean; mvFails?: boolean; rmFails?: boolean; cwdFails?: boolean } = {}): Seen {
   const abortFails = opts.abortFails ?? false
   const seen: Seen = { brake: [], repeat: [], toasts: [], notified: [], aborted: [], status: '', runs: [] }
   mock.env(on, { HOME: '/h' })
-  on('session.cwd', () => ({ value: '/p' }))
+  on('session.cwd', () => (opts.cwdFails ? { deny: 'sem cwd' } : { value: '/p' }))
   on('clock.now', () => (opts.clockFails ? { deny: 'relógio indisponível' } : { value: 1_000 }))
   on('clock.every', () => ({ deny: 'sem relógio no teste' }))
   on('session.id', () => ({ value: 's' }))
   on('fs.read', (_$, e) => (files[e.path] !== undefined ? { value: files[e.path] as string } : { deny: 'ENOENT' }))
   on('fs.stat', () => ({ deny: 'ENOENT' }))
+  on('fs.list', (_$, e) => {
+    const dir = `${e.path.replace(/\/$/, '')}/`
+    return { value: Object.keys(files).filter(f => f.startsWith(dir) && !f.slice(dir.length).includes('/')).map(f => ({ name: f.slice(dir.length), kind: 'file' as const })) as never }
+  })
   on('ui.status', (_$, e) => { seen.status = e.text ?? ''; return { value: undefined } })
   on('ui.toast', (_$, e) => { seen.toasts.push(e.text); return { value: undefined } })
   on('ui.notify', (_$, e) => { seen.notified.push(String(e.text)); return { value: { isSent: true, channel: 'terminal_bell' } } })
@@ -38,6 +42,7 @@ function base(on: On, files: Record<string, string> = {}, opts: { abortFails?: b
       const [src, dst] = args.filter(a => a !== '-n') as [string, string]
       if (files[src] !== undefined && files[dst] === undefined) { files[dst] = files[src] as string; delete files[src] }
     }
+    if (cmdName === 'rm' && opts.rmFails) return { value: { ...RAN, exitCode: 1, stderr: 'Permission denied' } }
     if (cmdName === 'rm') for (const f of args.filter(a => a !== '-f')) delete files[f]
     return { value: RAN }
   })
@@ -384,4 +389,142 @@ test('no arranque, com .paused presente, aparece o toast do loop suspenso', asyn
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   await $.session.start({ cwd: '/p', surface: null, isInteractive: false })
   expect(seen.toasts).toContain('prumo-guard: há um loop do ralph suspenso; /prumo-guard-resume retoma-o, /prumo-guard-stop termina-o.')
+})
+
+const OWN = '---\nsession_id: s\niteration: 4\nmax_iterations: 20\n---\nx'
+const OTHER = '---\nsession_id: outra\niteration: 4\nmax_iterations: 20\n---\nx'
+const OTHER_TEXT = 'o loop do ralph é de outra sessão; não foi suspenso.'
+
+test('I1: um loop com session_id igual é suspenso', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: OWN }
+  base(on, files)
+  await measure($, 1.5)
+  expect(files[ACTIVE]).toBeUndefined()
+  expect(files[PAUSED]).toBe(OWN)
+})
+
+test('I1: um loop com session_id diferente fica intacto e o toast e a notificação dizem porquê', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: OTHER }
+  const seen = base(on, files)
+  await measure($, 1.5)
+  expect(last(seen)?.paused).toBe(true)
+  expect(files[ACTIVE]).toBe(OTHER)
+  expect(files[PAUSED]).toBeUndefined()
+  expect(seen.toasts.join(' ')).toContain(OTHER_TEXT)
+  expect(seen.notified.join(' ')).toContain(OTHER_TEXT)
+  expect(seen.runs).toEqual([])
+})
+
+test('I1: um loop sem session_id é suspenso', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: RALPH7 }
+  base(on, files)
+  await measure($, 1.5)
+  expect(files[PAUSED]).toBe(RALPH7)
+})
+
+test('I2: o resume de um .paused de outra sessão repõe-no e avisa', async ($, on) => {
+  const files: Record<string, string> = { [PAUSED]: OTHER }
+  base(on, files)
+  const r = await $.command.run(cmd('prumo-guard-resume', '', { kind: 'composer' }))
+  expect(r.text).toBe('Travão rearmado. Loop do ralph reposto, mas pertence à sessão outra: retoma-o lá (claude --resume outra) ou relança /ralph-loop aqui.')
+  expect(files[ACTIVE]).toBe(OTHER)
+  expect(files[PAUSED]).toBeUndefined()
+})
+
+test('I2: o resume de um .paused desta sessão mantém o texto', async ($, on) => {
+  const files: Record<string, string> = { [PAUSED]: OWN }
+  base(on, files)
+  const r = await $.command.run(cmd('prumo-guard-resume', '', { kind: 'composer' }))
+  expect(r.text).toBe('Travão rearmado. Loop do ralph retomado na iteração 4.')
+})
+
+test('I3: um .paused antigo é guardado à parte e o loop atual é suspenso', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: OWN, [PAUSED]: RALPH7 }
+  const seen = base(on, files)
+  await measure($, 1.5)
+  expect(files[ACTIVE]).toBeUndefined()
+  expect(files[PAUSED]).toBe(OWN)
+  expect(files[`${PAUSED}.1000`]).toBe(RALPH7)
+  expect(seen.toasts.join(' ')).toContain('(um loop suspenso antigo foi guardado em ralph-loop.local.md.paused.1000)')
+  expect(seen.toasts.join(' ')).toContain('loop do ralph suspenso')
+})
+
+test('I3: se o guardar do antigo falhar, o loop atual não é suspenso', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: OWN, [PAUSED]: RALPH7 }
+  const seen = base(on, files, { mvFails: true })
+  await measure($, 1.5)
+  expect(files[ACTIVE]).toBe(OWN)
+  expect(files[PAUSED]).toBe(RALPH7)
+  expect(seen.toasts.join(' ')).toContain('o loop do ralph não foi suspenso')
+})
+
+test('I3: um .paused antigo com um loop de outra sessão não é tocado', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: OTHER, [PAUSED]: RALPH7 }
+  const seen = base(on, files)
+  await measure($, 1.5)
+  expect(files[PAUSED]).toBe(RALPH7)
+  expect(seen.runs).toEqual([])
+})
+
+test('I3: o stop apaga também os .paused.<ts>', async ($, on) => {
+  const files: Record<string, string> = { [ACTIVE]: RALPH, [PAUSED]: RALPH7, [`${PAUSED}.111`]: RALPH, [`${PAUSED}.222`]: RALPH, '/p/.claude/outro.md': 'fica' }
+  base(on, files)
+  const r = await $.command.run(cmd('prumo-guard-stop', '', { kind: 'composer' }))
+  expect(Object.keys(files).sort()).toEqual(['/p/.claude/outro.md'])
+  expect(r.text).toContain('terminado')
+})
+
+test('M1: a falha do stop nomeia também o .paused', async ($, on) => {
+  base(on, { [ACTIVE]: RALPH }, { rmFails: true })
+  const r = await $.command.run(cmd('prumo-guard-stop', '', { kind: 'composer' }))
+  expect(r.text).toContain(ACTIVE)
+  expect(r.text).toContain(PAUSED)
+})
+
+test('M4: o toast sem ficheiro do ralph não tem espaço duplo', async ($, on) => {
+  const seen = base(on, { '/h/.prumo/guard.json': CFG_USD })
+  await measure($, 1.5)
+  const t = seen.toasts.find(x => x.includes('em pausa')) as string
+  expect(t).not.toContain('  ')
+  expect(seen.notified.join(' ')).not.toContain('  ')
+})
+
+test('M2: um Bash recusado em pausa não toca em approvals nem abre pedido', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': PAUSE_CFG, '/h/.prumo/approvals/abc': '{"id":"abc"}' }
+  const seen = base(on, files)
+  const writes: string[] = []
+  on('fs.write', (_$, e) => { writes.push(e.path); return { value: undefined } })
+  const calls = { n: 0 }
+  on('tool.call', () => { calls.n++; return { result: '', text: 'igual' } })
+  await pauseByRepetition($, seen, calls)
+  const before = JSON.stringify(files)
+  writes.length = 0
+  const r = await $.tool.call({ tool: 'Bash', command: 'rm -rf /' })
+  expect(r.deny as string).toStartWith(BRAKE_DENY_PREFIX)
+  expect(JSON.stringify(files)).toBe(before)
+  expect(writes).toEqual([])
+  expect(seen.status).not.toContain('pendente')
+})
+
+test('M3: uma chamada de subagente também é recusada em pausa', async ($, on) => {
+  const seen = base(on, { '/h/.prumo/guard.json': PAUSE_CFG })
+  const calls = { n: 0 }
+  on('tool.call', () => { calls.n++; return { result: '', text: 'igual' } })
+  await pauseByRepetition($, seen, calls)
+  const r = await $.tool.call({ tool: 'Bash', command: 'ls', agentId: 'sub1' } as never)
+  expect(r.deny as string).toStartWith(BRAKE_DENY_PREFIX)
+  expect(calls.n).toBe(0)
+})
+
+test('I4: o arranque com session.cwd a falhar regista os comandos e a linha de estado aparece', async ($, on) => {
+  const seen = base(on, {}, { cwdFails: true })
+  const names: string[] = []
+  on('command.register', (_$, e) => { names.push(e.name); return { value: { command: e.name } } })
+  on('tool.register', () => ({ value: { tool: 'x' } }))
+  on('fs.write', () => ({ value: undefined }))
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: '/p', surface: null, isInteractive: false })
+  expect(names).toContain('prumo-guard-resume')
+  expect(names).toContain('prumo-guard-stop')
+  expect(seen.status).not.toBe('')
 })

@@ -5,7 +5,7 @@ import { loadConfig } from './config.ts'
 import type { HookInput, HookNext, HookResult } from './hook-types.ts'
 import { BRAKE_DEFAULT, LOOP_DEFAULT, USAGE_DEFAULT } from './refs.ts'
 import { emptyRepeat, trackCall, trackEdit, trackTest } from './repeat.ts'
-import { parseRalphState } from './loop-state.ts'
+import { parseRalphSession, parseRalphState } from './loop-state.ts'
 import { refreshStatus } from './status.ts'
 import { failureSignature, isTestCommand, parseTestSummary, shortHash } from './test-summary.ts'
 
@@ -43,11 +43,23 @@ async function moveFile($: EngineInterface, src: string, dst: string): Promise<b
   return (await readText($, src)) === null && (await readText($, dst)) !== null
 }
 
+type Suspension = { result: 'suspended' | 'none' | 'failed' | 'other'; saved: string | null }
+
 // Suspende o loop do ralph: sem o ficheiro de estado o stop hook do ralph não faz re-prompt.
-async function suspendRalph($: EngineInterface): Promise<'suspended' | 'none' | 'failed'> {
+// Um loop de outra sessão não é desta pausa; um .paused antigo é guardado à parte, não apagado.
+async function suspendRalph($: EngineInterface): Promise<Suspension> {
   const file = await ralphFile($)
-  if ((await readText($, file)) === null) return 'none'
-  return (await moveFile($, file, `${file}.paused`)) ? 'suspended' : 'failed'
+  const text = await readText($, file)
+  if (text === null) return { result: 'none', saved: null }
+  const owner = parseRalphSession(text)
+  if (owner !== null && owner !== (await $.session.id())) return { result: 'other', saved: null }
+  let saved: string | null = null
+  if ((await readText($, `${file}.paused`)) !== null) {
+    const name = `${file}.paused.${await $.clock.now()}`
+    if (!(await moveFile($, `${file}.paused`, name))) return { result: 'failed', saved: null }
+    saved = name.slice(name.lastIndexOf('/') + 1)
+  }
+  return { result: (await moveFile($, file, `${file}.paused`)) ? 'suspended' : 'failed', saved }
 }
 
 async function resumeRalph($: EngineInterface): Promise<string> {
@@ -57,6 +69,8 @@ async function resumeRalph($: EngineInterface): Promise<string> {
   if (paused === null) return active === null ? 'Travão rearmado. Não havia loop do ralph suspenso.' : 'Travão rearmado. O loop do ralph ativo continua.'
   if (active !== null) return `Travão rearmado. Existem o ficheiro ativo e o .paused do ralph (${file}); não toquei em nenhum.`
   if (!(await moveFile($, `${file}.paused`, file))) return `Travão rearmado, mas não consegui retomar o loop do ralph: ${file}.paused ficou onde estava.`
+  const owner = parseRalphSession(paused)
+  if (owner !== null && owner !== (await $.session.id())) return `Travão rearmado. Loop do ralph reposto, mas pertence à sessão ${owner}: retoma-o lá (claude --resume ${owner}) ou relança /ralph-loop aqui.`
   const iteration = parseRalphState(paused)?.iteration
   const text = iteration === null || iteration === undefined ? 'Loop do ralph retomado.' : `Loop do ralph retomado na iteração ${iteration}.`
   return `Travão rearmado. ${text}`
@@ -69,9 +83,10 @@ async function trip($: EngineInterface, reason: string): Promise<void> {
   if (b.paused) return
   await update($, brakeRef, s => ({ ...(s ?? b), paused: true, reason }))
   const ralph = await suspendRalph($)
-  const note = ralph === 'suspended' ? 'loop do ralph suspenso.' : ralph === 'failed' ? 'o loop do ralph não foi suspenso.' : ''
-  $.ui.toast(`prumo-guard: loop em pausa — ${reason}. ${note} /prumo-guard-resume para continuar.`)
-  void $.ui.notify(`Loop em pausa: ${reason}. ${note}`, { title: 'prumo-guard' })
+  const base = ralph.result === 'suspended' ? 'loop do ralph suspenso.' : ralph.result === 'failed' ? 'o loop do ralph não foi suspenso.' : ralph.result === 'other' ? 'o loop do ralph é de outra sessão; não foi suspenso.' : ''
+  const note = [base, ralph.saved ? `(um loop suspenso antigo foi guardado em ${ralph.saved})` : ''].filter(Boolean).join(' ')
+  $.ui.toast(`prumo-guard: loop em pausa — ${reason}. ${note ? `${note} ` : ''}/prumo-guard-resume para continuar.`)
+  void $.ui.notify(`Loop em pausa: ${reason}.${note ? ` ${note}` : ''}`, { title: 'prumo-guard' })
   await refreshStatus($)
 }
 
@@ -89,8 +104,12 @@ async function cutTurn($: EngineInterface): Promise<void> {
 export async function startBrake($: EngineInterface): Promise<void> {
   await $.command.register({ name: 'prumo-guard-resume', description: 'Rearma o travão do loop: tira a pausa e recomeça a contagem do orçamento. Só pela pessoa.' })
   await $.command.register({ name: 'prumo-guard-stop', description: 'Termina o loop do ralph (apaga .claude/ralph-loop.local.md e o .paused). Só pela pessoa.' })
-  if ((await readText($, `${await ralphFile($)}.paused`)) !== null) {
-    $.ui.toast('prumo-guard: há um loop do ralph suspenso; /prumo-guard-resume retoma-o, /prumo-guard-stop termina-o.')
+  try {
+    if ((await readText($, `${await ralphFile($)}.paused`)) !== null) {
+      $.ui.toast('prumo-guard: há um loop do ralph suspenso; /prumo-guard-resume retoma-o, /prumo-guard-stop termina-o.')
+    }
+  } catch {
+    // O aviso é cortesia; sem cwd o resto do arranque segue.
   }
 }
 
@@ -180,7 +199,15 @@ export function registerBrake(on: On): void {
   on('command.run', { command: 'prumo-guard-stop' }, async ($, e) => {
     if (e.origin?.kind !== 'composer') return { text: HUMAN_ONLY }
     const file = await ralphFile($)
-    const r = await $.process.run(['rm', '-f', file, `${file}.paused`])
-    return { text: r.exitCode === 0 ? `Loop do ralph terminado (${file} e ${file}.paused apagados).` : `Não consegui apagar ${file}: ${r.stderr.trim()}` }
+    const dir = file.slice(0, file.lastIndexOf('/'))
+    const prefix = `${file.slice(dir.length + 1)}.paused.`
+    let old: string[] = []
+    try {
+      old = (await $.fs.list(dir)).filter(f => f.name.startsWith(prefix)).map(f => `${dir}/${f.name}`)
+    } catch {
+      // Sem a listagem apagam-se só os dois ficheiros conhecidos.
+    }
+    const r = await $.process.run(['rm', '-f', file, `${file}.paused`, ...old])
+    return { text: r.exitCode === 0 ? `Loop do ralph terminado (${file}, ${file}.paused${old.length ? ` e ${old.length} guardado(s) antigo(s)` : ''} apagados).` : `Não consegui apagar ${file} nem ${file}.paused: ${r.stderr.trim()}` }
   })
 }
