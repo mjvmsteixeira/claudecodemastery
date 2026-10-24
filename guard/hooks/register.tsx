@@ -5,7 +5,6 @@ import { registerBrake, startBrake } from './brake.ts'
 import { registerCommands, startCommands } from './commands.ts'
 import { registerRules, startRules } from './rules.tsx'
 import { registerRedaction, startRedaction } from './redact.ts'
-import { registerFriday } from './friday.ts'
 import { registerObservers } from './observers.ts'
 import { registerPanel, startPanel } from './panel.tsx'
 import { registerMemory } from './memory.ts'
@@ -38,7 +37,6 @@ export const register: Register = on => {
     return next(e)
   })
 
-  registerFriday(on)
   registerAgents(on)
   registerMemory(on)
 }

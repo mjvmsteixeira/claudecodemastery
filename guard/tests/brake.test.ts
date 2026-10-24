@@ -1,24 +1,32 @@
 import { test, expect, mock } from 'claude-code/testing'
 import type { On } from 'claude-code'
+import { BRAKE_DENY_PREFIX } from '../hooks/brake.ts'
 import { cmd } from './start-stubs.ts'
 
 const RALPH = '---\niteration: 3\nmax_iterations: 20\n---\nx'
+const RALPH7 = '---\niteration: 7\nmax_iterations: 20\n---\nx'
+const ACTIVE = '/p/.claude/ralph-loop.local.md'
+const PAUSED = `${ACTIVE}.paused`
+const CFG_USD = '{"brake":{"enabled":true,"usdBudget":1}}'
 const BAND = { plugin: 'prumo-guard', surface: 'terminal', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 8, bodyColumns: 80, scroll: { offset: 0, bodyRows: 8 }, view: {} } } as const
 const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false }
-const STOP = { stop_hook_active: false, session_id: 's', transcript_path: '', cwd: '/p' } as never
 
 type Seen = { brake: Array<{ paused: boolean; reason: string | null; loopStartUsd: number | null; tokens: number }>; repeat: unknown[]; toasts: string[]; notified: string[]; aborted: string[]; status: string; runs: string[][] }
 
-function base(on: On, files: Record<string, string> = {}, opts: { abortFails?: boolean; clockFails?: boolean } = {}): Seen {
+function base(on: On, files: Record<string, string> = {}, opts: { abortFails?: boolean; clockFails?: boolean; mvFails?: boolean; rmFails?: boolean; cwdFails?: boolean; idFails?: boolean } = {}): Seen {
   const abortFails = opts.abortFails ?? false
   const seen: Seen = { brake: [], repeat: [], toasts: [], notified: [], aborted: [], status: '', runs: [] }
   mock.env(on, { HOME: '/h' })
-  on('session.cwd', () => ({ value: '/p' }))
+  on('session.cwd', () => (opts.cwdFails ? { deny: 'sem cwd' } : { value: '/p' }))
   on('clock.now', () => (opts.clockFails ? { deny: 'relógio indisponível' } : { value: 1_000 }))
   on('clock.every', () => ({ deny: 'sem relógio no teste' }))
-  on('session.id', () => ({ value: 's' }))
+  on('session.id', () => (opts.idFails ? { deny: 'sem id' } : { value: 's' }))
   on('fs.read', (_$, e) => (files[e.path] !== undefined ? { value: files[e.path] as string } : { deny: 'ENOENT' }))
   on('fs.stat', () => ({ deny: 'ENOENT' }))
+  on('fs.list', (_$, e) => {
+    const dir = `${e.path.replace(/\/$/, '')}/`
+    return { value: Object.keys(files).filter(f => f.startsWith(dir) && !f.slice(dir.length).includes('/')).map(f => ({ name: f.slice(dir.length), kind: 'file' as const })) as never }
+  })
   on('ui.status', (_$, e) => { seen.status = e.text ?? ''; return { value: undefined } })
   on('ui.toast', (_$, e) => { seen.toasts.push(e.text); return { value: undefined } })
   on('ui.notify', (_$, e) => { seen.notified.push(String(e.text)); return { value: { isSent: true, channel: 'terminal_bell' } } })
@@ -26,7 +34,18 @@ function base(on: On, files: Record<string, string> = {}, opts: { abortFails?: b
   on('turn.start', (_$, e) => ({ turnId: e.turnId }))
   on('turn.complete', (_$, e) => ({ text: e.answer }))
   on('session.measure', (_$, e) => ({ changed: e.changed }))
-  on('process.run', (_$, e) => { seen.runs.push([...e.argv]); return { value: RAN } })
+  on('process.run', (_$, e) => {
+    seen.runs.push([...e.argv])
+    const [cmdName, ...args] = e.argv
+    if (cmdName === 'mv') {
+      if (opts.mvFails) return { value: { ...RAN, exitCode: 1, stderr: 'Permission denied' } }
+      const [src, dst] = args.filter(a => a !== '-n') as [string, string]
+      if (files[src] !== undefined && files[dst] === undefined) { files[dst] = files[src] as string; delete files[src] }
+    }
+    if (cmdName === 'rm' && opts.rmFails) return { value: { ...RAN, exitCode: 1, stderr: 'Permission denied' } }
+    if (cmdName === 'rm') for (const f of args.filter(a => a !== '-f')) delete files[f]
+    return { value: RAN }
+  })
   on('state.set', { plugin: 'prumo-guard', key: 'brake' }, (_$, e, next) => { seen.brake.push(e.value as Seen['brake'][number]); return next(e) })
   on('state.set', { plugin: 'prumo-guard', key: 'repeat' }, (_$, e, next) => { seen.repeat.push(e.value); return next(e) })
   return seen
@@ -35,24 +54,6 @@ function base(on: On, files: Record<string, string> = {}, opts: { abortFails?: b
 const last = (s: Seen) => s.brake[s.brake.length - 1]
 const measure = ($: { session: { measure: (e: never) => Promise<unknown> } }, usd: number) =>
   $.session.measure({ context: { window: 200000 }, rateLimits: [], cost: { usd }, changed: ['cost'] } as never)
-
-test('em pausa, o block do Stop (re-prompt do ralph) é anulado e os outros hooks correm', async ($, on) => {
-  const seen = base(on, { '/h/.prumo/guard.json': '{"brake":{"enabled":true,"usdBudget":1}}' })
-  let ralphRan = false
-  on('classic.Stop', () => { ralphRan = true; return { block: 'continua o loop' } })
-  await measure($, 1.5)
-  expect(last(seen)?.paused).toBe(true)
-  const r = await $.classic.Stop(STOP)
-  expect(ralphRan).toBe(true)
-  expect(r.block).toBeUndefined()
-})
-
-test('sem pausa, o block passa', async ($, on) => {
-  base(on)
-  on('classic.Stop', () => ({ block: 'continua o loop' }))
-  const r = await $.classic.Stop(STOP)
-  expect(r.block).toBe('continua o loop')
-})
 
 test('passar 120% do orçamento em USD pausa, avisa e aborta o turno em curso', async ($, on) => {
   const seen = base(on, { '/h/.prumo/guard.json': '{"brake":{"enabled":true,"usdBudget":1}}' })
@@ -153,11 +154,17 @@ test('/prumo-guard-resume por um plugin é recusado', async ($, on) => {
   expect(seen.brake.length).toBe(0)
 })
 
-test('/prumo-guard-stop pela pessoa apaga o estado do ralph', async ($, on) => {
-  const seen = base(on)
+test('/prumo-guard-stop apaga o ficheiro e o .paused e não tira a pausa', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: RALPH, [PAUSED]: RALPH7 }
+  const seen = base(on, files)
+  await measure($, 1.5)
+  const before = seen.brake.length
   const r = await $.command.run(cmd('prumo-guard-stop', '', { kind: 'composer' }))
-  expect(seen.runs).toEqual([['rm', '-f', '/p/.claude/ralph-loop.local.md']])
+  expect(files[ACTIVE]).toBeUndefined()
+  expect(files[PAUSED]).toBeUndefined()
   expect(r.text).toContain('terminado')
+  expect(seen.brake.length).toBe(before)
+  expect(last(seen)?.paused).toBe(true)
 })
 
 test('/prumo-guard-stop por um plugin é recusado', async ($, on) => {
@@ -220,29 +227,6 @@ test('loop_phase repetido não conta como repetição', async ($, on) => {
   expect(seen.brake.some(b => b.paused)).toBe(false)
 })
 
-test('com o friday ligado e o relógio a falhar, o Stop em pausa continua a anular o re-prompt', async ($, on) => {
-  const seen = base(on, { '/h/.prumo/guard.json': '{"brake":{"enabled":true,"usdBudget":1},"friday":{"enabled":true}}' }, { clockFails: true })
-  on('classic.Stop', () => ({ block: 'continua o loop' }))
-  await measure($, 1.5)
-  expect(last(seen)?.paused).toBe(true)
-  const r = await $.classic.Stop(STOP)
-  expect(r.block).toBeUndefined()
-})
-
-test('se o Stop falhar depois de correr os hooks de baixo, o .catch aplica o veto da pausa', async ($, on) => {
-  let failRead = false
-  on('state.get', { plugin: 'prumo-guard', key: 'brake' }, (_$, e, next) => (failRead ? { deny: 'estado indisponível' } : next(e)))
-  const seen = base(on, { '/h/.prumo/guard.json': '{"brake":{"enabled":true,"usdBudget":1}}' })
-  let ralphRan = 0
-  on('classic.Stop', () => { ralphRan++; return { block: 'continua o loop' } })
-  await measure($, 1.5)
-  expect(last(seen)?.paused).toBe(true)
-  failRead = true
-  const r = await $.classic.Stop(STOP)
-  expect(r.block).toBeUndefined()
-  expect(ralphRan).toBe(1)
-})
-
 test('travão desligado por omissão: passar o orçamento não pausa nem corta o turno', async ($, on) => {
   const seen = base(on)
   await $.turn.start({ text: 'x', turnId: 't1' })
@@ -266,4 +250,328 @@ test('enabled false explícito ignora o orçamento definido', async ($, on) => {
   await measure($, 5)
   expect(seen.brake.some(b => b.paused)).toBe(false)
   expect(seen.aborted).toEqual([])
+})
+
+const PAUSE_CFG = '{"brake":{"enabled":true,"repeatLimit":2}}'
+
+async function pauseByRepetition($: { tool: { call: (e: never) => Promise<unknown> } }, seen: Seen, calls: { n: number }): Promise<void> {
+  for (let i = 0; i < 2; i++) await $.tool.call({ tool: 'Bash', command: 'ls' } as never)
+  expect(last(seen)?.paused).toBe(true)
+  calls.n = 0
+}
+
+test('em pausa, um Bash e um Read são recusados antes de correr', async ($, on) => {
+  const seen = base(on, { '/h/.prumo/guard.json': PAUSE_CFG })
+  const calls = { n: 0 }
+  on('tool.call', () => { calls.n++; return { result: '', text: 'igual' } })
+  await pauseByRepetition($, seen, calls)
+  const reason = last(seen)?.reason as string
+  const bash = await $.tool.call({ tool: 'Bash', command: 'ls' })
+  const read = await $.tool.call({ tool: 'Read', file_path: '/p/x' } as never)
+  for (const r of [bash, read]) {
+    expect(r.deny).toBeDefined()
+    expect(r.deny as string).toStartWith(BRAKE_DENY_PREFIX)
+    expect(r.deny as string).toContain(reason)
+  }
+  expect(calls.n).toBe(0)
+})
+
+test('em pausa, loop_phase passa', async ($, on) => {
+  const seen = base(on, { '/h/.prumo/guard.json': PAUSE_CFG })
+  const calls = { n: 0 }
+  on('tool.call', () => { calls.n++; return { result: '', text: 'igual' } })
+  await pauseByRepetition($, seen, calls)
+  const r = await $.tool.call({ tool: 'mcp__prumo-guard__loop_phase', phase: 'testes' } as never)
+  expect(r.deny).toBeUndefined()
+  expect(JSON.stringify(r)).not.toContain(BRAKE_DENY_PREFIX)
+})
+
+test('travão desligado não recusa mesmo com paused no estado', async ($, on) => {
+  base(on, { '/h/.prumo/guard.json': '{"brake":{"enabled":false}}' })
+  const calls = { n: 0 }
+  on('tool.call', () => { calls.n++; return { result: '', text: 'ok' } })
+  on('state.get', { plugin: 'prumo-guard', key: 'brake' }, () => ({ value: { value: { paused: true, reason: 'x', loopStartUsd: null, tokens: 0 }, version: 1 } }))
+  const r = await $.tool.call({ tool: 'Bash', command: 'ls' })
+  expect(r.deny).toBeUndefined()
+  expect(calls.n).toBe(1)
+})
+
+test('sem motivo, a recusa diz motivo não registado', async ($, on) => {
+  base(on, { '/h/.prumo/guard.json': '{"brake":{"enabled":true}}' })
+  on('tool.call', () => ({ result: '', text: 'ok' }))
+  on('state.get', { plugin: 'prumo-guard', key: 'brake' }, () => ({ value: { value: { paused: true, reason: null, loopStartUsd: null, tokens: 0 }, version: 1 } }))
+  const r = await $.tool.call({ tool: 'Bash', command: 'ls' })
+  expect(r.deny).toBe(`${BRAKE_DENY_PREFIX} (motivo não registado). Nenhuma ferramenta corre até a pessoa retomar com /prumo-guard-resume (ou terminar o loop com /prumo-guard-stop). Para já, explica em texto o que estavas a fazer e onde ficaste.`)
+})
+
+test('o disparo renomeia o ficheiro do ralph para .paused', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: RALPH7 }
+  const seen = base(on, files)
+  await measure($, 1.5)
+  expect(files[ACTIVE]).toBeUndefined()
+  expect(files[PAUSED]).toBe(RALPH7)
+  expect(seen.toasts.join(' ')).toContain('loop do ralph suspenso')
+  expect(seen.notified.join(' ')).toContain('loop do ralph suspenso')
+})
+
+test('o disparo sem ficheiro do ralph não diz que suspendeu nada', async ($, on) => {
+  const seen = base(on, { '/h/.prumo/guard.json': CFG_USD })
+  await measure($, 1.5)
+  expect(seen.toasts.join(' ')).not.toContain('ralph')
+  expect(seen.runs).toEqual([])
+})
+
+test('se o renomear falhar, a pausa fica e o toast diz que o loop não foi suspenso', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: RALPH7 }
+  const seen = base(on, files, { mvFails: true })
+  await measure($, 1.5)
+  expect(last(seen)?.paused).toBe(true)
+  expect(files[ACTIVE]).toBe(RALPH7)
+  expect(seen.toasts.join(' ')).toContain('o loop do ralph não foi suspenso')
+  expect(seen.toasts.join(' ')).not.toContain('loop do ralph suspenso')
+})
+
+test('/prumo-guard-resume retoma o ralph na iteração N e as ferramentas voltam a correr', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': PAUSE_CFG, [ACTIVE]: RALPH7 }
+  const seen = base(on, files)
+  const calls = { n: 0 }
+  on('tool.call', () => { calls.n++; return { result: '', text: 'igual' } })
+  await pauseByRepetition($, seen, calls)
+  expect(files[PAUSED]).toBe(RALPH7)
+  expect((await $.tool.call({ tool: 'Bash', command: 'ls' })).deny).toBeDefined()
+  const r = await $.command.run(cmd('prumo-guard-resume', '', { kind: 'composer' }))
+  expect(r.text).toContain('Loop do ralph retomado na iteração 7.')
+  expect(files[ACTIVE]).toBe(RALPH7)
+  expect(files[PAUSED]).toBeUndefined()
+  const ok = await $.tool.call({ tool: 'Bash', command: 'pwd' })
+  expect(ok.deny).toBeUndefined()
+  expect(calls.n).toBe(1)
+})
+
+test('resume com .paused sem iteração legível', async ($, on) => {
+  const files: Record<string, string> = { [PAUSED]: 'sem frontmatter' }
+  base(on, files)
+  const r = await $.command.run(cmd('prumo-guard-resume', '', { kind: 'composer' }))
+  expect(r.text).toContain('Loop do ralph retomado.')
+  expect(files[ACTIVE]).toBe('sem frontmatter')
+})
+
+test('resume sem .paused', async ($, on) => {
+  base(on)
+  const r = await $.command.run(cmd('prumo-guard-resume', '', { kind: 'composer' }))
+  expect(r.text).toBe('Travão rearmado. Não havia loop do ralph suspenso.')
+})
+
+test('resume com o ficheiro ativo e sem .paused', async ($, on) => {
+  const files: Record<string, string> = { [ACTIVE]: RALPH }
+  const seen = base(on, files)
+  const r = await $.command.run(cmd('prumo-guard-resume', '', { kind: 'composer' }))
+  expect(r.text).toBe('Travão rearmado. O loop do ralph ativo continua.')
+  expect(seen.runs).toEqual([])
+})
+
+test('resume com os dois ficheiros não toca em nenhum', async ($, on) => {
+  const files: Record<string, string> = { [ACTIVE]: RALPH, [PAUSED]: RALPH7 }
+  const seen = base(on, files)
+  const r = await $.command.run(cmd('prumo-guard-resume', '', { kind: 'composer' }))
+  expect(r.text).toContain('Travão rearmado.')
+  expect(r.text).toContain('nenhum')
+  expect(files[ACTIVE]).toBe(RALPH)
+  expect(files[PAUSED]).toBe(RALPH7)
+  expect(seen.runs).toEqual([])
+})
+
+test('no arranque, com .paused presente, aparece o toast do loop suspenso', async ($, on) => {
+  const seen = base(on, { [PAUSED]: RALPH7 })
+  on('command.register', (_$, e) => ({ value: { command: e.name } }))
+  on('tool.register', () => ({ value: { tool: 'x' } }))
+  on('fs.write', () => ({ value: undefined }))
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: '/p', surface: null, isInteractive: false })
+  expect(seen.toasts).toContain('prumo-guard: há um loop do ralph suspenso; /prumo-guard-resume retoma-o, /prumo-guard-stop termina-o.')
+})
+
+const OWN = '---\nsession_id: s\niteration: 4\nmax_iterations: 20\n---\nx'
+const OTHER = '---\nsession_id: outra\niteration: 4\nmax_iterations: 20\n---\nx'
+const OTHER_TEXT = 'o loop do ralph é de outra sessão; não foi suspenso.'
+
+test('I1: um loop com session_id igual é suspenso', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: OWN }
+  base(on, files)
+  await measure($, 1.5)
+  expect(files[ACTIVE]).toBeUndefined()
+  expect(files[PAUSED]).toBe(OWN)
+})
+
+test('I1: um loop com session_id diferente fica intacto e o toast e a notificação dizem porquê', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: OTHER }
+  const seen = base(on, files)
+  await measure($, 1.5)
+  expect(last(seen)?.paused).toBe(true)
+  expect(files[ACTIVE]).toBe(OTHER)
+  expect(files[PAUSED]).toBeUndefined()
+  expect(seen.toasts.join(' ')).toContain(OTHER_TEXT)
+  expect(seen.notified.join(' ')).toContain(OTHER_TEXT)
+  expect(seen.runs).toEqual([])
+})
+
+test('I1: um loop sem session_id é suspenso', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: RALPH7 }
+  base(on, files)
+  await measure($, 1.5)
+  expect(files[PAUSED]).toBe(RALPH7)
+})
+
+test('I2: o resume de um .paused de outra sessão repõe-no e avisa', async ($, on) => {
+  const files: Record<string, string> = { [PAUSED]: OTHER }
+  base(on, files)
+  const r = await $.command.run(cmd('prumo-guard-resume', '', { kind: 'composer' }))
+  expect(r.text).toBe('Travão rearmado. Loop do ralph reposto, mas pertence à sessão outra: retoma-o lá (claude --resume outra) ou relança /ralph-loop aqui.')
+  expect(files[ACTIVE]).toBe(OTHER)
+  expect(files[PAUSED]).toBeUndefined()
+})
+
+test('I2: o resume de um .paused desta sessão mantém o texto', async ($, on) => {
+  const files: Record<string, string> = { [PAUSED]: OWN }
+  base(on, files)
+  const r = await $.command.run(cmd('prumo-guard-resume', '', { kind: 'composer' }))
+  expect(r.text).toBe('Travão rearmado. Loop do ralph retomado na iteração 4.')
+})
+
+test('I3: um .paused antigo é guardado à parte e o loop atual é suspenso', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: OWN, [PAUSED]: RALPH7 }
+  const seen = base(on, files)
+  await measure($, 1.5)
+  expect(files[ACTIVE]).toBeUndefined()
+  expect(files[PAUSED]).toBe(OWN)
+  expect(files[`${PAUSED}.1000`]).toBe(RALPH7)
+  expect(seen.toasts.join(' ')).toContain('(um loop suspenso antigo foi guardado em ralph-loop.local.md.paused.1000)')
+  expect(seen.toasts.join(' ')).toContain('loop do ralph suspenso')
+})
+
+test('I3: se o guardar do antigo falhar, o loop atual não é suspenso', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: OWN, [PAUSED]: RALPH7 }
+  const seen = base(on, files, { mvFails: true })
+  await measure($, 1.5)
+  expect(files[ACTIVE]).toBe(OWN)
+  expect(files[PAUSED]).toBe(RALPH7)
+  expect(seen.toasts.join(' ')).toContain('o loop do ralph não foi suspenso')
+})
+
+test('I3: um .paused antigo com um loop de outra sessão não é tocado', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: OTHER, [PAUSED]: RALPH7 }
+  const seen = base(on, files)
+  await measure($, 1.5)
+  expect(files[PAUSED]).toBe(RALPH7)
+  expect(seen.runs).toEqual([])
+})
+
+test('I3: o stop apaga também os .paused.<ts>', async ($, on) => {
+  const files: Record<string, string> = { [ACTIVE]: RALPH, [PAUSED]: RALPH7, [`${PAUSED}.111`]: RALPH, [`${PAUSED}.222`]: RALPH, '/p/.claude/outro.md': 'fica' }
+  base(on, files)
+  const r = await $.command.run(cmd('prumo-guard-stop', '', { kind: 'composer' }))
+  expect(Object.keys(files).sort()).toEqual(['/p/.claude/outro.md'])
+  expect(r.text).toContain('terminado')
+})
+
+test('M1: a falha do stop nomeia também o .paused', async ($, on) => {
+  base(on, { [ACTIVE]: RALPH }, { rmFails: true })
+  const r = await $.command.run(cmd('prumo-guard-stop', '', { kind: 'composer' }))
+  expect(r.text).toContain(ACTIVE)
+  expect(r.text).toContain(PAUSED)
+})
+
+test('M4: o toast sem ficheiro do ralph não tem espaço duplo', async ($, on) => {
+  const seen = base(on, { '/h/.prumo/guard.json': CFG_USD })
+  await measure($, 1.5)
+  const t = seen.toasts.find(x => x.includes('em pausa')) as string
+  expect(t).not.toContain('  ')
+  expect(seen.notified.join(' ')).not.toContain('  ')
+})
+
+test('M2: um Bash recusado em pausa não toca em approvals nem abre pedido', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': PAUSE_CFG, '/h/.prumo/approvals/abc': '{"id":"abc"}' }
+  const seen = base(on, files)
+  const writes: string[] = []
+  on('fs.write', (_$, e) => { writes.push(e.path); return { value: undefined } })
+  const calls = { n: 0 }
+  on('tool.call', () => { calls.n++; return { result: '', text: 'igual' } })
+  await pauseByRepetition($, seen, calls)
+  const before = JSON.stringify(files)
+  writes.length = 0
+  const r = await $.tool.call({ tool: 'Bash', command: 'rm -rf /' })
+  expect(r.deny as string).toStartWith(BRAKE_DENY_PREFIX)
+  expect(JSON.stringify(files)).toBe(before)
+  expect(writes).toEqual([])
+  expect(seen.status).not.toContain('pendente')
+})
+
+test('M3: uma chamada de subagente também é recusada em pausa', async ($, on) => {
+  const seen = base(on, { '/h/.prumo/guard.json': PAUSE_CFG })
+  const calls = { n: 0 }
+  on('tool.call', () => { calls.n++; return { result: '', text: 'igual' } })
+  await pauseByRepetition($, seen, calls)
+  const r = await $.tool.call({ tool: 'Bash', command: 'ls', agentId: 'sub1' } as never)
+  expect(r.deny as string).toStartWith(BRAKE_DENY_PREFIX)
+  expect(calls.n).toBe(0)
+})
+
+test('I4: o arranque com session.cwd a falhar regista os comandos e a linha de estado aparece', async ($, on) => {
+  const seen = base(on, {}, { cwdFails: true })
+  const names: string[] = []
+  on('command.register', (_$, e) => { names.push(e.name); return { value: { command: e.name } } })
+  on('tool.register', () => ({ value: { tool: 'x' } }))
+  on('fs.write', () => ({ value: undefined }))
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: '/p', surface: null, isInteractive: false })
+  expect(names).toContain('prumo-guard-resume')
+  expect(names).toContain('prumo-guard-stop')
+  expect(seen.status).not.toBe('')
+})
+
+const EMPTY_ID = '---\nactive: true\niteration: 5\nsession_id: \nmax_iterations: 20\ncompletion_promise: null\n---\nx'
+const ABC_ID = '---\nactive: true\nsession_id: abc\nmax_iterations: 20\n---\nsession_id: no-corpo'
+const NO_ID_IN_FM = '---\niteration: 2\n---\nsession_id: no-corpo'
+
+test('R1: session_id vazio seguido de max_iterations suspende e o resume usa o texto normal', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: EMPTY_ID }
+  base(on, files)
+  await measure($, 1.5)
+  expect(files[ACTIVE]).toBeUndefined()
+  expect(files[PAUSED]).toBe(EMPTY_ID)
+  const r = await $.command.run(cmd('prumo-guard-resume', '', { kind: 'composer' }))
+  expect(r.text).toBe('Travão rearmado. Loop do ralph retomado na iteração 5.')
+})
+
+test('R1: session_id abc com outras chaves a seguir é lido como abc', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: ABC_ID }
+  const seen = base(on, files)
+  await measure($, 1.5)
+  expect(files[ACTIVE]).toBe(ABC_ID)
+  expect(seen.toasts.join(' ')).toContain('de outra sessão')
+})
+
+test('R1: um session_id no corpo fora do frontmatter é ignorado', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: NO_ID_IN_FM }
+  base(on, files)
+  await measure($, 1.5)
+  expect(files[PAUSED]).toBe(NO_ID_IN_FM)
+})
+
+test('R2: se o relógio falhar ao guardar o antigo, a pausa completa e o toast diz que não suspendeu', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: OWN, [PAUSED]: RALPH7 }
+  const seen = base(on, files, { clockFails: true })
+  await measure($, 1.5)
+  expect(last(seen)?.paused).toBe(true)
+  expect(seen.toasts.join(' ')).toContain('o loop do ralph não foi suspenso')
+  expect(seen.status).toContain('pausa')
+})
+
+test('R2: se session.id rejeitar, a pausa completa e o toast diz que não suspendeu', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: OWN }
+  const seen = base(on, files, { idFails: true })
+  await measure($, 1.5)
+  expect(last(seen)?.paused).toBe(true)
+  expect(seen.toasts.join(' ')).toContain('o loop do ralph não foi suspenso')
+  expect(seen.status).toContain('pausa')
 })

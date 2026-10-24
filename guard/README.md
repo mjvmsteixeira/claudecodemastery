@@ -2,7 +2,7 @@
 
 Mod Claude Code (function hooks em TypeScript) · guardrails do kit prumo · v1.0.0
 
-**Aviso: a API de mods do Claude Code é early access.** Os nomes de eventos, as regras do validador e o comportamento dos tiers podem mudar entre versões do Claude Code; cada mudança pode exigir ajustes neste mod. Os hooks de eventos `classic.*` não correm em plugins instalados por uma pessoa quando uma organização gere o Claude Code (ver `docs/instalacao-gerida.md`).
+**Aviso: a API de mods do Claude Code é early access.** Os nomes de eventos, as regras do validador e o comportamento dos tiers podem mudar entre versões do Claude Code; cada mudança pode exigir ajustes neste mod. O mod não regista hooks `classic.*`: com uma organização a gerir o Claude Code, o `cc-plugin-sec-default` passa esses eventos adiante sem chamar os mods do tier user (ver `docs/instalacao-gerida.md`).
 
 Recomenda `prumo-base` e `prumo-secops` (usa os seus hooks como classificadores). Cada funcionalidade funciona sem as outras; as que dependem de outro plugin dizem-no abaixo.
 
@@ -63,9 +63,9 @@ Acima do prompt, enquanto houver loop do ralph, subagentes, fase, testes ou paus
 
 ### Travão do loop
 
-**Desligado por omissão (opt-in).** Só atua com `"brake": { "enabled": true }` em `~/.prumo/guard.json`, uma ação humana. Desligado, não pausa, não anula o re-prompt do ralph e não corta turnos; o painel continua a mostrar custo e contexto. `/prumo-guard` mostra `travão: ligado` ou `travão: desligado`.
+**Desligado por omissão (opt-in).** Só atua com `"brake": { "enabled": true }` em `~/.prumo/guard.json`, uma ação humana. Desligado, não pausa, não recusa ferramentas, não suspende o loop do ralph e não corta turnos; o painel continua a mostrar custo e contexto. `/prumo-guard` mostra `travão: ligado` ou `travão: desligado`.
 
-Ligado, põe o loop em pausa (estado, aviso, notificação) e anula o re-prompt do ralph no `Stop` quando:
+Ligado, põe o loop em pausa (estado, aviso, notificação) e suspende o loop do ralph quando:
 
 - o custo desde o início do loop atinge `brake.usdBudget` (USD);
 - os tokens acumulados atingem `brake.tokenBudget` (0 desliga);
@@ -73,9 +73,9 @@ Ligado, põe o loop em pausa (estado, aviso, notificação) e anula o re-prompt 
 - o mesmo teste falha com a mesma assinatura `brake.repeatLimit` vezes seguidas;
 - edições ao mesmo ficheiro se desfazem umas às outras 3 vezes.
 
-A pausa não interrompe o turno em curso: só impede o ralph de lançar o seguinte. Acima de 120% de `brake.usdBudget` o mod corta também o turno em curso (`$.turn.abort`), uma vez por turno, mesmo que o loop já esteja em pausa. Declarar a fase com `loop_phase` não conta como repetição. Se a cadeia do `Stop` falhar, o veto em pausa aplica-se na mesma (`.catch`).
+Em pausa, o travão recusa todas as ferramentas exceto `loop_phase`, incluindo as dos subagentes. A recusa aparece no trilho CEF como `deny` e o motivo diz à IA para explicar em texto onde ficou. No disparo, o mod suspende o loop do ralph: `.claude/ralph-loop.local.md` passa a `.claude/ralph-loop.local.md.paused`, e sem esse ficheiro o stop hook do ralph não faz re-prompt. Só se suspende um loop desta sessão (o `session_id` do frontmatter) ou sem dono; o de outra sessão no mesmo projeto não é tocado e o aviso di-lo. Um `.paused` antigo é guardado como `.paused.<epoch ms>`, sem perder estado. Acima de 120% de `brake.usdBudget` o mod corta também o turno em curso (`$.turn.abort`), uma vez por turno. Declarar a fase com `loop_phase` não conta como repetição. O despachante `tool.call` decide e falha aberto: se o estado do travão não se puder ler, a chamada passa.
 
-`/prumo-guard-resume` rearma o travão e recomeça a contagem; `/prumo-guard-stop` apaga o `.claude/ralph-loop.local.md` e termina o loop. Ambos só aceitam a tecla Enter da pessoa.
+`/prumo-guard-resume` rearma o travão, recomeça a contagem e repõe o `.paused` (se o loop for de outra sessão, repõe-no na mesma e diz a que sessão pertence e como retomar: `claude --resume <id>` ou relançar `/ralph-loop`). `/prumo-guard-stop` termina o loop: apaga o ficheiro ativo, o `.paused` e os `.paused.<epoch ms>` guardados, mas não tira a pausa. Ambos só aceitam a tecla Enter da pessoa e funcionam sempre, mesmo em pausa. No arranque, se houver um `.paused`, um aviso di-lo.
 
 ### Trilho CEF
 
@@ -118,10 +118,6 @@ Aprovar uma chamada é confiar nesse comando com o segredo. Residuais da 1.0.0 n
 
 Os resultados do `mempalace_search` ganham uma linha `[prumo-guard] idade das memórias: #1 há N dias ...`, com `(antigo: confirmar antes de usar)` acima de `mempalace.staleDays` dias.
 
-### friday-state
-
-Writer do `friday-state` no processo, desligado por omissão (ver secção abaixo).
-
 ## Comandos
 
 | Comando | O que faz | Só pela pessoa |
@@ -154,7 +150,6 @@ Caminho: `$PRUMO_HOME/guard.json` (`~/.prumo/guard.json` por omissão). Cada sec
 | `brake.tokenBudget` | `0` | Orçamento de tokens (0 desliga) |
 | `brake.repeatLimit` | `4` | Repetições seguidas que acionam o travão (0 desliga) |
 | `workspace.extraRoots` | `[]` | Raízes extra de escrita; lidas pelo hook `workspace` do prumo-base, não pelo mod |
-| `friday.enabled` | `false` | Writer do friday-state |
 | `agents.hidden` | `[]` | Agentes escondidos do modelo |
 | `mempalace.staleDays` | `90` | Idade a partir da qual uma memória é marcada como antiga |
 | `cef.enabled` | `true` | Trilho CEF |
@@ -187,15 +182,15 @@ Ficheiro ilegível, JSON inválido, `allow` que não seja uma lista de nomes ou 
 
 ## O que o `/prumo-mod-audit` mostra
 
-`bash secops/lib/mod-audit.sh guard` conta hooks "gating" (que podem negar ou alterar) sem `.catch`: sem `.catch`, se o hook falhar o motor segue o caminho por omissão (deixa passar). Medido em 2026-10-14: 17 sem `.catch` e 5 com (`session.append` da redação, `tool.call` de `Write|Edit|MultiEdit`, `tool.call` do `run_with_secret`, `tool.call` do Bash da aprovação, que apaga e recusa um ficheiro de aprovação forjado, e `classic.Stop`, onde o travão anula o re-prompt do ralph em pausa).
+`bash secops/lib/mod-audit.sh guard` conta hooks "gating" (que podem negar ou alterar) sem `.catch`: sem `.catch`, se o hook falhar o motor segue o caminho por omissão (deixa passar). Medido em 2026-10-24 (1.2.0): 7 sem `.catch` e 4 com (`session.append` da redação, `tool.call` de `Write|Edit|MultiEdit`, `tool.call` do `run_with_secret` e `tool.call` do Bash da aprovação, que apaga e recusa um ficheiro de aprovação forjado).
 
-Dos 17, 15 só observam ou acrescentam informação e a falha deles não abre nada: os 10 `classic.*` do friday-state, o despachante `tool.call`, `agent.spawn`, o `tool.call` do `loop_phase`, o `tool.call` do Bash do painel de testes e o `session.append` da idade das memórias. Os dois restantes **decidem e falham aberto**: o `prompt.submit` da redação (se falhar, o prompt segue sem redação) e o `agent.offer` (se falhar, o agente fica visível). Estão registados no BACKLOG.
+Dos 7, 4 só observam ou acrescentam informação e a falha deles não abre nada: `agent.spawn`, o `tool.call` do `loop_phase`, o `tool.call` do Bash do painel de testes e o `session.append` da idade das memórias. Os 3 restantes **decidem e falham aberto**: o `prompt.submit` da redação (se falhar, o prompt segue sem redação), o `agent.offer` (se falhar, o agente fica visível) e o despachante `tool.call`, que aplica a recusa do travão em pausa (se o estado do travão não se puder ler, a chamada passa). Estão registados no BACKLOG.
 
 ## Estrutura
 
 - `hooks/hooks.json` → `{ "modules": ["./register.tsx"] }`
 - `hooks/register.tsx` → ponto de entrada; chama o `register<Nome>(on)` de cada funcionalidade e tem o único `session.start`, que espera pelas funções `start<Nome>($)`
-- `hooks/observers.ts` → despachante: um só hook sem matcher por evento partilhado (`tool.call`, `turn.start`, `turn.complete`, `session.measure`, `session.end`, `agent.spawn`, `classic.Stop`), com a ordem friday, painel, travão, auditoria; registado antes de todos os outros, para ser o hook mais exterior
+- `hooks/observers.ts` → despachante: um só hook sem matcher por evento partilhado (`tool.call`, `turn.start`, `turn.complete`, `session.measure`, `session.end`, `agent.spawn`), com a ordem auditoria, travão em `tool.call` e painel, travão, auditoria nos restantes; registado antes de todos os outros, para ser o hook mais exterior
 - `hooks/config.ts` → `loadConfig($)` lê `$PRUMO_HOME/guard.json` e funde com `DEFAULTS`
 - `types/index.d.ts` → contrato de estado `PluginState['prumo-guard']`
 
@@ -209,14 +204,9 @@ bash guard/smoke.sh
 
 `guard/.claude-plugin/types/` é gerado pelo motor ao carregar o mod (ignorado pelo git e pelo `package.sh`).
 
-## friday-state no processo
+## FRIDAY
 
-Desligado por omissão (`friday.enabled: false`). Passagem manual:
-
-1. Pôr `"friday": { "enabled": true }` no `~/.prumo/guard.json` (ação humana).
-2. Numa sessão nova, comparar as linhas do mod com as do hook para o mesmo `session_id` (o `friday-state.sh` continua ativo nesta fase, por isso as duas fontes escrevem no mesmo ficheiro e a comparação faz-se por evento).
-3. Diferença conhecida: nas linhas `PreToolUse` do mod, `p` vem `null`.
-4. Só depois de a FRIDAY aceitar as linhas do mod: remover as 12 entradas `friday-state.sh` do `~/.claude/settings.json`.
+O mod não escreve o `friday-state`. O caminho é o `friday-state.sh` da FRIDAY, e a chave `friday` do `guard.json` é ignorada.
 
 ## Agentes escondidos do modelo
 
