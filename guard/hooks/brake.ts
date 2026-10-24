@@ -15,6 +15,8 @@ const usageRef = atom({ plugin: 'prumo-guard', key: 'usage' } as const, USAGE_DE
 
 const LOOP_PHASE_TOOL = 'mcp__prumo-guard__loop_phase'
 
+export const BRAKE_DENY_PREFIX = 'prumo-guard: o travão está em pausa'
+
 let currentTurn: string | null = null
 let abortedTurn: string | null = null
 let loopWasActive = false
@@ -94,6 +96,13 @@ export async function brakeMeasure($: EngineInterface, e: HookInput<'session.mea
 }
 
 export async function brakeToolCall($: EngineInterface, e: HookInput<'tool.call'>, next: HookNext<'tool.call'>): HookResult<'tool.call'> {
+  if (e.tool !== LOOP_PHASE_TOOL) {
+    const gate = await loadConfig($)
+    if (gate.brake.enabled) {
+      const b = await read($, brakeRef)
+      if (b.paused) return { deny: `${BRAKE_DENY_PREFIX} (${b.reason ?? 'motivo não registado'}). Nenhuma ferramenta corre até a pessoa retomar com /prumo-guard-resume (ou terminar o loop com /prumo-guard-stop). Para já, explica em texto o que estavas a fazer e onde ficaste.` }
+    }
+  }
   const ran = await next(e)
   // Declarar a fase não é trabalho do loop: repetir a mesma fase não conta como repetição.
   if (e.tool === LOOP_PHASE_TOOL) return ran

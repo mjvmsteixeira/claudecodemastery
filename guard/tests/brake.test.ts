@@ -1,5 +1,6 @@
 import { test, expect, mock } from 'claude-code/testing'
 import type { On } from 'claude-code'
+import { BRAKE_DENY_PREFIX } from '../hooks/brake.ts'
 import { cmd } from './start-stubs.ts'
 
 const RALPH = '---\niteration: 3\nmax_iterations: 20\n---\nx'
@@ -224,4 +225,56 @@ test('enabled false explícito ignora o orçamento definido', async ($, on) => {
   await measure($, 5)
   expect(seen.brake.some(b => b.paused)).toBe(false)
   expect(seen.aborted).toEqual([])
+})
+
+const PAUSE_CFG = '{"brake":{"enabled":true,"repeatLimit":2}}'
+
+async function pauseByRepetition($: { tool: { call: (e: never) => Promise<unknown> } }, seen: Seen, calls: { n: number }): Promise<void> {
+  for (let i = 0; i < 2; i++) await $.tool.call({ tool: 'Bash', command: 'ls' } as never)
+  expect(last(seen)?.paused).toBe(true)
+  calls.n = 0
+}
+
+test('em pausa, um Bash e um Read são recusados antes de correr', async ($, on) => {
+  const seen = base(on, { '/h/.prumo/guard.json': PAUSE_CFG })
+  const calls = { n: 0 }
+  on('tool.call', () => { calls.n++; return { result: '', text: 'igual' } })
+  await pauseByRepetition($, seen, calls)
+  const reason = last(seen)?.reason as string
+  const bash = await $.tool.call({ tool: 'Bash', command: 'ls' })
+  const read = await $.tool.call({ tool: 'Read', file_path: '/p/x' } as never)
+  for (const r of [bash, read]) {
+    expect(r.deny).toBeDefined()
+    expect(r.deny as string).toStartWith(BRAKE_DENY_PREFIX)
+    expect(r.deny as string).toContain(reason)
+  }
+  expect(calls.n).toBe(0)
+})
+
+test('em pausa, loop_phase passa', async ($, on) => {
+  const seen = base(on, { '/h/.prumo/guard.json': PAUSE_CFG })
+  const calls = { n: 0 }
+  on('tool.call', () => { calls.n++; return { result: '', text: 'igual' } })
+  await pauseByRepetition($, seen, calls)
+  const r = await $.tool.call({ tool: 'mcp__prumo-guard__loop_phase', phase: 'testes' } as never)
+  expect(r.deny).toBeUndefined()
+  expect(JSON.stringify(r)).not.toContain(BRAKE_DENY_PREFIX)
+})
+
+test('travão desligado não recusa mesmo com paused no estado', async ($, on) => {
+  base(on, { '/h/.prumo/guard.json': '{"brake":{"enabled":false}}' })
+  const calls = { n: 0 }
+  on('tool.call', () => { calls.n++; return { result: '', text: 'ok' } })
+  on('state.get', { plugin: 'prumo-guard', key: 'brake' }, () => ({ value: { value: { paused: true, reason: 'x', loopStartUsd: null, tokens: 0 }, version: 1 } }))
+  const r = await $.tool.call({ tool: 'Bash', command: 'ls' })
+  expect(r.deny).toBeUndefined()
+  expect(calls.n).toBe(1)
+})
+
+test('sem motivo, a recusa diz motivo não registado', async ($, on) => {
+  base(on, { '/h/.prumo/guard.json': '{"brake":{"enabled":true}}' })
+  on('tool.call', () => ({ result: '', text: 'ok' }))
+  on('state.get', { plugin: 'prumo-guard', key: 'brake' }, () => ({ value: { value: { paused: true, reason: null, loopStartUsd: null, tokens: 0 }, version: 1 } }))
+  const r = await $.tool.call({ tool: 'Bash', command: 'ls' })
+  expect(r.deny).toBe(`${BRAKE_DENY_PREFIX} (motivo não registado). Nenhuma ferramenta corre até a pessoa retomar com /prumo-guard-resume (ou terminar o loop com /prumo-guard-stop). Para já, explica em texto o que estavas a fazer e onde ficaste.`)
 })

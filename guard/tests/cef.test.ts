@@ -261,3 +261,19 @@ test('o session.end espera pelo flush periódico em voo antes de escrever o rest
   await ending
   expect(done.filter(x => x !== 'hostname')).toEqual(['sh:1', 'sh:1', 'rm'])
 })
+
+test('uma recusa do travão fica no trilho como deny', async ($, on) => {
+  const seen = base(on, '{"brake":{"enabled":true,"repeatLimit":2}}')
+  on('ui.toast', () => ({ value: undefined }))
+  on('ui.notify', () => ({ value: { isSent: true, channel: 'terminal_bell' } }))
+  on('tool.call', () => ({ result: '', text: 'igual' }))
+  await $.session.start(START)
+  for (let i = 0; i < 2; i++) await $.tool.call({ tool: 'Bash', command: 'ls' })
+  const r = await $.tool.call({ tool: 'Read', file_path: '/p/x' } as never)
+  expect(r.deny).toBeDefined()
+  await $.session.end(END)
+  const lines = logged(seen).trim().split('\n')
+  expect(lines.length).toBe(3)
+  expect(lines[2]).toContain('cs1=Read')
+  expect(lines[2]).toContain('cs5=deny cs6Label=Hook cs6=plugin')
+})
