@@ -255,11 +255,48 @@ test('alertas de contexto, 7 dias e orçamento; sem reset não há "reinicia"', 
   await ui.unmount()
 })
 
-test('um kind desconhecido entra com o próprio nome e não gera alerta', async ($, on) => {
+test('um kind desconhecido entra com o próprio nome e gera alerta com esse nome', async ($, on) => {
   seed(on, { usage: { contextPercent: 10, usd: null, windows: [{ kind: 'opus_weekly', percent: 95 }] } })
   const ui = await $.ui.mount(WIDE)
   expect(await leaf(ui, 'opus_weekly ████████ 95%')).toBeDefined()
-  expect(await ui.find({ text: /▲/ })).toBeUndefined()
+  expect((await leaf(ui, '▲ limite opus_weekly a 95%'))?.props.color).toBe('error')
+  await ui.unmount()
+})
+
+test('um kind desconhecido com reset acrescenta o reinicia', async ($, on) => {
+  seed(on, { usage: { contextPercent: 10, usd: null, windows: [{ kind: 'opus_weekly', percent: 95, resetsAt: at(25 * M) }] } })
+  const ui = await $.ui.mount(WIDE)
+  expect(await leaf(ui, '▲ limite opus_weekly a 95% — reinicia em 0h25')).toBeDefined()
+  await ui.unmount()
+})
+
+test('bodyColumns 109 dá a linha estreita e 110 a larga', async ($, on) => {
+  seed(on, { usage: TYPICAL })
+  const p = (n: number) => ({ ...BAND, props: { ...BAND.props, bodyColumns: n } })
+  const narrow = await $.ui.mount(p(109))
+  expect(JSON.stringify(await narrow.drawn())).not.toContain('█')
+  expect(await narrow.find({ key: 'linha' })).toBeUndefined()
+  await narrow.unmount()
+  const wide = await $.ui.mount(p(110))
+  expect(await wide.find({ key: 'linha' })).toBeDefined()
+  await wide.unmount()
+})
+
+test('linha estreita: o ◆ da fase tem a cor claude', async ($, on) => {
+  seed(on, { usage: TYPICAL })
+  const ui = await $.ui.mount(BAND)
+  expect((await leaf(ui, '◆ revisão'))?.props.color).toBe('claude')
+  await ui.unmount()
+})
+
+test('brake sem o campo ralph (forma do 1.2.0) em pausa: PAUSA sem frase do ralph', async ($, on) => {
+  base(on)
+  on('state.get', { plugin: 'prumo-guard', key: 'phase' }, () => ({ value: { value: 'revisão', version: 1 } }))
+  on('state.get', { plugin: 'prumo-guard', key: 'brake' }, () => ({ value: { value: { paused: true, reason: 'x', loopStartUsd: null, tokens: 0 } as never, version: 1 } }))
+  const ui = await $.ui.mount(WIDE)
+  expect(await leaf(ui, ' PAUSA ')).toBeDefined()
+  expect(await leaf(ui, ' x · ferramentas recusadas · /prumo-guard-resume')).toBeDefined()
+  expect(await ui.find({ text: /ralph/ })).toBeUndefined()
   await ui.unmount()
 })
 

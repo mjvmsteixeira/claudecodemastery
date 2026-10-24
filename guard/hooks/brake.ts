@@ -1,4 +1,5 @@
 import { atom, read, update } from 'claude-code'
+import type { PrumoGuardBrake } from '../types'
 import type { EngineInterface, On } from 'claude-code'
 import { HUMAN_ONLY } from './commands.ts'
 import { loadConfig } from './config.ts'
@@ -76,14 +77,19 @@ async function resumeRalph($: EngineInterface): Promise<string> {
   return `Travão rearmado. ${text}`
 }
 
+// Só escreve o resultado se a pausa ainda estiver de pé: um resume entre os dois updates não o deixa órfão.
+export function recordRalph(s: PrumoGuardBrake | undefined, result: Suspension['result'], b: PrumoGuardBrake): PrumoGuardBrake {
+  return s?.paused ? { ...s, ralph: result } : (s ?? b)
+}
+
 // A pausa recusa as ferramentas (brakeToolCall) e suspende o ficheiro do ralph; cortar o turno
 // fica para o excesso de orçamento acima de 120% (cutTurn), como na D6.
 async function trip($: EngineInterface, reason: string): Promise<void> {
   const b = await read($, brakeRef)
   if (b.paused) return
-  await update($, brakeRef, s => ({ ...(s ?? b), paused: true, reason }))
+  await update($, brakeRef, s => ({ ...(s ?? b), paused: true, reason, ralph: null }))
   const ralph = await suspendRalph($).catch((): Suspension => ({ result: 'failed', saved: null }))
-  await update($, brakeRef, s => ({ ...(s ?? b), ralph: ralph.result }))
+  await update($, brakeRef, s => recordRalph(s, ralph.result, b))
   const base = ralph.result === 'suspended' ? 'loop do ralph suspenso.' : ralph.result === 'failed' ? 'o loop do ralph não foi suspenso.' : ralph.result === 'other' ? 'o loop do ralph é de outra sessão; não foi suspenso.' : ''
   const note = [base, ralph.saved ? `(um loop suspenso antigo foi guardado em ${ralph.saved})` : ''].filter(Boolean).join(' ')
   $.ui.toast(`prumo-guard: loop em pausa — ${reason}. ${note ? `${note} ` : ''}/prumo-guard-resume para continuar.`)
@@ -208,8 +214,8 @@ export function registerBrake(on: On): void {
     } catch {
       // Sem a listagem apagam-se só os dois ficheiros conhecidos.
     }
-    await update($, brakeRef, s => ({ ...(s ?? BRAKE_DEFAULT), ralph: null }))
     const r = await $.process.run(['rm', '-f', file, `${file}.paused`, ...old])
+    if (r.exitCode === 0) await update($, brakeRef, s => ({ ...(s ?? BRAKE_DEFAULT), ralph: null }))
     return { text: r.exitCode === 0 ? `Loop do ralph terminado (${file}, ${file}.paused${old.length ? ` e ${old.length} guardado(s) antigo(s)` : ''} apagados).` : `Não consegui apagar ${file} nem ${file}.paused: ${r.stderr.trim()}` }
   })
 }

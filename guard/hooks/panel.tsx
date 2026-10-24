@@ -52,7 +52,7 @@ function alertFor(kind: string, pct: number, reset: string | null): string | nul
   if (kind === 'ctx') return `▲ contexto a ${pct}% — compacta em breve (/compact)`
   if (kind === 'five_hour') return `▲ limite de 5 horas a ${pct}%${when}`
   if (kind === 'seven_day') return `▲ limite de 7 dias a ${pct}%${when}`
-  return null
+  return `▲ limite ${windowLabel(kind)} a ${pct}%${when}`
 }
 
 export async function startPanel($: EngineInterface): Promise<void> {
@@ -201,7 +201,7 @@ export function registerPanel(on: On): void {
     } else if (hasLine) {
       const parts: RenderChildren[] = []
       const sep = () => (parts.length > 0 ? ' · ' : '')
-      if (head) parts.push(head)
+      if (head) parts.push(<Text color="claude">{head}</Text>)
       for (const m of measures) {
         const short = m.reset && /^\d+h\d\d$/.test(m.reset) ? ` ↻${m.reset}` : ''
         parts.push(sep(), `${m.label} `, pctText(m), short)

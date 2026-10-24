@@ -1,6 +1,7 @@
 import { test, expect, mock } from 'claude-code/testing'
 import type { On } from 'claude-code'
-import { BRAKE_DENY_PREFIX } from '../hooks/brake.ts'
+import { BRAKE_DENY_PREFIX, recordRalph } from '../hooks/brake.ts'
+import { BRAKE_DEFAULT } from '../hooks/refs.ts'
 import { cmd } from './start-stubs.ts'
 
 const RALPH = '---\niteration: 3\nmax_iterations: 20\n---\nx'
@@ -609,4 +610,30 @@ test('o stop limpa brake.ralph e mantém a pausa', async ($, on) => {
   await $.command.run(cmd('prumo-guard-stop', '', { kind: 'composer' }))
   expect(last(seen)?.ralph).toBeNull()
   expect(last(seen)?.paused).toBe(true)
+})
+
+test('recordRalph: com a pausa ainda de pé escreve o resultado', () => {
+  const paused = { ...BRAKE_DEFAULT, paused: true, reason: 'x' }
+  expect(recordRalph(paused, 'suspended', paused).ralph).toBe('suspended')
+})
+
+test('recordRalph: um resume entre os dois updates não deixa ralph com paused false', () => {
+  const paused = { ...BRAKE_DEFAULT, paused: true, reason: 'x' }
+  expect(recordRalph(BRAKE_DEFAULT, 'suspended', paused)).toEqual(BRAKE_DEFAULT)
+  expect(recordRalph(undefined, 'suspended', paused)).toEqual(paused)
+})
+
+test('o disparo grava ralph null no primeiro update, antes do resultado', async ($, on) => {
+  const seen = base(on, { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: RALPH7 })
+  await measure($, 1.5)
+  const first = seen.brake.find(b => b.paused)
+  expect(first?.ralph).toBeNull()
+})
+
+test('o stop com o rm a falhar mantém brake.ralph', async ($, on) => {
+  const seen = base(on, { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: RALPH7 }, { rmFails: true })
+  await measure($, 1.5)
+  expect(last(seen)?.ralph).toBe('suspended')
+  await $.command.run(cmd('prumo-guard-stop', '', { kind: 'composer' }))
+  expect(last(seen)?.ralph).toBe('suspended')
 })
