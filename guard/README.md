@@ -59,7 +59,21 @@ Estado: `/prumo-guard-redact on|off` (só pela pessoa) liga ou desliga durante a
 
 ### Painel do loop
 
-Acima do prompt, enquanto houver loop do ralph, subagentes, fase, testes ou pausa: iteração do ralph (`.claude/ralph-loop.local.md`), fase, percentagem de contexto, custo em USD, limites de taxa, subagentes ativos com a duração e o último resumo de testes (passam/falham). A ferramenta `loop_phase` deixa o modelo declarar a fase (`plano`, `implementação`, `testes`, `revisão`, `outro`).
+Acima do prompt, enquanto houver loop do ralph, subagentes, fase, testes ou pausa: iteração do ralph (`.claude/ralph-loop.local.md`), fase, consumo de contexto e dos limites de taxa, custo em USD, subagentes ativos com a duração e o último resumo de testes (passam/falham). A ferramenta `loop_phase` deixa o modelo declarar a fase (`plano`, `implementação`, `testes`, `revisão`, `outro`).
+
+**Linha larga** (a partir de 110 colunas): `◆ [ralph N/M · ]<fase>`, depois `ctx`, `5h` e `7d`, cada um com uma barra de 8 células e a percentagem, mais `↻ <reset>` em cada limite, e o custo (`NN,NN/BB USD` com o travão ligado e orçamento definido). **Linha estreita** (abaixo de 110 colunas): `◆ … · ctx NN% · 5h NN% ↻XhYY · 7d NN% · custo`; o `↻` só aparece para resets nas próximas 24 h.
+
+**Cores por limiar:** abaixo de `panel.warn`, `success`; de `panel.warn` até `panel.crit`, `warning`; a partir de `panel.crit`, `error` a negrito. Valores inválidos ou incoerentes caem nos valores por omissão (50 e 80). O `/prumo-guard` mostra `painel: aviso W% · crítico C%`.
+
+**Alertas a partir de `crit`:**
+
+- `▲ limite de 5 horas a NN% — reinicia em XhYY`
+- `▲ limite de 7 dias a NN% — reinicia <dia HH:MM>`
+- `▲ limite <nome> a NN%` para limites de outro tipo
+- `▲ contexto a NN% — compacta em breve (/compact)`
+- `▲ orçamento a NN% (GG,GG/BB USD)`, só com o travão ligado e orçamento definido
+
+**Pausa:** o rótulo ` PAUSA ` invertido, seguido de `<motivo> · ferramentas recusadas`, do resultado do ralph (`loop do ralph suspenso`, `não foi suspenso` ou `de outra sessão (não tocado)`) e de `/prumo-guard-resume`.
 
 ### Travão do loop
 
@@ -149,6 +163,8 @@ Caminho: `$PRUMO_HOME/guard.json` (`~/.prumo/guard.json` por omissão). Cada sec
 | `brake.usdBudget` | `20` | Orçamento em USD por loop (0 desliga) |
 | `brake.tokenBudget` | `0` | Orçamento de tokens (0 desliga) |
 | `brake.repeatLimit` | `4` | Repetições seguidas que acionam o travão (0 desliga) |
+| `panel.warn` | `50` | Percentagem a partir da qual o consumo passa a `warning` |
+| `panel.crit` | `80` | Percentagem a partir da qual o consumo passa a `error` a negrito e dispara os alertas |
 | `workspace.extraRoots` | `[]` | Raízes extra de escrita; lidas pelo hook `workspace` do prumo-base, não pelo mod |
 | `agents.hidden` | `[]` | Agentes escondidos do modelo |
 | `mempalace.staleDays` | `90` | Idade a partir da qual uma memória é marcada como antiga |
@@ -182,7 +198,7 @@ Ficheiro ilegível, JSON inválido, `allow` que não seja uma lista de nomes ou 
 
 ## O que o `/prumo-mod-audit` mostra
 
-`bash secops/lib/mod-audit.sh guard` conta hooks "gating" (que podem negar ou alterar) sem `.catch`: sem `.catch`, se o hook falhar o motor segue o caminho por omissão (deixa passar). Medido em 2026-10-24 (1.2.0): 7 sem `.catch` e 4 com (`session.append` da redação, `tool.call` de `Write|Edit|MultiEdit`, `tool.call` do `run_with_secret` e `tool.call` do Bash da aprovação, que apaga e recusa um ficheiro de aprovação forjado).
+`bash secops/lib/mod-audit.sh guard` conta hooks "gating" (que podem negar ou alterar) sem `.catch`: sem `.catch`, se o hook falhar o motor segue o caminho por omissão (deixa passar). Medido em 2026-10-24 (1.3.0): 7 sem `.catch` e 4 com (`session.append` da redação, `tool.call` de `Write|Edit|MultiEdit`, `tool.call` do `run_with_secret` e `tool.call` do Bash da aprovação, que apaga e recusa um ficheiro de aprovação forjado).
 
 Dos 7, 4 só observam ou acrescentam informação e a falha deles não abre nada: `agent.spawn`, o `tool.call` do `loop_phase`, o `tool.call` do Bash do painel de testes e o `session.append` da idade das memórias. Os 3 restantes **decidem e falham aberto**: o `prompt.submit` da redação (se falhar, o prompt segue sem redação), o `agent.offer` (se falhar, o agente fica visível) e o despachante `tool.call`, que aplica a recusa do travão em pausa (se o estado do travão não se puder ler, a chamada passa). Estão registados no BACKLOG.
 

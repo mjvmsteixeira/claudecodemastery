@@ -2,6 +2,26 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.3.0 — 2026-10-24
+
+**Painel com consumo a cores.** A band acima do prompt passa a mostrar o consumo de contexto, dos limites de taxa e do custo com barras coloridas, e avisa quando um limite se aproxima do fim.
+
+### Mudanças de comportamento
+
+- **Linha larga** (a partir de 110 colunas): `◆ [ralph N/M · ]<fase>`, depois `ctx`, `5h` e `7d`, cada um com uma barra de 8 células e a percentagem, mais `↻ <reset>` em cada limite, e o custo. Com o travão ligado e orçamento definido, o custo aparece como `NN,NN/BB USD`.
+- **Linha estreita** (abaixo de 110 colunas): `◆ … · ctx NN% · 5h NN% ↻XhYY · 7d NN% · custo`. O `↻` só aparece para resets nas próximas 24 h.
+- **Cores por limiar:** abaixo de `warn`, `success`; de `warn` até `crit`, `warning`; a partir de `crit`, `error` a negrito. Os limiares são 50 e 80 por omissão.
+- **Alertas a partir de `crit`:**
+  - `▲ limite de 5 horas a NN% — reinicia em XhYY`
+  - `▲ limite de 7 dias a NN% — reinicia <dia HH:MM>`
+  - `▲ limite <nome> a NN%` para limites de outro tipo
+  - `▲ contexto a NN% — compacta em breve (/compact)`
+  - `▲ orçamento a NN% (GG,GG/BB USD)`, só com o travão ligado e orçamento definido
+- **Pausa:** o rótulo ` PAUSA ` invertido (fundo `error`), seguido de `<motivo> · ferramentas recusadas`, do resultado do ralph (`loop do ralph suspenso`, `não foi suspenso` ou `de outra sessão (não tocado)`) e de `/prumo-guard-resume`.
+- **`guard.json`:** secção nova `panel: { warn, crit }` (50 e 80). Valores inválidos ou incoerentes caem nos valores por omissão. O `/prumo-guard` mostra `painel: aviso W% · crítico C%`.
+- **Upgrade a partir do 1.2.0:** o estado antigo, que sobrevive ao `/reload-plugins`, é tolerado sem erros.
+- `mod-audit`: 7 hooks gating sem `.catch` e 4 com (sem alteração). Testes: 371.
+
 ## v1.2.0 — 2026-10-24
 
 **Tier user: sem `classic.*`, e um travão que trava.** O `cc-plugin-sec-default` passa os eventos `classic.*` adiante sem chamar os mods do tier user, por isso o escritor do FRIDAY e o veto no `Stop` nunca correram e enchiam o contexto de avisos. O mod deixa de os registar, e o travão passa a atuar pelos eventos que o tier user recebe.

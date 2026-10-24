@@ -8,6 +8,7 @@ export type GuardConfig = {
   mempalace: { staleDays: number }
   cef: { enabled: boolean }
   secretExec: { enabled: boolean }
+  panel: { warn: number; crit: number }
 }
 
 export const DEFAULTS: GuardConfig = {
@@ -20,6 +21,7 @@ export const DEFAULTS: GuardConfig = {
   cef: { enabled: true },
   // run_with_secret: desligado até a pessoa o ligar (a ferramenta nem é registada).
   secretExec: { enabled: false },
+  panel: { warn: 50, crit: 80 },
 }
 
 export async function prumoHome($: EngineInterface): Promise<string> {
@@ -53,6 +55,18 @@ function section<K extends keyof GuardConfig>(raw: unknown, key: K): GuardConfig
   return { ...DEFAULTS[key], ...(value as object) } as GuardConfig[K]
 }
 
+function percent(v: unknown, fallback: number): number {
+  return typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 100 ? v : fallback
+}
+
+// Limiares do painel: cada campo inválido cai no seu default; se o par ficar incoerente, caem os dois.
+function panelSection(raw: unknown): GuardConfig['panel'] {
+  const m = section(raw, 'panel') as Record<string, unknown>
+  const warn = percent(m.warn, DEFAULTS.panel.warn)
+  const crit = percent(m.crit, DEFAULTS.panel.crit)
+  return warn < crit ? { warn, crit } : { ...DEFAULTS.panel }
+}
+
 export async function loadConfig($: EngineInterface): Promise<GuardConfig> {
   let raw: unknown = {}
   try {
@@ -68,5 +82,6 @@ export async function loadConfig($: EngineInterface): Promise<GuardConfig> {
     mempalace: section(raw, 'mempalace'),
     cef: section(raw, 'cef'),
     secretExec: section(raw, 'secretExec'),
+    panel: panelSection(raw),
   }
 }

@@ -2,11 +2,15 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 1.0.2 · prumo-secops 1.0.2 · prumo-devkit 1.0.0 · prumo-design 1.0.0 · prumo-guard 1.2.0**
+Estado actual: **prumo-base 1.0.2 · prumo-secops 1.0.2 · prumo-devkit 1.0.0 · prumo-design 1.0.0 · prumo-guard 1.3.0**
 
 **Convenção de tags: `prumo-<plugin>-v<versão>`, uma por plugin e por release.** Todas as tags actuais apontam para o commit onde o `plugin.json` desse plugin tem essa versão — invariante verificável com `git show <tag>:<plugin>/.claude-plugin/plugin.json`. Releases coordenadas do marketplace inteiro levam também uma tag de calendário (`prumo-2026.10.0`).
 
 As tags legacy `v0.5.0`, `v0.5.1` e `v0.6.0` são anteriores à convenção e não identificam o plugin (a `v0.5.1` era do devkit, não do base, apesar de a numeração o sugerir). Ficam como estão, por já estarem publicadas; não usar como referência.
+
+## prumo-guard 1.3.0 — 2026-10-24
+
+A band do painel do loop mostra o contexto, os limites de 5 horas e de 7 dias e o custo com barras coloridas (verde, amarelo, vermelho a negrito por limiar), o reset de cada limite e alertas a partir do limiar crítico; em pausa, o rótulo diz o que aconteceu ao loop do ralph. Linha estreita abaixo de 110 colunas. Limiares configuráveis com `panel: { warn, crit }` no `guard.json` (50 e 80). Detalhe em `guard/CHANGELOG.md`.
 
 ## prumo-guard 1.2.0 — 2026-10-24
 
