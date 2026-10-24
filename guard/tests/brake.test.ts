@@ -4,12 +4,16 @@ import { BRAKE_DENY_PREFIX } from '../hooks/brake.ts'
 import { cmd } from './start-stubs.ts'
 
 const RALPH = '---\niteration: 3\nmax_iterations: 20\n---\nx'
+const RALPH7 = '---\niteration: 7\nmax_iterations: 20\n---\nx'
+const ACTIVE = '/p/.claude/ralph-loop.local.md'
+const PAUSED = `${ACTIVE}.paused`
+const CFG_USD = '{"brake":{"enabled":true,"usdBudget":1}}'
 const BAND = { plugin: 'prumo-guard', surface: 'terminal', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 8, bodyColumns: 80, scroll: { offset: 0, bodyRows: 8 }, view: {} } } as const
 const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false }
 
 type Seen = { brake: Array<{ paused: boolean; reason: string | null; loopStartUsd: number | null; tokens: number }>; repeat: unknown[]; toasts: string[]; notified: string[]; aborted: string[]; status: string; runs: string[][] }
 
-function base(on: On, files: Record<string, string> = {}, opts: { abortFails?: boolean; clockFails?: boolean } = {}): Seen {
+function base(on: On, files: Record<string, string> = {}, opts: { abortFails?: boolean; clockFails?: boolean; mvFails?: boolean } = {}): Seen {
   const abortFails = opts.abortFails ?? false
   const seen: Seen = { brake: [], repeat: [], toasts: [], notified: [], aborted: [], status: '', runs: [] }
   mock.env(on, { HOME: '/h' })
@@ -26,7 +30,17 @@ function base(on: On, files: Record<string, string> = {}, opts: { abortFails?: b
   on('turn.start', (_$, e) => ({ turnId: e.turnId }))
   on('turn.complete', (_$, e) => ({ text: e.answer }))
   on('session.measure', (_$, e) => ({ changed: e.changed }))
-  on('process.run', (_$, e) => { seen.runs.push([...e.argv]); return { value: RAN } })
+  on('process.run', (_$, e) => {
+    seen.runs.push([...e.argv])
+    const [cmdName, ...args] = e.argv
+    if (cmdName === 'mv') {
+      if (opts.mvFails) return { value: { ...RAN, exitCode: 1, stderr: 'Permission denied' } }
+      const [src, dst] = args.filter(a => a !== '-n') as [string, string]
+      if (files[src] !== undefined && files[dst] === undefined) { files[dst] = files[src] as string; delete files[src] }
+    }
+    if (cmdName === 'rm') for (const f of args.filter(a => a !== '-f')) delete files[f]
+    return { value: RAN }
+  })
   on('state.set', { plugin: 'prumo-guard', key: 'brake' }, (_$, e, next) => { seen.brake.push(e.value as Seen['brake'][number]); return next(e) })
   on('state.set', { plugin: 'prumo-guard', key: 'repeat' }, (_$, e, next) => { seen.repeat.push(e.value); return next(e) })
   return seen
@@ -135,11 +149,17 @@ test('/prumo-guard-resume por um plugin é recusado', async ($, on) => {
   expect(seen.brake.length).toBe(0)
 })
 
-test('/prumo-guard-stop pela pessoa apaga o estado do ralph', async ($, on) => {
-  const seen = base(on)
+test('/prumo-guard-stop apaga o ficheiro e o .paused e não tira a pausa', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: RALPH, [PAUSED]: RALPH7 }
+  const seen = base(on, files)
+  await measure($, 1.5)
+  const before = seen.brake.length
   const r = await $.command.run(cmd('prumo-guard-stop', '', { kind: 'composer' }))
-  expect(seen.runs).toEqual([['rm', '-f', '/p/.claude/ralph-loop.local.md']])
+  expect(files[ACTIVE]).toBeUndefined()
+  expect(files[PAUSED]).toBeUndefined()
   expect(r.text).toContain('terminado')
+  expect(seen.brake.length).toBe(before)
+  expect(last(seen)?.paused).toBe(true)
 })
 
 test('/prumo-guard-stop por um plugin é recusado', async ($, on) => {
@@ -277,4 +297,91 @@ test('sem motivo, a recusa diz motivo não registado', async ($, on) => {
   on('state.get', { plugin: 'prumo-guard', key: 'brake' }, () => ({ value: { value: { paused: true, reason: null, loopStartUsd: null, tokens: 0 }, version: 1 } }))
   const r = await $.tool.call({ tool: 'Bash', command: 'ls' })
   expect(r.deny).toBe(`${BRAKE_DENY_PREFIX} (motivo não registado). Nenhuma ferramenta corre até a pessoa retomar com /prumo-guard-resume (ou terminar o loop com /prumo-guard-stop). Para já, explica em texto o que estavas a fazer e onde ficaste.`)
+})
+
+test('o disparo renomeia o ficheiro do ralph para .paused', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: RALPH7 }
+  const seen = base(on, files)
+  await measure($, 1.5)
+  expect(files[ACTIVE]).toBeUndefined()
+  expect(files[PAUSED]).toBe(RALPH7)
+  expect(seen.toasts.join(' ')).toContain('loop do ralph suspenso')
+  expect(seen.notified.join(' ')).toContain('loop do ralph suspenso')
+})
+
+test('o disparo sem ficheiro do ralph não diz que suspendeu nada', async ($, on) => {
+  const seen = base(on, { '/h/.prumo/guard.json': CFG_USD })
+  await measure($, 1.5)
+  expect(seen.toasts.join(' ')).not.toContain('ralph')
+  expect(seen.runs).toEqual([])
+})
+
+test('se o renomear falhar, a pausa fica e o toast diz que o loop não foi suspenso', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: RALPH7 }
+  const seen = base(on, files, { mvFails: true })
+  await measure($, 1.5)
+  expect(last(seen)?.paused).toBe(true)
+  expect(files[ACTIVE]).toBe(RALPH7)
+  expect(seen.toasts.join(' ')).toContain('o loop do ralph não foi suspenso')
+  expect(seen.toasts.join(' ')).not.toContain('loop do ralph suspenso')
+})
+
+test('/prumo-guard-resume retoma o ralph na iteração N e as ferramentas voltam a correr', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': PAUSE_CFG, [ACTIVE]: RALPH7 }
+  const seen = base(on, files)
+  const calls = { n: 0 }
+  on('tool.call', () => { calls.n++; return { result: '', text: 'igual' } })
+  await pauseByRepetition($, seen, calls)
+  expect(files[PAUSED]).toBe(RALPH7)
+  expect((await $.tool.call({ tool: 'Bash', command: 'ls' })).deny).toBeDefined()
+  const r = await $.command.run(cmd('prumo-guard-resume', '', { kind: 'composer' }))
+  expect(r.text).toContain('Loop do ralph retomado na iteração 7.')
+  expect(files[ACTIVE]).toBe(RALPH7)
+  expect(files[PAUSED]).toBeUndefined()
+  const ok = await $.tool.call({ tool: 'Bash', command: 'pwd' })
+  expect(ok.deny).toBeUndefined()
+  expect(calls.n).toBe(1)
+})
+
+test('resume com .paused sem iteração legível', async ($, on) => {
+  const files: Record<string, string> = { [PAUSED]: 'sem frontmatter' }
+  base(on, files)
+  const r = await $.command.run(cmd('prumo-guard-resume', '', { kind: 'composer' }))
+  expect(r.text).toContain('Loop do ralph retomado.')
+  expect(files[ACTIVE]).toBe('sem frontmatter')
+})
+
+test('resume sem .paused', async ($, on) => {
+  base(on)
+  const r = await $.command.run(cmd('prumo-guard-resume', '', { kind: 'composer' }))
+  expect(r.text).toBe('Travão rearmado. Não havia loop do ralph suspenso.')
+})
+
+test('resume com o ficheiro ativo e sem .paused', async ($, on) => {
+  const files: Record<string, string> = { [ACTIVE]: RALPH }
+  const seen = base(on, files)
+  const r = await $.command.run(cmd('prumo-guard-resume', '', { kind: 'composer' }))
+  expect(r.text).toBe('Travão rearmado. O loop do ralph ativo continua.')
+  expect(seen.runs).toEqual([])
+})
+
+test('resume com os dois ficheiros não toca em nenhum', async ($, on) => {
+  const files: Record<string, string> = { [ACTIVE]: RALPH, [PAUSED]: RALPH7 }
+  const seen = base(on, files)
+  const r = await $.command.run(cmd('prumo-guard-resume', '', { kind: 'composer' }))
+  expect(r.text).toContain('Travão rearmado.')
+  expect(r.text).toContain('nenhum')
+  expect(files[ACTIVE]).toBe(RALPH)
+  expect(files[PAUSED]).toBe(RALPH7)
+  expect(seen.runs).toEqual([])
+})
+
+test('no arranque, com .paused presente, aparece o toast do loop suspenso', async ($, on) => {
+  const seen = base(on, { [PAUSED]: RALPH7 })
+  on('command.register', (_$, e) => ({ value: { command: e.name } }))
+  on('tool.register', () => ({ value: { tool: 'x' } }))
+  on('fs.write', () => ({ value: undefined }))
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: '/p', surface: null, isInteractive: false })
+  expect(seen.toasts).toContain('prumo-guard: há um loop do ralph suspenso; /prumo-guard-resume retoma-o, /prumo-guard-stop termina-o.')
 })

@@ -5,6 +5,7 @@ import { loadConfig } from './config.ts'
 import type { HookInput, HookNext, HookResult } from './hook-types.ts'
 import { BRAKE_DEFAULT, LOOP_DEFAULT, USAGE_DEFAULT } from './refs.ts'
 import { emptyRepeat, trackCall, trackEdit, trackTest } from './repeat.ts'
+import { parseRalphState } from './loop-state.ts'
 import { refreshStatus } from './status.ts'
 import { failureSignature, isTestCommand, parseTestSummary, shortHash } from './test-summary.ts'
 
@@ -20,18 +21,57 @@ export const BRAKE_DENY_PREFIX = 'prumo-guard: o travão está em pausa'
 let currentTurn: string | null = null
 let abortedTurn: string | null = null
 let loopWasActive = false
-// Espelho da pausa para o `.catch` do Stop, quando ler o estado também falha.
-let pausedMirror = false
 
-// A pausa só para o re-prompt do ralph (veto no Stop); cortar o turno fica para o excesso de
-// orçamento acima de 120% (cutTurn), como na D6.
+async function ralphFile($: EngineInterface): Promise<string> {
+  return `${await $.session.cwd()}/.claude/ralph-loop.local.md`
+}
+
+async function readText($: EngineInterface, path: string): Promise<string | null> {
+  try {
+    return await $.fs.read(path)
+  } catch {
+    return null
+  }
+}
+
+async function moveFile($: EngineInterface, src: string, dst: string): Promise<boolean> {
+  try {
+    await $.process.run(['mv', '-n', src, dst])
+  } catch {
+    return false
+  }
+  return (await readText($, src)) === null && (await readText($, dst)) !== null
+}
+
+// Suspende o loop do ralph: sem o ficheiro de estado o stop hook do ralph não faz re-prompt.
+async function suspendRalph($: EngineInterface): Promise<'suspended' | 'none' | 'failed'> {
+  const file = await ralphFile($)
+  if ((await readText($, file)) === null) return 'none'
+  return (await moveFile($, file, `${file}.paused`)) ? 'suspended' : 'failed'
+}
+
+async function resumeRalph($: EngineInterface): Promise<string> {
+  const file = await ralphFile($)
+  const paused = await readText($, `${file}.paused`)
+  const active = await readText($, file)
+  if (paused === null) return active === null ? 'Travão rearmado. Não havia loop do ralph suspenso.' : 'Travão rearmado. O loop do ralph ativo continua.'
+  if (active !== null) return `Travão rearmado. Existem o ficheiro ativo e o .paused do ralph (${file}); não toquei em nenhum.`
+  if (!(await moveFile($, `${file}.paused`, file))) return `Travão rearmado, mas não consegui retomar o loop do ralph: ${file}.paused ficou onde estava.`
+  const iteration = parseRalphState(paused)?.iteration
+  const text = iteration === null || iteration === undefined ? 'Loop do ralph retomado.' : `Loop do ralph retomado na iteração ${iteration}.`
+  return `Travão rearmado. ${text}`
+}
+
+// A pausa recusa as ferramentas (brakeToolCall) e suspende o ficheiro do ralph; cortar o turno
+// fica para o excesso de orçamento acima de 120% (cutTurn), como na D6.
 async function trip($: EngineInterface, reason: string): Promise<void> {
   const b = await read($, brakeRef)
   if (b.paused) return
   await update($, brakeRef, s => ({ ...(s ?? b), paused: true, reason }))
-  pausedMirror = true
-  $.ui.toast(`prumo-guard: loop em pausa — ${reason}. /prumo-guard-resume para continuar.`)
-  void $.ui.notify(`Loop em pausa: ${reason}`, { title: 'prumo-guard' })
+  const ralph = await suspendRalph($)
+  const note = ralph === 'suspended' ? 'loop do ralph suspenso.' : ralph === 'failed' ? 'o loop do ralph não foi suspenso.' : ''
+  $.ui.toast(`prumo-guard: loop em pausa — ${reason}. ${note} /prumo-guard-resume para continuar.`)
+  void $.ui.notify(`Loop em pausa: ${reason}. ${note}`, { title: 'prumo-guard' })
   await refreshStatus($)
 }
 
@@ -42,13 +82,16 @@ async function cutTurn($: EngineInterface): Promise<void> {
     await $.turn.abort({ turnId: currentTurn })
   } catch {
     // O motor pode recusar o abort de dentro do hook do mesmo turno; a pausa já está registada
-    // e o veto ao Stop impede o re-prompt do ralph.
+    // e recusa as ferramentas seguintes.
   }
 }
 
 export async function startBrake($: EngineInterface): Promise<void> {
   await $.command.register({ name: 'prumo-guard-resume', description: 'Rearma o travão do loop: tira a pausa e recomeça a contagem do orçamento. Só pela pessoa.' })
-  await $.command.register({ name: 'prumo-guard-stop', description: 'Termina o loop do ralph (apaga .claude/ralph-loop.local.md). Só pela pessoa.' })
+  await $.command.register({ name: 'prumo-guard-stop', description: 'Termina o loop do ralph (apaga .claude/ralph-loop.local.md e o .paused). Só pela pessoa.' })
+  if ((await readText($, `${await ralphFile($)}.paused`)) !== null) {
+    $.ui.toast('prumo-guard: há um loop do ralph suspenso; /prumo-guard-resume retoma-o, /prumo-guard-stop termina-o.')
+  }
 }
 
 // Tratadores dos eventos partilhados; o despachante (observers.ts) chama-os por ordem.
@@ -124,45 +167,20 @@ export async function brakeToolCall($: EngineInterface, e: HookInput<'tool.call'
   return ran
 }
 
-export async function brakeStop($: EngineInterface, e: HookInput<'classic.Stop'>, next: HookNext<'classic.Stop'>): HookResult<'classic.Stop'> {
-  const r = await next(e)
-  const b = await read($, brakeRef)
-  if (!b.paused || r.block === undefined) return r
-  const { block: _vetoed, ...rest } = r
-  $.ui.toast('prumo-guard: loop em pausa — o re-prompt do ralph foi anulado.')
-  return rest
-}
-
-// `.catch` do despachante do Stop: o veto é uma decisão e não pode cair com uma falha de outro
-// tratador. `next` aqui repete o resultado já obtido (ou corre os hooks de baixo uma vez).
-export async function brakeStopCaught($: EngineInterface, e: HookInput<'classic.Stop'>, next: HookNext<'classic.Stop'>): HookResult<'classic.Stop'> {
-  const r = await next(e)
-  let paused = pausedMirror
-  try {
-    paused = (await read($, brakeRef)).paused
-  } catch {
-    // Sem estado legível vale o espelho da pausa.
-  }
-  if (!paused || r.block === undefined) return r
-  const { block: _vetoed, ...rest } = r
-  return rest
-}
-
 export function registerBrake(on: On): void {
   on('command.run', { command: 'prumo-guard-resume' }, async ($, e) => {
     if (e.origin?.kind !== 'composer') return { text: HUMAN_ONLY }
     const usd = (await read($, usageRef)).usd
     await update($, brakeRef, () => ({ paused: false, reason: null, loopStartUsd: usd ?? 0, tokens: 0 }))
-    pausedMirror = false
     await update($, repeatRef, () => emptyRepeat())
     await refreshStatus($)
-    return { text: 'Travão rearmado. O orçamento conta a partir de agora.' }
+    return { text: await resumeRalph($) }
   })
 
   on('command.run', { command: 'prumo-guard-stop' }, async ($, e) => {
     if (e.origin?.kind !== 'composer') return { text: HUMAN_ONLY }
-    const file = `${await $.session.cwd()}/.claude/ralph-loop.local.md`
-    const r = await $.process.run(['rm', '-f', file])
-    return { text: r.exitCode === 0 ? `Loop do ralph terminado (${file} apagado).` : `Não consegui apagar ${file}: ${r.stderr.trim()}` }
+    const file = await ralphFile($)
+    const r = await $.process.run(['rm', '-f', file, `${file}.paused`])
+    return { text: r.exitCode === 0 ? `Loop do ralph terminado (${file} e ${file}.paused apagados).` : `Não consegui apagar ${file}: ${r.stderr.trim()}` }
   })
 }
