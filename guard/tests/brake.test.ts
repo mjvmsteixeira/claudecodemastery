@@ -13,14 +13,14 @@ const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isS
 
 type Seen = { brake: Array<{ paused: boolean; reason: string | null; loopStartUsd: number | null; tokens: number }>; repeat: unknown[]; toasts: string[]; notified: string[]; aborted: string[]; status: string; runs: string[][] }
 
-function base(on: On, files: Record<string, string> = {}, opts: { abortFails?: boolean; clockFails?: boolean; mvFails?: boolean; rmFails?: boolean; cwdFails?: boolean } = {}): Seen {
+function base(on: On, files: Record<string, string> = {}, opts: { abortFails?: boolean; clockFails?: boolean; mvFails?: boolean; rmFails?: boolean; cwdFails?: boolean; idFails?: boolean } = {}): Seen {
   const abortFails = opts.abortFails ?? false
   const seen: Seen = { brake: [], repeat: [], toasts: [], notified: [], aborted: [], status: '', runs: [] }
   mock.env(on, { HOME: '/h' })
   on('session.cwd', () => (opts.cwdFails ? { deny: 'sem cwd' } : { value: '/p' }))
   on('clock.now', () => (opts.clockFails ? { deny: 'relógio indisponível' } : { value: 1_000 }))
   on('clock.every', () => ({ deny: 'sem relógio no teste' }))
-  on('session.id', () => ({ value: 's' }))
+  on('session.id', () => (opts.idFails ? { deny: 'sem id' } : { value: 's' }))
   on('fs.read', (_$, e) => (files[e.path] !== undefined ? { value: files[e.path] as string } : { deny: 'ENOENT' }))
   on('fs.stat', () => ({ deny: 'ENOENT' }))
   on('fs.list', (_$, e) => {
@@ -527,4 +527,51 @@ test('I4: o arranque com session.cwd a falhar regista os comandos e a linha de e
   expect(names).toContain('prumo-guard-resume')
   expect(names).toContain('prumo-guard-stop')
   expect(seen.status).not.toBe('')
+})
+
+const EMPTY_ID = '---\nactive: true\niteration: 5\nsession_id: \nmax_iterations: 20\ncompletion_promise: null\n---\nx'
+const ABC_ID = '---\nactive: true\nsession_id: abc\nmax_iterations: 20\n---\nsession_id: no-corpo'
+const NO_ID_IN_FM = '---\niteration: 2\n---\nsession_id: no-corpo'
+
+test('R1: session_id vazio seguido de max_iterations suspende e o resume usa o texto normal', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: EMPTY_ID }
+  base(on, files)
+  await measure($, 1.5)
+  expect(files[ACTIVE]).toBeUndefined()
+  expect(files[PAUSED]).toBe(EMPTY_ID)
+  const r = await $.command.run(cmd('prumo-guard-resume', '', { kind: 'composer' }))
+  expect(r.text).toBe('Travão rearmado. Loop do ralph retomado na iteração 5.')
+})
+
+test('R1: session_id abc com outras chaves a seguir é lido como abc', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: ABC_ID }
+  const seen = base(on, files)
+  await measure($, 1.5)
+  expect(files[ACTIVE]).toBe(ABC_ID)
+  expect(seen.toasts.join(' ')).toContain('de outra sessão')
+})
+
+test('R1: um session_id no corpo fora do frontmatter é ignorado', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: NO_ID_IN_FM }
+  base(on, files)
+  await measure($, 1.5)
+  expect(files[PAUSED]).toBe(NO_ID_IN_FM)
+})
+
+test('R2: se o relógio falhar ao guardar o antigo, a pausa completa e o toast diz que não suspendeu', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: OWN, [PAUSED]: RALPH7 }
+  const seen = base(on, files, { clockFails: true })
+  await measure($, 1.5)
+  expect(last(seen)?.paused).toBe(true)
+  expect(seen.toasts.join(' ')).toContain('o loop do ralph não foi suspenso')
+  expect(seen.status).toContain('pausa')
+})
+
+test('R2: se session.id rejeitar, a pausa completa e o toast diz que não suspendeu', async ($, on) => {
+  const files: Record<string, string> = { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: OWN }
+  const seen = base(on, files, { idFails: true })
+  await measure($, 1.5)
+  expect(last(seen)?.paused).toBe(true)
+  expect(seen.toasts.join(' ')).toContain('o loop do ralph não foi suspenso')
+  expect(seen.status).toContain('pausa')
 })

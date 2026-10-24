@@ -82,7 +82,7 @@ async function trip($: EngineInterface, reason: string): Promise<void> {
   const b = await read($, brakeRef)
   if (b.paused) return
   await update($, brakeRef, s => ({ ...(s ?? b), paused: true, reason }))
-  const ralph = await suspendRalph($)
+  const ralph = await suspendRalph($).catch((): Suspension => ({ result: 'failed', saved: null }))
   const base = ralph.result === 'suspended' ? 'loop do ralph suspenso.' : ralph.result === 'failed' ? 'o loop do ralph não foi suspenso.' : ralph.result === 'other' ? 'o loop do ralph é de outra sessão; não foi suspenso.' : ''
   const note = [base, ralph.saved ? `(um loop suspenso antigo foi guardado em ${ralph.saved})` : ''].filter(Boolean).join(' ')
   $.ui.toast(`prumo-guard: loop em pausa — ${reason}. ${note ? `${note} ` : ''}/prumo-guard-resume para continuar.`)
