@@ -2,6 +2,21 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.2.0 — 2026-10-24
+
+**Tier user: sem `classic.*`, e um travão que trava.** O `cc-plugin-sec-default` passa os eventos `classic.*` adiante sem chamar os mods do tier user, por isso o escritor do FRIDAY e o veto no `Stop` nunca correram e enchiam o contexto de avisos. O mod deixa de os registar, e o travão passa a atuar pelos eventos que o tier user recebe.
+
+### Mudanças de comportamento
+
+- Em pausa, o travão recusa todas as ferramentas exceto `loop_phase`, incluindo as dos subagentes. A recusa entra no trilho CEF como `deny`. Só com `brake.enabled`.
+- No disparo, o loop do ralph fica suspenso: `.claude/ralph-loop.local.md` passa a `.claude/ralph-loop.local.md.paused`, e sem esse ficheiro o stop hook do ralph não faz re-prompt. Só se suspende um loop desta sessão (o `session_id` do frontmatter) ou sem dono; o de outra sessão no mesmo projeto não é tocado e o aviso di-lo. Um `.paused` antigo é guardado como `.paused.<epoch ms>`.
+- `/prumo-guard-resume` repõe o `.paused` e retoma o loop (se for de outra sessão, repõe-no e diz a que sessão pertence e como retomar). `/prumo-guard-stop` termina-o: apaga o ficheiro ativo, o `.paused` e os `.paused.<epoch ms>`; não tira a pausa. Ambos funcionam sempre, mesmo em pausa.
+- No arranque, se houver um `.paused`, um aviso di-lo.
+- O FRIDAY sai do mod: o caminho é o `friday-state.sh` da FRIDAY, e a chave `friday` do `guard.json` passa a ser ignorada.
+- O mod deixa de registar `classic.*`, que no tier user eram saltados e enchiam o contexto de avisos.
+- O despachante `tool.call` decide e falha aberto: se o estado do travão não se puder ler, a chamada passa.
+- `mod-audit`: 7 hooks gating sem `.catch` e 4 com (antes 17 e 5). Testes: 320.
+
 ## v1.1.0 — 2026-10-15
 
 **Regras de aprovação por projeto.** Num pedido N1, `4: Este comando, sempre neste projeto` ou `5: Todos os N1 neste projeto` grava uma regra em `~/.prumo/rules/<sha256 do projeto>.json` e aprova o comando atual. A regra fica ativa nesta sessão.
