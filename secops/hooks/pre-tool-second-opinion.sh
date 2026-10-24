@@ -27,7 +27,15 @@ GRAYZONE_OBFUSCATION='base64[[:space:]]*(-d|--decode)|(^|[;&|(`[:space:]])eval([
 GRAYZONE_UNGUARDED='cross-tenant|all-tenants|vault[[:space:]]+operator[[:space:]]+seal|vault[[:space:]]+write[[:space:]]+transit.*rotate'
 GRAYZONE_REGEX="${GRAYZONE_OBFUSCATION}|${GRAYZONE_UNGUARDED}"
 
-if ! printf '%s' "$CMD" | grep -qiE "$GRAYZONE_REGEX"; then
+# O `sh -c` que segue um `docker [compose] exec` ou `pct exec` é transporte para
+# dentro do contentor, não evasão: tira-se só esse invólucro. O script lá dentro
+# continua a passar pela zona-cinzenta (aspas neutralizadas, para `'eval` e `bash'`
+# colados à aspa não escaparem). Sem isto, cada teste no contentor carregava o
+# modelo de 30B (20 GB) — medido 18/10/2026.
+CMD_GZ=$(printf '%s' "$CMD" \
+  | sed -E 's/((docker([[:space:]]+compose)?|pct)[^|;&]*[[:space:]]exec[[:space:]][^|;&]*)(\/bin\/|\/usr\/bin\/)?(ba)?sh[[:space:]]+-c([[:space:]]|$)/\1CONTENTOR_SH /g' \
+  | tr "'\"" '  ')
+if ! printf '%s' "$CMD_GZ" | grep -qiE "$GRAYZONE_REGEX"; then
   exit 0
 fi
 

@@ -2,7 +2,7 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 1.0.1 · prumo-secops 1.0.1 · prumo-devkit 1.0.0 · prumo-design 1.0.0 · prumo-guard 1.2.0**
+Estado actual: **prumo-base 1.0.2 · prumo-secops 1.0.2 · prumo-devkit 1.0.0 · prumo-design 1.0.0 · prumo-guard 1.2.0**
 
 **Convenção de tags: `prumo-<plugin>-v<versão>`, uma por plugin e por release.** Todas as tags actuais apontam para o commit onde o `plugin.json` desse plugin tem essa versão — invariante verificável com `git show <tag>:<plugin>/.claude-plugin/plugin.json`. Releases coordenadas do marketplace inteiro levam também uma tag de calendário (`prumo-2026.10.0`).
 
@@ -11,6 +11,14 @@ As tags legacy `v0.5.0`, `v0.5.1` e `v0.6.0` são anteriores à convenção e n�
 ## prumo-guard 1.2.0 — 2026-10-24
 
 O prumo-guard deixa de registar os hooks `classic.*` (o FRIDAY writer e o veto no `Stop`), que o `cc-plugin-sec-default` não chama no tier user. O travão, quando ligado, passa a recusar todas as ferramentas exceto `loop_phase` enquanto está em pausa e a suspender o loop do ralph (`ralph-loop.local.md` passa a `.paused`); `/prumo-guard-resume` retoma e `/prumo-guard-stop` termina. A chave `friday` do `guard.json` é ignorada. Detalhe em `guard/CHANGELOG.md`.
+
+## prumo-base 1.0.2 — 2026-10-23
+
+O aviso de arranque do Vault deixa de mandar desselar à mão quando o Docker está parado e passa a dizer o que se passa: Docker parado, container parado, Vault sem resposta, ou selado apesar das chaves. Detalhe em `base/CHANGELOG.md`.
+
+## prumo-secops 1.0.2 — 2026-10-18
+
+O guardrail semântico (`second-opinion`) deixa de consultar o Ollama quando o `sh -c` é só transporte para dentro de um contentor (`docker exec`, `docker compose exec`, `pct exec`). Detalhe em `secops/CHANGELOG.md`.
 
 ## prumo-guard 1.1.0 · prumo-base 1.0.1 — 2026-10-15
 
