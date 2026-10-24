@@ -84,3 +84,48 @@ test('um guard.json com a chave friday antiga é aceite sem aviso', async ($, on
   expect(r.text ?? '').not.toContain('friday')
   expect(toasts).toEqual([])
 })
+
+const panelLine = async ($: Engine, on: On, json: string) => {
+  mock.env(on, { HOME: '/h' })
+  on('fs.read', () => ({ value: json }))
+  on('fs.stat', () => ({ deny: 'ENOENT' }))
+  const r = await $.command.run(cmd('prumo-guard'))
+  return (r.text ?? '').split('\n').find(l => l.startsWith('painel:')) ?? ''
+}
+
+test('panel por omissão é 50/80', async ($, on) => {
+  expect(await panelLine($, on, '{}')).toBe('painel: aviso 50% · crítico 80%')
+})
+
+test('panel válido é usado', async ($, on) => {
+  expect(await panelLine($, on, '{"panel":{"warn":40,"crit":70}}')).toBe('painel: aviso 40% · crítico 70%')
+})
+
+const D = 'painel: aviso 50% · crítico 80%'
+test('panel incoerente (warn > crit) volta aos dois por omissão', async ($, on) => {
+  expect(await panelLine($, on, '{"panel":{"warn":90,"crit":80}}')).toBe(D)
+})
+
+test('panel incoerente (warn = crit) volta aos dois por omissão', async ($, on) => {
+  expect(await panelLine($, on, '{"panel":{"warn":80,"crit":80}}')).toBe(D)
+})
+
+test('panel com warn texto usa os defaults', async ($, on) => {
+  expect(await panelLine($, on, '{"panel":{"warn":"x"}}')).toBe(D)
+})
+
+test('panel com warn fora de 1-100 usa só o default desse campo', async ($, on) => {
+  expect(await panelLine($, on, '{"panel":{"warn":0,"crit":70}}')).toBe('painel: aviso 50% · crítico 70%')
+})
+
+test('panel com decimal e acima de 100 usa os defaults', async ($, on) => {
+  expect(await panelLine($, on, '{"panel":{"warn":30.5,"crit":101}}')).toBe(D)
+})
+
+test('panel parcial só com warn usa o crit por omissão', async ($, on) => {
+  expect(await panelLine($, on, '{"panel":{"warn":30}}')).toBe('painel: aviso 30% · crítico 80%')
+})
+
+test('panel parcial só com warn incoerente com o crit por omissão volta aos defaults', async ($, on) => {
+  expect(await panelLine($, on, '{"panel":{"warn":85}}')).toBe('painel: aviso 50% · crítico 80%')
+})

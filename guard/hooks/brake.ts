@@ -83,6 +83,7 @@ async function trip($: EngineInterface, reason: string): Promise<void> {
   if (b.paused) return
   await update($, brakeRef, s => ({ ...(s ?? b), paused: true, reason }))
   const ralph = await suspendRalph($).catch((): Suspension => ({ result: 'failed', saved: null }))
+  await update($, brakeRef, s => ({ ...(s ?? b), ralph: ralph.result }))
   const base = ralph.result === 'suspended' ? 'loop do ralph suspenso.' : ralph.result === 'failed' ? 'o loop do ralph não foi suspenso.' : ralph.result === 'other' ? 'o loop do ralph é de outra sessão; não foi suspenso.' : ''
   const note = [base, ralph.saved ? `(um loop suspenso antigo foi guardado em ${ralph.saved})` : ''].filter(Boolean).join(' ')
   $.ui.toast(`prumo-guard: loop em pausa — ${reason}. ${note ? `${note} ` : ''}/prumo-guard-resume para continuar.`)
@@ -190,7 +191,7 @@ export function registerBrake(on: On): void {
   on('command.run', { command: 'prumo-guard-resume' }, async ($, e) => {
     if (e.origin?.kind !== 'composer') return { text: HUMAN_ONLY }
     const usd = (await read($, usageRef)).usd
-    await update($, brakeRef, () => ({ paused: false, reason: null, loopStartUsd: usd ?? 0, tokens: 0 }))
+    await update($, brakeRef, () => ({ paused: false, reason: null, loopStartUsd: usd ?? 0, tokens: 0, ralph: null }))
     await update($, repeatRef, () => emptyRepeat())
     await refreshStatus($)
     return { text: await resumeRalph($) }
@@ -207,6 +208,7 @@ export function registerBrake(on: On): void {
     } catch {
       // Sem a listagem apagam-se só os dois ficheiros conhecidos.
     }
+    await update($, brakeRef, s => ({ ...(s ?? BRAKE_DEFAULT), ralph: null }))
     const r = await $.process.run(['rm', '-f', file, `${file}.paused`, ...old])
     return { text: r.exitCode === 0 ? `Loop do ralph terminado (${file}, ${file}.paused${old.length ? ` e ${old.length} guardado(s) antigo(s)` : ''} apagados).` : `Não consegui apagar ${file} nem ${file}.paused: ${r.stderr.trim()}` }
   })

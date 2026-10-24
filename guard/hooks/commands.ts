@@ -44,6 +44,7 @@ export function registerCommands(on: On): void {
       ...(problem ? [`aviso: ${problem}`] : []),
       `travão: ${cfg.brake.enabled ? 'ligado' : 'desligado (guard.json → brake.enabled)'}`,
       `orçamento: ${cfg.brake.usdBudget} USD · repetição: ${cfg.brake.repeatLimit} · ips internos: ${cfg.redact.internalIps ? 'on' : 'off'}`,
+      `painel: aviso ${cfg.panel.warn}% · crítico ${cfg.panel.crit}%`,
       `configuração: ${await prumoHome($)}/guard.json`,
     ]
     return { text: lines.join('\n') }

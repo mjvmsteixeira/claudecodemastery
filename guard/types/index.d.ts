@@ -25,7 +25,8 @@ export type PrumoGuardApproval = {
 export type PrumoGuardLoop = { active: boolean; iteration: number | null; maxIterations: number | null }
 export type PrumoGuardTests = { command: string; passed: number; failed: number; at: number }
 export type PrumoGuardAgent = { id: string; type: string; startedAt: number }
-export type PrumoGuardUsage = { contextPercent: number | null; usd: number | null; rate: string }
+export type PrumoGuardWindow = { kind: string; percent: number; resetsAt?: string }
+export type PrumoGuardUsage = { contextPercent: number | null; usd: number | null; windows: PrumoGuardWindow[] }
 
 export type PrumoGuardRepeat = {
   lastKey: string | null
@@ -35,7 +36,7 @@ export type PrumoGuardRepeat = {
   edits: { file: string; old: string; neu: string }[]
   flips: number
 }
-export type PrumoGuardBrake = { paused: boolean; reason: string | null; loopStartUsd: number | null; tokens: number }
+export type PrumoGuardBrake = { paused: boolean; reason: string | null; loopStartUsd: number | null; tokens: number; ralph: 'suspended' | 'failed' | 'other' | 'none' | null }
 
 // Uma regra de aprovação do projeto (~/.prumo/rules/<sha256 do projeto>.json). Só N1. Só vale numa
 // sessão depois de a pessoa a ativar; o match usa a cópia tirada nesse momento (rulesActive).

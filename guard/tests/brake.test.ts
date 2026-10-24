@@ -11,7 +11,7 @@ const CFG_USD = '{"brake":{"enabled":true,"usdBudget":1}}'
 const BAND = { plugin: 'prumo-guard', surface: 'terminal', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 8, bodyColumns: 80, scroll: { offset: 0, bodyRows: 8 }, view: {} } } as const
 const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false }
 
-type Seen = { brake: Array<{ paused: boolean; reason: string | null; loopStartUsd: number | null; tokens: number }>; repeat: unknown[]; toasts: string[]; notified: string[]; aborted: string[]; status: string; runs: string[][] }
+type Seen = { brake: Array<{ paused: boolean; reason: string | null; loopStartUsd: number | null; tokens: number; ralph: 'suspended' | 'failed' | 'other' | 'none' | null }>; repeat: unknown[]; toasts: string[]; notified: string[]; aborted: string[]; status: string; runs: string[][] }
 
 function base(on: On, files: Record<string, string> = {}, opts: { abortFails?: boolean; clockFails?: boolean; mvFails?: boolean; rmFails?: boolean; cwdFails?: boolean; idFails?: boolean } = {}): Seen {
   const abortFails = opts.abortFails ?? false
@@ -133,7 +133,7 @@ test('/prumo-guard-resume pela pessoa rearma o travão e recomeça a contagem', 
   await measure($, 1.5)
   const r = await $.command.run(cmd('prumo-guard-resume', '', { kind: 'composer' }))
   expect(r.text).toContain('rearmado')
-  expect(last(seen)).toEqual({ paused: false, reason: null, loopStartUsd: 1.5, tokens: 0 })
+  expect(last(seen)).toEqual({ paused: false, reason: null, loopStartUsd: 1.5, tokens: 0, ralph: null })
   expect(seen.repeat.length).toBeGreaterThan(0)
 })
 
@@ -163,7 +163,7 @@ test('/prumo-guard-stop apaga o ficheiro e o .paused e não tira a pausa', async
   expect(files[ACTIVE]).toBeUndefined()
   expect(files[PAUSED]).toBeUndefined()
   expect(r.text).toContain('terminado')
-  expect(seen.brake.length).toBe(before)
+  expect(seen.brake.length).toBe(before + 1)
   expect(last(seen)?.paused).toBe(true)
 })
 
@@ -290,7 +290,7 @@ test('travão desligado não recusa mesmo com paused no estado', async ($, on) =
   base(on, { '/h/.prumo/guard.json': '{"brake":{"enabled":false}}' })
   const calls = { n: 0 }
   on('tool.call', () => { calls.n++; return { result: '', text: 'ok' } })
-  on('state.get', { plugin: 'prumo-guard', key: 'brake' }, () => ({ value: { value: { paused: true, reason: 'x', loopStartUsd: null, tokens: 0 }, version: 1 } }))
+  on('state.get', { plugin: 'prumo-guard', key: 'brake' }, () => ({ value: { value: { paused: true, reason: 'x', loopStartUsd: null, tokens: 0, ralph: null }, version: 1 } }))
   const r = await $.tool.call({ tool: 'Bash', command: 'ls' })
   expect(r.deny).toBeUndefined()
   expect(calls.n).toBe(1)
@@ -299,7 +299,7 @@ test('travão desligado não recusa mesmo com paused no estado', async ($, on) =
 test('sem motivo, a recusa diz motivo não registado', async ($, on) => {
   base(on, { '/h/.prumo/guard.json': '{"brake":{"enabled":true}}' })
   on('tool.call', () => ({ result: '', text: 'ok' }))
-  on('state.get', { plugin: 'prumo-guard', key: 'brake' }, () => ({ value: { value: { paused: true, reason: null, loopStartUsd: null, tokens: 0 }, version: 1 } }))
+  on('state.get', { plugin: 'prumo-guard', key: 'brake' }, () => ({ value: { value: { paused: true, reason: null, loopStartUsd: null, tokens: 0, ralph: null }, version: 1 } }))
   const r = await $.tool.call({ tool: 'Bash', command: 'ls' })
   expect(r.deny).toBe(`${BRAKE_DENY_PREFIX} (motivo não registado). Nenhuma ferramenta corre até a pessoa retomar com /prumo-guard-resume (ou terminar o loop com /prumo-guard-stop). Para já, explica em texto o que estavas a fazer e onde ficaste.`)
 })
@@ -574,4 +574,39 @@ test('R2: se session.id rejeitar, a pausa completa e o toast diz que não suspen
   expect(last(seen)?.paused).toBe(true)
   expect(seen.toasts.join(' ')).toContain('o loop do ralph não foi suspenso')
   expect(seen.status).toContain('pausa')
+})
+
+test('o disparo grava brake.ralph com o resultado da suspensão', async ($, on) => {
+  const seen = base(on, { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: RALPH7 })
+  await measure($, 1.5)
+  expect(last(seen)?.ralph).toBe('suspended')
+})
+
+test('o disparo sem loop grava brake.ralph none', async ($, on) => {
+  const seen = base(on, { '/h/.prumo/guard.json': CFG_USD })
+  await measure($, 1.5)
+  expect(last(seen)?.ralph).toBe('none')
+})
+
+test('o disparo com falha ao mover grava brake.ralph failed', async ($, on) => {
+  const seen = base(on, { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: RALPH7 }, { mvFails: true })
+  await measure($, 1.5)
+  expect(last(seen)?.ralph).toBe('failed')
+})
+
+test('o resume limpa brake.ralph', async ($, on) => {
+  const seen = base(on, { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: RALPH7 })
+  await measure($, 1.5)
+  expect(last(seen)?.ralph).toBe('suspended')
+  await $.command.run(cmd('prumo-guard-resume', '', { kind: 'composer' }))
+  expect(last(seen)?.ralph).toBeNull()
+})
+
+test('o stop limpa brake.ralph e mantém a pausa', async ($, on) => {
+  const seen = base(on, { '/h/.prumo/guard.json': CFG_USD, [ACTIVE]: RALPH7 })
+  await measure($, 1.5)
+  expect(last(seen)?.ralph).toBe('suspended')
+  await $.command.run(cmd('prumo-guard-stop', '', { kind: 'composer' }))
+  expect(last(seen)?.ralph).toBeNull()
+  expect(last(seen)?.paused).toBe(true)
 })

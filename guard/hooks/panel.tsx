@@ -60,7 +60,7 @@ export async function panelMeasure($: EngineInterface, e: HookInput<'session.mea
   await update($, usageRef, () => ({
     contextPercent: e.context.percent ?? null,
     usd: e.cost?.usd ?? null,
-    rate: e.rateLimits.map(r => `${r.kind} ${Math.round(r.percentUsed)}%`).join(' · '),
+    windows: e.rateLimits.map(r => (r.resetsAt === undefined ? { kind: r.kind, percent: r.percentUsed } : { kind: r.kind, percent: r.percentUsed, resetsAt: r.resetsAt })),
   }))
   return next(e)
 }
@@ -115,7 +115,7 @@ export function registerPanel(on: On): void {
       phase ? `fase ${phase}` : null,
       usage.contextPercent !== null ? `ctx ${Math.round(usage.contextPercent)}%` : null,
       fmtUsd(usage.usd) || null,
-      usage.rate || null,
+      usage.windows.map(w => `${w.kind} ${Math.round(w.percent)}%`).join(' · ') || null,
     ].filter(Boolean).join(' · ')
     return (
       <Box flexDirection="column">
