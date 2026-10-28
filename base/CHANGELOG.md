@@ -2,6 +2,14 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.0.3 — 2026-10-28
+
+**O `secret-read` deixa passar a chave de um `ssh`.** Um `ssh -i ~/.ssh/id_claude host ...` era bloqueado como leitura da chave, e com ele todas as receitas de acesso SSH com chave do Vault. O `ssh` autentica com a chave sem a mostrar, por isso o conteúdo nunca chegava ao modelo.
+
+- Em cláusulas cujo verbo é `ssh`, `scp` ou `sftp`, o argumento de `-i` (também colado, `-i/caminho`) e de `-o IdentityFile` (com `=`, colado a `-o` ou com espaço entre aspas) deixa de contar como leitura.
+- **Só esse argumento passa.** O resto da cláusula continua a ser varrido: um comando remoto que mostre uma chave, a origem de um `scp` que copie uma chave, outra opção `-o` (por exemplo `ProxyCommand=cat ...`) e um `.env` por stdin continuam bloqueados.
+- Corpus `sr-49` a `sr-58`: cinco formas de `-i`/`IdentityFile` que passam e cinco desvios que continuam bloqueados. Os cinco que passam falham contra o hook da 1.0.2.
+
 ## v1.0.2 — 2026-10-23
 
 **O aviso de arranque do Vault diz a causa certa e o comando certo.** Com o `vault` do Homebrew instalado e o servidor num container, o `VAULT_MODE` é `native`. Com o Docker parado, o hook não reconhecia o caso: dizia "auto-unseal failed" e mandava correr `./ops-vault.sh unseal`, que pede as chaves à mão, quando bastava voltar a correr o hook depois de arrancar o Docker.

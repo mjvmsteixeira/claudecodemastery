@@ -14,7 +14,7 @@ O `/prumo-onboard` detecta o que falta, emite as linhas de install dos restantes
 
 | Plugin | Versão | Para quê |
 |---|---|---|
-| **prumo-base** | 1.0.2 | Fundação: gestão de segredos com Vault, diagnóstico do setup, governança da memória do agente. **Instalar primeiro.** |
+| **prumo-base** | 1.0.3 | Fundação: gestão de segredos com Vault, diagnóstico do setup, governança da memória do agente. **Instalar primeiro.** |
 | **prumo-secops** | 1.0.2 | SecOps para um SaaS multi-tenant — isolamento entre clientes, release gates, resposta a incidentes, conformidade. |
 | **prumo-devkit** | 1.0.0 | Auditoria de código e infra: segurança, dependências, performance, UX. Read-only por defeito. |
 | **prumo-design** | 1.0.0 | Orquestrador de design sobre a stack nativa do Claude. Standalone. |

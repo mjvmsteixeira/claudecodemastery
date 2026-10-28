@@ -5,7 +5,8 @@
 # Read e Grep sobre o ficheiro e, no Bash, qualquer palavra do comando que
 # nomeie um ficheiro de segredos (varredura do comando inteiro, incluindo
 # $(...), subshells, bash -c, ciclos e globs), excepto em cláusulas cujo verbo
-# não mostra conteúdo (ls, stat, source, wc, chmod, ...).
+# não mostra conteúdo (ls, stat, source, wc, chmod, ...). No ssh/scp/sftp, a
+# chave passada por -i ou -o IdentityFile também passa: autentica sem mostrar.
 # `source .env` passa (carrega sem mostrar); `cut -d= -f1 .env` passa (nomes).
 #
 # Bloqueia em prod e dev; em lab passa e fica registado — excepção ao
@@ -153,10 +154,23 @@ while IFS= read -r clause; do
 
   skip_pat=0
   case "$first" in grep|egrep|fgrep|rg|ag) skip_pat=1 ;; esac
+  # ssh/scp/sftp autenticam com a chave de -i / -o IdentityFile sem a mostrar;
+  # só esse argumento passa, o resto da cláusula (comando remoto, origem do
+  # scp) continua a ser varrido.
+  ident=0; skip_id=0
+  case "$first" in ssh|scp|sftp) ident=1 ;; esac
   j=0
   for w in "${words[@]}"; do
     j=$((j+1))
     [ "$j" -gt "$start" ] || continue
+    if [ "$ident" = 1 ]; then
+      if [ "$skip_id" = 1 ]; then skip_id=0; continue; fi
+      lw=$(lower "$w")
+      case "$lw" in
+        -i|identityfile|-oidentityfile) skip_id=1; continue ;;
+        -i?*|identityfile=*|-oidentityfile=*) continue ;;
+      esac
+    fi
     if [ "$skip_pat" = 1 ] && [ "$j" -gt $((start+1)) ]; then
       case "$w" in
         -e|-f|--regexp|--file) skip_pat=0 ;;
