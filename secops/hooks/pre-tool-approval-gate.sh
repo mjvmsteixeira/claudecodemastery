@@ -95,25 +95,39 @@ if [ -z "$LEVEL" ] && match 'DELETE([[:space:]]|/\*[^*]*\*/)+FROM\b'; then
 fi
 
 # Inbox do prumo-guard: o valor capturado só sai dela com a pessoa a aprovar.
-# Cobre a promoção (vault-promote.sh), qualquer leitura da inbox (kv get, vault
-# read, curl/wget à API) e o seu apagamento. A captura (vault-write-field.sh) não
-# entra: só escreve. Leituras e apagamentos fora da inbox não casam.
-if [ -z "$LEVEL" ] && match 'vault-promote\.sh'; then
+# Cobre a promoção (vault-promote.sh com uma referência da inbox), a leitura da
+# inbox pelas formas comuns (kv get, kv get -mount=secret, vault read, curl/wget à
+# API) e o seu apagamento. A captura (vault-write-field.sh) não entra: só escreve.
+# Leituras e apagamentos fora da inbox não casam. Limites assumidos (modelo de
+# confiança do gate): codificação em percentagem, variáveis, eval e base64 não
+# são vistos.
+# Cópia normalizada só para estas regras: `//` e `/./` num caminho valem `/`.
+CMDN=$(printf '%s' "$CMD" | sed -E 's#/+#/#g; s#/\./#/#g; s#/\./#/#g')
+matchn() { echo "$CMDN" | grep -qiE "$1"; }
+MOUNT_RE='-mount[=[:space:]]+["'"'"']?secret["'"'"']?[[:space:]]'
+INBOX_ARG='([^[:space:]]+[[:space:]]+)*["'"'"']?inbox/'
+if [ -z "$LEVEL" ] && matchn 'vault-promote\.sh["'"'"']?[[:space:]]+["'"'"']?secret/inbox/'; then
   LEVEL="N2"
 fi
-if [ -z "$LEVEL" ] && match '(^|[[:space:]])kv[[:space:]]+(-[^[:space:]]+[[:space:]]+)*get[[:space:]].*secret/inbox/'; then
+if [ -z "$LEVEL" ] && matchn '(^|[[:space:]])kv[[:space:]]+(-[^[:space:]]+[[:space:]]+)*get[[:space:]].*secret/inbox/'; then
   LEVEL="N2"
 fi
-if [ -z "$LEVEL" ] && match 'vault[[:space:]]+read[[:space:]].*secret/data/inbox/'; then
+if [ -z "$LEVEL" ] && matchn '(^|[[:space:]])kv[[:space:]]+(metadata[[:space:]]+)?get[[:space:]].*'"$MOUNT_RE""$INBOX_ARG"; then
   LEVEL="N2"
 fi
-if [ -z "$LEVEL" ] && match '(curl|wget)[[:space:]].*/v1/secret/data/inbox/'; then
+if [ -z "$LEVEL" ] && matchn 'vault[[:space:]]+read[[:space:]].*secret/data/inbox/'; then
   LEVEL="N2"
 fi
-if [ -z "$LEVEL" ] && match '(^|[[:space:]])kv[[:space:]]+(metadata[[:space:]]+)?(delete|destroy)[[:space:]].*secret/inbox/'; then
+if [ -z "$LEVEL" ] && matchn '(curl|wget)[[:space:]].*/v1/secret/(data|metadata)/inbox/'; then
   LEVEL="N2"
 fi
-if [ -z "$LEVEL" ] && match 'vault[[:space:]]+delete[[:space:]].*secret/(data|metadata)/inbox/'; then
+if [ -z "$LEVEL" ] && matchn '(^|[[:space:]])kv[[:space:]]+(metadata[[:space:]]+)?(delete|destroy)[[:space:]].*secret/inbox/'; then
+  LEVEL="N2"
+fi
+if [ -z "$LEVEL" ] && matchn '(^|[[:space:]])kv[[:space:]]+(metadata[[:space:]]+)?(delete|destroy)[[:space:]].*'"$MOUNT_RE""$INBOX_ARG"; then
+  LEVEL="N2"
+fi
+if [ -z "$LEVEL" ] && matchn 'vault[[:space:]]+delete[[:space:]].*secret/(data|metadata)/inbox/'; then
   LEVEL="N2"
 fi
 

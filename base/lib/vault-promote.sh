@@ -25,6 +25,7 @@ case "$DEST/" in secret/inbox/*) fail "o destino não pode estar na inbox" ;; es
 source "$(dirname "${BASH_SOURCE[0]}")/vault-env.sh" >/dev/null 2>&1
 [ -n "${VAULT_TOKEN:-}" ] || fail "sem token da pessoa"
 command -v shasum >/dev/null 2>&1 || fail "shasum em falta"
+command -v jq >/dev/null 2>&1 || fail "jq em falta (precisa dele para ler a versão do destino)"
 
 EMPTY=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 hash_of() { V kv get -field="$2" "$1" 2>/dev/null | shasum -a 256 | cut -d' ' -f1; }
@@ -36,7 +37,7 @@ H_IN=$(hash_of "$IN" "$IF") || fail "leitura da inbox falhou"
 # Falha de leitura conta como «não existe»; o `put -cas=0` falha então se existir.
 PREV=$(V kv get -format=json "$DEST" 2>/dev/null | jq -r '.data.metadata.version // empty' 2>/dev/null) || PREV=""
 if [ -n "$PREV" ]; then
-  VERB="patch"; CAS=""
+  VERB="patch"; CAS="-cas=$PREV"
 else
   VERB="put"; CAS="-cas=0"
 fi
@@ -53,7 +54,7 @@ fi || {
   if [ "$VERB" = put ]; then
     fail "gravação falhou ($DEST#$F). Se o destino já existe e este token não o consegue ler, nada foi alterado (put -cas=0); a inbox ficou intacta"
   fi
-  fail "gravação falhou ($DEST#$F); a inbox ficou intacta"
+  fail "gravação falhou ($DEST#$F); pode ter havido uma escrita concorrente no destino; a inbox ficou intacta"
 }
 
 H_OUT=$(hash_of "$DEST" "$F") || H_OUT=""

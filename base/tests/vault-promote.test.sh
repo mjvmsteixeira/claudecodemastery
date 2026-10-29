@@ -24,11 +24,12 @@ run_vault() {
       case "$p" in secret/inbox/*) ;; *) [ -n "${FAKE_NOREAD_DEST:-}" ] && exit 2 ;; esac
       [ -d "$d" ] || exit 2
       if [ -n "$fld" ]; then [ -f "$d/$fld" ] || exit 2; cat "$d/$fld"
-      else printf '{"data":{"data":{},"metadata":{"version":%s}}}\n' "$(cat "$d/.ver")"; fi
+      else printf '{"data":{"data":{},"metadata":{"version":%s}}}\n' "$(cat "$d/.ver")"
+        [ -n "${FAKE_RACE:-}" ] && echo $(( $(cat "$d/.ver") + 1 )) > "$d/.ver"; fi
       exit 0 ;;
     "kv put"|"kv patch")
       verb="$2"; shift 2; cas=""
-      for a in "$@"; do case "$a" in -cas=*) cas="${a#-cas=}";; *) set -- "$@"; esac; done
+      for a in "$@"; do case "$a" in -cas=*) cas="${a#-cas=}";; esac; done
       pos=(); for a in "$@"; do case "$a" in -*) ;; *) pos+=("$a");; esac; done
       path="${pos[0]}"; f="${pos[1]%=-}"
       d="$KV/$(key "$path")"
@@ -39,6 +40,7 @@ run_vault() {
         v=$(cat "$d/.ver" 2>/dev/null || echo 0); rm -rf "$d"; mkdir -p "$d"; echo $((v+1)) > "$d/.ver"
       else
         [ -d "$d" ] || { cat >/dev/null; exit 2; }
+        [ -n "$cas" ] && [ "$cas" != "$(cat "$d/.ver")" ] && { cat >/dev/null; exit 3; }
         echo $(( $(cat "$d/.ver") + 1 )) > "$d/.ver"
       fi
       cat > "$d/$f"
@@ -81,7 +83,7 @@ ok()  { PASS=$((PASS+1)); echo "  ok   $1"; }
 bad() { FAIL=$((FAIL+1)); echo "  FAIL $1"; }
 
 A="ab"; B="cd"
-TOKP="person-${A}${B}"; ROOTM="ROOT-${A}${B}"
+TOKP="person-${A}${B}"
 INB=secret/inbox/proj/api; DST=secret/projects/proj/svc
 KVD() { printf '%s' "$1" | tr '/' '_'; }
 setup() { # setup <valor> [campo-inbox]
@@ -91,7 +93,7 @@ setup() { # setup <valor> [campo-inbox]
 dest_file() { echo "$T/kv/$(KVD "$1")/$2"; }
 run() { # run <inbox-ref> <destino> <campo>
   ( env -u VAULT_FORCE_DOCKER ${DOCKER:+VAULT_FORCE_DOCKER=1} \
-    VAULT_TOKEN="$TOKP" FAKE_DIR="$T" FAKE_CORRUPT="${CORRUPT:-}" FAKE_PUTFAIL="${PUTFAIL:-}" FAKE_DELFAIL="${DELFAIL:-}" FAKE_NOREAD_DEST="${NOREAD:-}" FAKE_ROLLFAIL="${ROLLFAIL:-}" \
+    VAULT_TOKEN="$TOKP" FAKE_DIR="$T" FAKE_CORRUPT="${CORRUPT:-}" FAKE_PUTFAIL="${PUTFAIL:-}" FAKE_DELFAIL="${DELFAIL:-}" FAKE_NOREAD_DEST="${NOREAD:-}" FAKE_ROLLFAIL="${ROLLFAIL:-}" FAKE_RACE="${RACE:-}" \
     HOME="$T/home" PATH="$T/bin:/opt/homebrew/bin:/usr/bin:/bin" \
     VAULT_HOME="$T/vhome" VAULT_ADDR="http://127.0.0.1:1" PRUMO_VAULT_CREDS="$T/creds.json" \
     bash "$SCRIPT" "$1" "$2" "$3" >"$T/out" 2>"$T/err" )
@@ -116,7 +118,7 @@ grep -q 'auth/approle' "$T/argv.log" && bad "usou AppRole" || ok "sem login AppR
 grep -qF "$TOKP" "$T/argv.log" && bad "token no argv" || ok "token fora do argv"
 
 echo "destino existente -> patch, preserva outras chaves"
-setup "$VAL"; mkdir -p "$T/kv/$(KVD $DST)"; echo 1 > "$T/kv/$(KVD $DST)/.ver"; printf 'outro' > "$(dest_file $DST other)"; cp -R "$T/kv/$(KVD $DST)" "$T/snap_seed" 2>/dev/null; mkdir -p "$T/snap"; cp -R "$T/kv/$(KVD $DST)" "$T/snap/$(KVD $DST).1"
+setup "$VAL"; mkdir -p "$T/kv/$(KVD $DST)"; echo 1 > "$T/kv/$(KVD $DST)/.ver"; printf 'outro' > "$(dest_file $DST other)"; mkdir -p "$T/snap"; cp -R "$T/kv/$(KVD $DST)" "$T/snap/$(KVD $DST).1"
 run "$INB#value" $DST api_key
 [ "$RC" = 0 ] && grep -qx "patch $DST" "$T/writes.log" && ok "usou patch" || bad "rc=$RC writes=$(cat "$T/writes.log" 2>/dev/null)"
 [ ! -e "$T/put-on-existing" ] && ok "nunca put em existente" || bad "put em existente"
@@ -180,6 +182,25 @@ CORRUPT=1 ROLLFAIL=1 run "$INB#value" $DST api_key
 [ "$RC" = 1 ] && grep -qF "vault kv rollback -version=1 $DST" "$T/err" && ok "rollback falhado: comando manual na mensagem" || bad "rollfail: $(cat "$T/err")"
 [ -e "$T/kv/$(KVD "$INB")/value" ] && ok "inbox intacta" || bad "inbox apagada"
 noleak "sv-${A}${B}"
+
+echo "patch usa -cas=<versão>; escrita concorrente falha em vez de sobrescrever"
+setup "$VAL"; mkdir -p "$T/kv/$(KVD $DST)"; echo 1 > "$T/kv/$(KVD $DST)/.ver"; printf 'antigo' > "$(dest_file $DST api_key)"
+run "$INB#value" $DST api_key
+[ "$RC" = 0 ] && grep -q 'kv patch -cas=1 ' "$T/argv.log" && ok "patch -cas=1" || bad "rc=$RC argv=$(grep patch "$T/argv.log")"
+setup "$VAL"; mkdir -p "$T/kv/$(KVD $DST)"; echo 1 > "$T/kv/$(KVD $DST)/.ver"; printf 'antigo' > "$(dest_file $DST api_key)"
+RACE=1 run "$INB#value" $DST api_key
+[ "$RC" = 1 ] && [ "$(cat "$(dest_file $DST api_key)")" = antigo ] && [ -e "$T/kv/$(KVD "$INB")/value" ] && ok "concorrência: exit 1, destino e inbox intactos" || bad "race rc=$RC"
+grep -q 'concorrente' "$T/err" && ok "mensagem menciona escrita concorrente" || bad "mensagem: $(cat "$T/err")"
+setup "$VAL"; mkdir -p "$T/kv/$(KVD $DST)"; echo 1 > "$T/kv/$(KVD $DST)/.ver"; printf 'antigo' > "$(dest_file $DST api_key)"
+DOCKER=1 RACE=1 run "$INB#value" $DST api_key
+[ "$RC" = 1 ] && [ "$(cat "$(dest_file $DST api_key)")" = antigo ] && grep -q -- '-cas=1' "$T/argv.log" && ok "docker: -cas=1 e concorrência recusada" || bad "docker race rc=$RC"
+
+echo "jq ausente -> mensagem clara"
+setup "$VAL"; mkdir -p "$T/nojq"; for b in bash env cat tr cut grep sed shasum perl dirname basename rm mkdir touch cp date stat mktemp head awk sh; do p=$(command -v $b) && ln -sf "$p" "$T/nojq/$b"; done
+# cópia da lib sem o PATH extra do vault-env.sh (que traria o jq do Homebrew)
+mkdir -p "$T/lib2"; cp "$HERE/../lib/"*.sh "$T/lib2/"; sed -i.bak 's#/opt/homebrew/bin:/usr/local/bin:##' "$T/lib2/vault-env.sh"
+( env -u VAULT_FORCE_DOCKER VAULT_TOKEN="$TOKP" FAKE_DIR="$T" HOME="$T/home" PATH="$T/bin:$T/nojq" VAULT_HOME="$T/vhome" bash "$T/lib2/vault-promote.sh" "$INB#value" $DST api_key >"$T/out" 2>"$T/err" ); RC=$?
+[ "$RC" = 1 ] && grep -q 'jq em falta' "$T/err" && [ ! -e "$T/writes.log" ] && ok "jq em falta: exit 1 com mensagem clara" || bad "jq: rc=$RC $(cat "$T/err")"
 
 echo "recusas"
 for c in "secret/outro/x#value|$DST|k|ref fora da inbox" "secret/inbox/x|$DST|k|ref sem #campo" \
