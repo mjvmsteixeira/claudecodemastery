@@ -10,10 +10,22 @@ const cmp = (a: string, b: string) => {
   return 0
 }
 
+async function leadsToDir($: EngineInterface, path: string): Promise<boolean> {
+  try {
+    return (await $.fs.stat(path, { resolve: true })).kind === 'dir'
+  } catch {
+    return false
+  }
+}
+
 export async function latestPluginDir($: EngineInterface, plugin: string): Promise<string | null> {
   const root = `${(await $.env.get('HOME')) ?? ''}/.claude/plugins/cache/prumo/${plugin}`
   try {
-    const versions = (await $.fs.list(root)).filter(e => e.kind === 'dir' && /^\d+(\.\d+)*$/.test(e.name)).map(e => e.name)
+    const versions: string[] = []
+    for (const e of await $.fs.list(root)) {
+      if (!/^\d+(\.\d+)*$/.test(e.name)) continue
+      if (e.kind === 'dir' || (e.kind === 'other' && (await leadsToDir($, `${root}/${e.name}`)))) versions.push(e.name)
+    }
     if (versions.length === 0) return null
     versions.sort(cmp)
     return `${root}/${versions[versions.length - 1]}`
