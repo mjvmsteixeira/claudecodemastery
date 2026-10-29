@@ -157,3 +157,23 @@ test('cobertura: valor entre aspas sem espaços depois de palavra solta é redig
 test('cobertura: PRIMARY_KEY= é redigido (limite conhecido, ver README)', () => {
   expect(redactText('PRIMARY_KEY=id_col', SECRETS_ONLY).hits).toBe(1)
 })
+
+const reposicao: Array<[string, string, string]> = [
+  ['R1a', 'password "' + 'correct horse battery"', 'horse'],
+  ['R1b', 'a senha é "' + 'correct horse battery"', 'horse'],
+  ['R1c', 'pass "' + 'Xk9 mPq2"', 'mPq2'],
+  ['R1d', 'pass "' + 'Xk9mPq2vL$x"', 'mPq2'],
+  ['R2a', 'senha: abc!' + 'def', 'abc!'],
+  ['R2b', 'senha: Correct.' + 'Horse.Battery', 'Horse'],
+  ['R2c', 'the password is Correct.' + 'Horse', 'Horse'],
+  ['R3', 'password=' + '99%abc', '99%a'],
+  ['R4', 'API_KEY=' + '\\$abc123def', 'abc1'],
+]
+
+for (const [id, text, value] of reposicao) {
+  test(`cobertura: ${id} voltou a ser redigido`, () => {
+    const r = redactText(text, SECRETS_ONLY)
+    expect(r.hits).toBe(1)
+    expect(r.text.includes(value)).toBe(false)
+  })
+}

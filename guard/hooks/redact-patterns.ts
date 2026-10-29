@@ -50,29 +50,39 @@ function ibanValid(raw: string): boolean {
   return rem === 1
 }
 
-const KEYWORDS = String.raw`(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]?secret|senha|palavra[-_ ]passe|passphrase|(?<![A-Za-z])pass)(?:_[A-Za-z0-9_]*)?`
+const KEYWORD_SUFFIX = String.raw`(?:_[A-Za-z0-9_]*)?`
+const KEYWORDS_OTHER = String.raw`(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]?secret|senha|palavra[-_ ]passe|passphrase)${KEYWORD_SUFFIX}`
+// 'pass' sozinho é também um verbo ("pass rate", pass "all tests passed"): as aspas com espaços pedem mais prova
+const KEYWORDS_PASS = String.raw`(?<![A-Za-z])pass${KEYWORD_SUFFIX}`
 // sensível a maiúsculas para não apanhar sort_key=created_at
 const KEYWORDS_ENV = String.raw`\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*_KEY`
 
 // referências a variáveis, placeholders e literais não são valores; "99.5%" é uma taxa, não uma palavra-passe
-const NOT_A_VALUE = String.raw`(?!\[prumo:|\\?\$|process\.env|os\.environ|ENV\[|<|\{\{|\d[\d.,]*%)(?!(?:true|false|null|none|nil|undefined|string|str|number|int|bool|boolean|required|optional)(?![^\s"'&;,.)]))`
+const NOT_A_VALUE = String.raw`(?!\[prumo:|\$|\\\$(?:[({]|[A-Z_]{2})|process\.env|os\.environ|ENV\[|<|\{\{|\d[\d.,]*%(?![^\s"'&;,.)]))(?!(?:true|false|null|none|nil|undefined|string|str|number|int|bool|boolean|required|optional)(?![^\s"'&;,.)]))`
 // pontuação de fim de frase ou de markdown: nunca conta como símbolo nem pertence ao valor
 const TRAIL = '.)\\]`*!?:'
 const UNQUOTED = String.raw`(?:[^\s"'&;,]|[;,](?=[^\s"'&;,])){5,}`
 const UNQUOTED_TRIM = String.raw`${UNQUOTED}(?<![${TRAIL}])`
 const QUOTED = String.raw`(["'])${NOT_A_VALUE}[^"'\n]{5,}\2`
-// em prosa só conta com dígito ou símbolo dentro do valor; sem isto "password reset" seria segredo
-const SYMBOL = String.raw`[^\p{L}\s"'&;,${TRAIL}]`
+// em prosa só conta com dígito ou símbolo dentro do valor (a pontuação interna conta, a final não); sem isto "password reset" seria segredo
+const SYMBOL = String.raw`(?:[^\p{L}\s"'&;,${TRAIL}]|(?<=[^\s"'&;,${TRAIL}])[${TRAIL.replace(':', '')}](?=[^\s"'&;,${TRAIL}]))`
 // depois de uma palavra solta o '/', '_' e '-' são caminhos e nomes (auth/approle/login), não sinal de segredo
 const SYMBOL_STRICT = String.raw`[^\p{L}\s"'&;,${TRAIL}/_-]`
 const hasDigitOrSymbol = (symbol: string, skip = '') =>
   String.raw`(?=(?:\p{L}|[${TRAIL}${skip}])*(?:${symbol}|[;,][^\s"'&;,]))`
-// entre aspas, depois de uma palavra solta, uma frase ("all tests passed") ou uma expansão de shell não é segredo: sem espaços, sem $, com símbolo
-const QUOTED_WITH_SYMBOL = String.raw`(["'])${NOT_A_VALUE}(?![^"'\s]*\$)(?=[^"'\s]*[^\p{L}\s"'${TRAIL}/_-])[^"'\s]{5,}\2`
+// entre aspas, depois de uma palavra solta: sem espaços pede símbolo e sem expansão de shell; com espaços ("correct horse battery") serve qualquer frase sem sinais de código
+const VAR = String.raw`\$(?:[({]|[A-Za-z_]{2})`
+const QUOTED_SYMBOL = String.raw`[^\p{L}\s"'${TRAIL}/_-]`
+const QUOTED_NOSPACE = String.raw`(?![^"'\s]*${VAR})(?=[^"'\s]*${QUOTED_SYMBOL})[^"'\s]{5,}`
+const QUOTED_SPACED = String.raw`(?=[^"'\n]* )(?![^"'\n]*${VAR})[^"'\n\[\]{}+]{5,}`
+const QUOTED_PROSE = String.raw`(["'])${NOT_A_VALUE}(?:${QUOTED_NOSPACE}|${QUOTED_SPACED})\2`
+// 'pass' sozinho é também um verbo ("pass \"all tests passed\""): com espaços exige dígito ou símbolo e no máximo 4 palavras
+const QUOTED_PASS_SPACED = String.raw`(?=[^"'\n]{5})(?=[^"'\n]* )(?![^"'\n]*${VAR})(?=[^"'\n]*${QUOTED_SYMBOL})[^"'\n\[\]{}+ ]+(?: [^"'\n\[\]{}+ ]+){1,3}`
+const QUOTED_PASS = String.raw`(["'])${NOT_A_VALUE}(?:${QUOTED_NOSPACE}|${QUOTED_PASS_SPACED})\2`
 // código de shell a seguir a uma palavra solta: flags, redirecções, caminhos, subshells, pipes
 const SHELL_START = String.raw`(?:[-~/(|>]|\d>)`
 
-function segredoRules(keywords: string, flags: string): Rule[] {
+function segredoRules(keywords: string, flags: string, passKeywords?: string): Rule[] {
   // o grupo 2 é a aspa quando o valor vem entre aspas; sem aspas fica undefined
   const replace = (_m: string, lead?: string, q?: string) => {
     const quote = typeof q === 'string' ? q : ''
@@ -80,11 +90,16 @@ function segredoRules(keywords: string, flags: string): Rule[] {
   }
   const rule = (lead: string, value: string): Rule => ({ name: 'SEGREDO', re: new RegExp(String.raw`(${lead})${value}`, flags), replace })
   const unquoted = (symbol: string, skip?: string) => `${hasDigitOrSymbol(symbol, skip)}${NOT_A_VALUE}${UNQUOTED_TRIM}`
+  const all = passKeywords ? `(?:${keywords}|${passKeywords})` : keywords
+  const prose = (kw: string, quoted: string) => [
+    rule(String.raw`${kw}(?![A-Za-z/\\])["']?[^\n]{0,30}?[ \t](?:é|is|era|was)[ \t]+`, `(?:${quoted}|${unquoted(SYMBOL)})`),
+    rule(String.raw`${kw}(?![A-Za-z/\\])["']?[ \t]+(?!${SHELL_START})`, `(?:${quoted}|${unquoted(SYMBOL_STRICT, '/_-')})`),
+  ]
   return [
-    rule(String.raw`${keywords}["']?[ \t]*[=:]`, `(?:${QUOTED}|${NOT_A_VALUE}${UNQUOTED})`),
-    rule(String.raw`${keywords}(?![A-Za-z])["']?[ \t]*[=:][ \t]+`, `(?:${QUOTED}|${unquoted(SYMBOL)})`),
-    rule(String.raw`${keywords}(?![A-Za-z/\\])["']?[^\n]{0,30}?[ \t](?:é|is|era|was)[ \t]+`, `(?:${QUOTED_WITH_SYMBOL}|${unquoted(SYMBOL)})`),
-    rule(String.raw`${keywords}(?![A-Za-z/\\])["']?[ \t]+(?!${SHELL_START})`, `(?:${QUOTED_WITH_SYMBOL}|${unquoted(SYMBOL_STRICT, '/_-')})`),
+    rule(String.raw`${all}["']?[ \t]*[=:]`, `(?:${QUOTED}|${NOT_A_VALUE}${UNQUOTED})`),
+    rule(String.raw`${all}(?![A-Za-z])["']?[ \t]*[=:][ \t]+`, `(?:${QUOTED}|${unquoted(SYMBOL)})`),
+    ...prose(keywords, QUOTED_PROSE),
+    ...(passKeywords ? prose(passKeywords, QUOTED_PASS) : []),
   ]
 }
 
@@ -98,7 +113,7 @@ const RULES: Rule[] = [
   { name: 'CHAVE-API', re: /\b(?:sk-[A-Za-z0-9_-]{20,}|(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{10,}|AIza[A-Za-z0-9_-]{35}|glpat-[A-Za-z0-9_-]{20,}|npm_[A-Za-z0-9]{36})/g },
   { name: 'TELEGRAM-TOKEN', re: /\b\d{8,10}:AA[A-Za-z0-9_-]{33}\b/g },
   { name: 'TOKEN', re: /\b(Bearer)\s+[A-Za-z0-9._~+/-]{16,}=*/g, replace: (_m, kw) => `${kw} ${ph('TOKEN')}` },
-  ...segredoRules(KEYWORDS, 'giu'),
+  ...segredoRules(KEYWORDS_OTHER, 'giu', KEYWORDS_PASS),
   ...segredoRules(KEYWORDS_ENV, 'gu'),
   { name: 'URL-CREDENCIAIS', re: /(\b[a-z][a-z0-9+.-]*:\/\/[^\s:\/@]+:)(?!\[prumo:)([^\s@\/]{3,})(@)/gi, replace: (_m, lead, _pw, at) => `${lead}${ph('SEGREDO')}${at}` },
   { name: 'EMAIL', pii: true, re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g },
