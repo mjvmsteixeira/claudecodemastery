@@ -2,6 +2,20 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.3.1 — 2026-10-29
+
+**A redação apanha mais, e o Vault deixa de receber marcadores.** Uma palavra-passe escrita em prosa passava em claro, e um valor já redigido podia ser gravado no Vault como se fosse o segredo.
+
+### Mudanças de comportamento
+
+- **Palavras-chave novas:** `senha`, `palavra-passe` (também com espaço ou `_`), `passphrase` e `pass` (não dentro de `bypass`, `compass`, `passport`).
+- **Prosa:** `<palavra-chave> … é|is|era|was <valor>` e `<palavra-chave> <valor>`. Sem aspas, o valor em prosa ou depois de `: ` tem de conter um dígito ou um símbolo. Valores com 5 ou mais caracteres; com aspas podem ter espaços, sem aspas podem ter `,` e `;`.
+- **`.env`:** variáveis em maiúsculas `*_KEY=`.
+- **Classes novas:** `CHAVE-API` (`sk-`, `sk-proj-`, `sk-ant-`, `sk-svcacct-`, `sk_live_`/`sk_test_`/`rk_live_`/`rk_test_`, `AIza`, `glpat-`, `npm_`) e `TELEGRAM-TOKEN`. `SLACK-TOKEN` aceita também `xapp-`.
+- **Exclusões:** referências (`$…`, `process.env`, `os.environ`, `ENV[`, `<…>`, `{{…}}`) e tipos ou literais (`true`, `false`, `null`, `none`, `nil`, `undefined`, `string`, `str`, `number`, `int`, `bool`, `boolean`, `required`, `optional`).
+- **Limite conhecido:** um PIN de 4 dígitos não é coberto.
+- **Gravações no Vault com marcadores recusadas** (hook `tool.call` no Bash, fail-closed, ativo mesmo com a redação desligada): `vault kv put|patch` (também com opções como `-mount=` pelo meio), `vault write` em `secret/`, `kv` ou com `-mount=`, e `curl`/`wget` de escrita em `/v1/secret/` ou `/v1/<mount>/(data|metadata)/`. A recusa manda guardar o valor no terminal da pessoa com `vault kv patch <caminho> <campo>=-` (`kv put` se o caminho não existir).
+
 ## v1.3.0 — 2026-10-24
 
 **Painel com consumo a cores.** A band acima do prompt passa a mostrar o consumo de contexto, dos limites de taxa e do custo com barras coloridas, e avisa quando um limite se aproxima do fim.

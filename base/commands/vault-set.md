@@ -14,6 +14,8 @@ Perguntar ao utilizador (ou usar os argumentos passados ao comando):
 2. **Key** — nome da chave (ex: `api_key`, `token`)
 3. **Valor** — pedir que cole o valor (avisar que ficará visível no terminal)
 
+Com o prumo-guard ativo, um valor colado no chat pode chegar redigido como `[prumo:…]`, e o que seria gravado é o marcador, não o segredo. A forma preferida é a pessoa correr no seu terminal `vault kv patch <caminho> <campo>=-` (ou `vault kv put <caminho> <campo>=-` se o caminho não existir) e colar lá o valor, que é lido do stdin e nunca passa pelo chat.
+
 Se o utilizador não souber o path, sugerir com base no contexto:
 - API key LLM → `secret/ai/<serviço>` ou `secret/projects/<nome>/<serviço>`
 - Token GitHub → `secret/tokens/github`
@@ -39,6 +41,13 @@ VALOR=$(cat <<'EOF_VALOR'
 EOF_VALOR
 )
 
+# Recusar marcadores de redação: o valor real não chegou até aqui
+case "$VALOR" in
+  *'[prumo:'*)
+    echo "Valor redigido pelo prumo-guard — nada foi gravado. No teu terminal: vault kv patch $PATH_VAULT $KEY=- (ou kv put se o caminho não existir) e cola lá o valor."
+    exit 1 ;;
+esac
+
 # Verificar se o path já existe
 if V kv get -format=json "$PATH_VAULT" > /dev/null 2>&1; then
   # Actualizar só a key (preserva as restantes) — valor passado como argv único
@@ -57,6 +66,9 @@ Após o comando, verificar que foi guardado lendo apenas o início:
 source "${CLAUDE_PLUGIN_ROOT}/lib/vault-env.sh"
 
 VAL=$(V kv get -format=json "<PATH>" | jq -r '.data.data.<KEY>')
+case "$VAL" in
+  *'[prumo:'*) echo "ERRO: o valor guardado é um marcador de redação"; exit 1 ;;
+esac
 if [ "$VAL" = "PLACEHOLDER" ] || [ -z "$VAL" ]; then
   echo "ERRO: valor não foi guardado"
 else

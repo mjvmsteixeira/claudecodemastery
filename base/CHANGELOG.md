@@ -2,6 +2,14 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.0.3 — 2026-10-29
+
+**O `/vault-set` recusa valores redigidos.** Com o prumo-guard ativo, um valor colado no chat pode chegar como marcador `[prumo:…]`, e o comando gravava o marcador no Vault como se fosse o segredo.
+
+- **Passo 1:** avisa que o valor pode chegar redigido e propõe a forma preferida: a pessoa corre no seu terminal `vault kv patch <caminho> <campo>=-` (ou `kv put` se o caminho não existir) e cola lá o valor.
+- **Passo 2:** se o valor contiver `[prumo:`, aborta sem gravar e repete a instrução do terminal.
+- **Passo 3:** a verificação falha também quando o valor lido do Vault contém `[prumo:`.
+
 ## v1.0.2 — 2026-10-23
 
 **O aviso de arranque do Vault diz a causa certa e o comando certo.** Com o `vault` do Homebrew instalado e o servidor num container, o `VAULT_MODE` é `native`. Com o Docker parado, o hook não reconhecia o caso: dizia "auto-unseal failed" e mandava correr `./ops-vault.sh unseal`, que pede as chaves à mão, quando bastava voltar a correr o hook depois de arrancar o Docker.

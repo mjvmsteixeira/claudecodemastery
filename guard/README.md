@@ -48,12 +48,16 @@ Só N1; o `run_with_secret` pede sempre, sem as opções 4 e 5. Uma regra "todos
 
 Antes de o conteúdo chegar ao modelo, os valores sensíveis são trocados por `[prumo:CLASSE]`. Aplica-se a resultados de ferramentas, mensagens de ferramentas, anexos, contexto de hooks e entregas (`session.append`) e ao texto que a pessoa escreve (`prompt.submit`, desligável com `redact.prompt`).
 
-- Segredos (sempre): chave privada, JWT, token do Vault, chave AWS, token GitHub, token Slack, `Bearer`, pares `password/secret/token/api_key=valor`, credenciais em URL.
+- Segredos (sempre): chave privada, JWT, token do Vault, chave AWS, token GitHub, token Slack (`xoxb-`, `xoxp-`, `xapp-` e afins), token do Telegram, chaves de fornecedores (`sk-`, `sk-proj-`, `sk-ant-`, `sk-svcacct-`, `sk_live_`/`sk_test_`/`rk_live_`/`rk_test_`, `AIza`, `glpat-`, `npm_`, classe `CHAVE-API`), `Bearer`, credenciais em URL e pares chave-valor com `password`, `senha`, `palavra-passe` (também com espaço ou `_`), `passphrase`, `pass`, `secret`, `token`, `api_key` ou variáveis `*_KEY=` em maiúsculas (por exemplo num `.env`).
+  - Também em prosa: `<palavra-chave> … é|is|era|was <valor>` e `<palavra-chave> <valor>`. Sem aspas, o valor em prosa ou depois de `: ` tem de conter um dígito ou um símbolo; com aspas pode ter espaços. Valores com menos de 5 caracteres ficam de fora, e `pass` não dispara dentro de palavras como `bypass`, `compass` ou `passport`.
+  - Referências e tipos não são redigidos: `$VAR`, `process.env`, `os.environ`, `ENV[`, `<…>`, `{{…}}`, `true`, `false`, `null`, `none`, `nil`, `undefined`, `string`, `str`, `number`, `int`, `bool`, `boolean`, `required` e `optional`.
+  - Limite conhecido: um PIN de 4 dígitos não é coberto (curto demais para distinguir de números comuns).
 - PII (ligada por omissão, mas não em `Read`, `Grep`, `Glob` e `NotebookRead` salvo `redact.readPii`): email, IBAN PT, cartão de cidadão, NIF (com validação do dígito de controlo) e telefone PT.
 - IPs internos (10.x, 172.16-31.x, 192.168.x): só com `redact.internalIps`.
 - Padrões próprios em `redact.json` (ver abaixo).
 - Guarda contra corrupção: um `Write`, `Edit` ou `MultiEdit` que traga marcadores `[prumo:...]` para um ficheiro existente e apagaria os valores reais é recusado. Os ficheiros do próprio prumo-guard estão isentos.
 - Se a redação falhar, o resultado é retido em vez de passar em claro.
+- Gravações no Vault com marcadores: um comando Bash que grave no Vault um valor com um marcador `[prumo:` é recusado, mesmo com a redação desligada. Cobre `vault kv put|patch` (também com opções como `-mount=` pelo meio), `vault write` em `secret/`, `kv` ou com `-mount=`, e `curl`/`wget` de escrita em `/v1/secret/` ou `/v1/<mount>/(data|metadata)/`. A recusa manda a pessoa guardar o valor no seu terminal com `vault kv patch <caminho> <campo>=-` (o valor é lido do stdin; `kv put` se o caminho não existir).
 
 Estado: `/prumo-guard-redact on|off` (só pela pessoa) liga ou desliga durante a sessão. Na linha de estado e no `/prumo-guard` aparece como `RGPD on` ou `RGPD off`.
 

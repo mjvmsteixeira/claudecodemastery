@@ -2,11 +2,15 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 1.0.2 · prumo-secops 1.0.2 · prumo-devkit 1.0.0 · prumo-design 1.0.0 · prumo-guard 1.3.0**
+Estado actual: **prumo-base 1.0.3 · prumo-secops 1.0.2 · prumo-devkit 1.0.0 · prumo-design 1.0.0 · prumo-guard 1.3.1**
 
 **Convenção de tags: `prumo-<plugin>-v<versão>`, uma por plugin e por release.** Todas as tags actuais apontam para o commit onde o `plugin.json` desse plugin tem essa versão — invariante verificável com `git show <tag>:<plugin>/.claude-plugin/plugin.json`. Releases coordenadas do marketplace inteiro levam também uma tag de calendário (`prumo-2026.10.0`).
 
 As tags legacy `v0.5.0`, `v0.5.1` e `v0.6.0` são anteriores à convenção e não identificam o plugin (a `v0.5.1` era do devkit, não do base, apesar de a numeração o sugerir). Ficam como estão, por já estarem publicadas; não usar como referência.
+
+## prumo-guard 1.3.1 · prumo-base 1.0.3 — 2026-10-29
+
+A redação do prumo-guard cobre palavras-passe em prosa (`senha`, `palavra-passe`, `passphrase`, `pass`), variáveis `*_KEY=` de `.env`, chaves de fornecedores (`CHAVE-API`), tokens do Telegram e `xapp-` do Slack, com exclusões para referências e tipos. Um hook novo recusa gravar no Vault valores com marcadores `[prumo:`, e o `/vault-set` do prumo-base aborta sem gravar quando recebe um e indica o comando `vault kv patch <caminho> <campo>=-` para correr no terminal. Detalhe em `guard/CHANGELOG.md` e `base/CHANGELOG.md`.
 
 ## prumo-guard 1.3.0 — 2026-10-24
 
