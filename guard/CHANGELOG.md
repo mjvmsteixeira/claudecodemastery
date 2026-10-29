@@ -14,6 +14,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento
 - **Classes novas:** `CHAVE-API` (`sk-`, `sk-proj-`, `sk-ant-`, `sk-svcacct-`, `sk_live_`/`sk_test_`/`rk_live_`/`rk_test_`, `AIza`, `glpat-`, `npm_`) e `TELEGRAM-TOKEN`. `SLACK-TOKEN` aceita também `xapp-`.
 - **Exclusões:** referências (`$…`, `process.env`, `os.environ`, `ENV[`, `<…>`, `{{…}}`) e tipos ou literais (`true`, `false`, `null`, `none`, `nil`, `undefined`, `string`, `str`, `number`, `int`, `bool`, `boolean`, `required`, `optional`).
 - **Limite conhecido:** um PIN de 4 dígitos não é coberto.
+- **Menos falsos positivos:** a pontuação final não conta como símbolo nem entra no valor (`the token expires.`, `token (optional)`); `pass "…"` com frases ou `$` não é redigido; código de shell a seguir à palavra (`secret 2>/dev/null`, `.root_token ~/vault/…`, `auth/approle/login`) e taxas como `99.5%` ficam de fora. `a senha é <valor>.` redige o valor sem o ponto final.
+- **Limites conhecidos:** `PRIMARY_KEY=id_col` é redigido (regra `*_KEY=` mantida); o hook do Vault não vê o conteúdo de ficheiros (`@f.json`) nem variáveis de chamadas anteriores.
 - **Gravações no Vault com marcadores recusadas** (hook `tool.call` no Bash, fail-closed, ativo mesmo com a redação desligada): `vault kv put|patch` (também com opções como `-mount=` pelo meio), `vault write` em `secret/`, `kv` ou com `-mount=`, e `curl`/`wget` de escrita em `/v1/secret/` ou `/v1/<mount>/(data|metadata)/`. A recusa manda guardar o valor no terminal da pessoa com `vault kv patch <caminho> <campo>=-` (`kv put` se o caminho não existir).
 
 ## v1.3.0 — 2026-10-24

@@ -642,6 +642,23 @@ if [ -z "$ONLY_PLUGIN" ] && [ -x "$REPO_ROOT/scripts/eval/run.sh" ]; then
   fi
 fi
 
+# ──────────────────────── 10. redação: falsos positivos nos ficheiros versionados ────────────────────────
+# Total medido em 2026-10-29: 72 (base pré-fase 1: 95; antes desta correção: 151). Sobe quando uma regra de redação alarga.
+REDACT_FP_MAX=76
+if [ -z "$ONLY_PLUGIN" ] && command -v node >/dev/null 2>&1 && [ -f scripts/redact-fp-baseline.ts ]; then
+  section "redação: falsos positivos (git ls-files)"
+  if fp_out=$(node scripts/redact-fp-baseline.ts 2>/dev/null); then
+    fp_n=${fp_out##total }
+    if [ "$fp_n" -le "$REDACT_FP_MAX" ] 2>/dev/null; then
+      pass "redação toca ${fp_n} linhas versionadas (limite ${REDACT_FP_MAX})"
+    else
+      warn "redação toca ${fp_n} linhas versionadas (limite ${REDACT_FP_MAX}) — corre 'node scripts/redact-fp-baseline.ts --list'"
+    fi
+  else
+    info "redact-fp-baseline saltado (node sem suporte a TypeScript)"
+  fi
+fi
+
 # ──────────────────────── resumo ────────────────────────
 echo
 echo "──────────────────────────────────────────"

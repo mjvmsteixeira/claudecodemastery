@@ -7,7 +7,7 @@ type Rule = {
   pii?: boolean
   ip?: boolean
   valid?: (match: string) => boolean
-  replace?: (match: string, ...groups: string[]) => string
+  replace?: (match: string, ...groups: (string | undefined)[]) => string
 }
 
 const ph = (name: string) => `[prumo:${name}]`
@@ -54,31 +54,37 @@ const KEYWORDS = String.raw`(?:password|passwd|pwd|secret|token|api[_-]?key|acce
 // sensível a maiúsculas para não apanhar sort_key=created_at
 const KEYWORDS_ENV = String.raw`\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*_KEY`
 
-// referências a variáveis, placeholders e literais não são valores
-const NOT_A_VALUE = String.raw`(?!\[prumo:|\$|process\.env|os\.environ|ENV\[|<|\{\{)(?!(?:true|false|null|none|nil|undefined|string|str|number|int|bool|boolean|required|optional)(?![^\s"'&;,]))`
+// referências a variáveis, placeholders e literais não são valores; "99.5%" é uma taxa, não uma palavra-passe
+const NOT_A_VALUE = String.raw`(?!\[prumo:|\\?\$|process\.env|os\.environ|ENV\[|<|\{\{|\d[\d.,]*%)(?!(?:true|false|null|none|nil|undefined|string|str|number|int|bool|boolean|required|optional)(?![^\s"'&;,.)]))`
+// pontuação de fim de frase ou de markdown: nunca conta como símbolo nem pertence ao valor
+const TRAIL = '.)\\]`*!?:'
 const UNQUOTED = String.raw`(?:[^\s"'&;,]|[;,](?=[^\s"'&;,])){5,}`
+const UNQUOTED_TRIM = String.raw`${UNQUOTED}(?<![${TRAIL}])`
 const QUOTED = String.raw`(["'])${NOT_A_VALUE}[^"'\n]{5,}\2`
-// depois de ': ' ou em prosa só conta com dígito ou símbolo; sem isto "password reset" seria segredo
-const HAS_DIGIT_OR_SYMBOL = String.raw`(?=\p{L}*(?:[^\p{L}\s"'&;,]|[;,][^\s"'&;,]))`
+// em prosa só conta com dígito ou símbolo dentro do valor; sem isto "password reset" seria segredo
+const SYMBOL = String.raw`[^\p{L}\s"'&;,${TRAIL}]`
+// depois de uma palavra solta o '/', '_' e '-' são caminhos e nomes (auth/approle/login), não sinal de segredo
+const SYMBOL_STRICT = String.raw`[^\p{L}\s"'&;,${TRAIL}/_-]`
+const hasDigitOrSymbol = (symbol: string, skip = '') =>
+  String.raw`(?=(?:\p{L}|[${TRAIL}${skip}])*(?:${symbol}|[;,][^\s"'&;,]))`
+// entre aspas, depois de uma palavra solta, uma frase ("all tests passed") ou uma expansão de shell não é segredo: sem espaços, sem $, com símbolo
+const QUOTED_WITH_SYMBOL = String.raw`(["'])${NOT_A_VALUE}(?![^"'\s]*\$)(?=[^"'\s]*[^\p{L}\s"'${TRAIL}/_-])[^"'\s]{5,}\2`
+// código de shell a seguir a uma palavra solta: flags, redirecções, caminhos, subshells, pipes
+const SHELL_START = String.raw`(?:[-~/(|>]|\d>)`
 
 function segredoRules(keywords: string, flags: string): Rule[] {
-  // sem aspas o segundo argumento já é o texto inteiro (redactText filtra os undefined)
-  const replace = (_m: string, lead: string, q?: string) => {
-    const quote = q === '"' || q === "'" ? q : ''
+  // o grupo 2 é a aspa quando o valor vem entre aspas; sem aspas fica undefined
+  const replace = (_m: string, lead?: string, q?: string) => {
+    const quote = typeof q === 'string' ? q : ''
     return `${lead}${quote}${ph('SEGREDO')}${quote}`
   }
-  const loose = String.raw`[ \t]*[=:][ \t]+|[^\n]{0,30}?[ \t](?:é|is|era|was)[ \t]+|[ \t]+`
+  const rule = (lead: string, value: string): Rule => ({ name: 'SEGREDO', re: new RegExp(String.raw`(${lead})${value}`, flags), replace })
+  const unquoted = (symbol: string, skip?: string) => `${hasDigitOrSymbol(symbol, skip)}${NOT_A_VALUE}${UNQUOTED_TRIM}`
   return [
-    {
-      name: 'SEGREDO',
-      re: new RegExp(String.raw`(${keywords}["']?[ \t]*[=:])(?:${QUOTED}|${NOT_A_VALUE}${UNQUOTED})`, flags),
-      replace,
-    },
-    {
-      name: 'SEGREDO',
-      re: new RegExp(String.raw`(${keywords}(?![A-Za-z])["']?(?:${loose}))(?:${QUOTED}|${HAS_DIGIT_OR_SYMBOL}${NOT_A_VALUE}${UNQUOTED})`, flags),
-      replace,
-    },
+    rule(String.raw`${keywords}["']?[ \t]*[=:]`, `(?:${QUOTED}|${NOT_A_VALUE}${UNQUOTED})`),
+    rule(String.raw`${keywords}(?![A-Za-z])["']?[ \t]*[=:][ \t]+`, `(?:${QUOTED}|${unquoted(SYMBOL)})`),
+    rule(String.raw`${keywords}(?![A-Za-z/\\])["']?[^\n]{0,30}?[ \t](?:é|is|era|was)[ \t]+`, `(?:${QUOTED_WITH_SYMBOL}|${unquoted(SYMBOL)})`),
+    rule(String.raw`${keywords}(?![A-Za-z/\\])["']?[ \t]+(?!${SHELL_START})`, `(?:${QUOTED_WITH_SYMBOL}|${unquoted(SYMBOL_STRICT, '/_-')})`),
   ]
 }
 
@@ -121,7 +127,7 @@ export function redactText(text: string, opts: RedactOptions): { text: string; h
       if (rule.valid && !rule.valid(match)) return match
       hits += 1
       classes.add(rule.name)
-      const groups = rest.filter((g): g is string => typeof g === 'string')
+      const groups = rest.slice(0, rest.findIndex(g => typeof g === 'number')) as (string | undefined)[]
       return rule.replace ? rule.replace(match, ...groups) : ph(rule.name)
     })
   }

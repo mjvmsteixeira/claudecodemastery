@@ -172,7 +172,7 @@ on('tool.call', { tool: /^(Write|Edit|MultiEdit)$/ }, async ($, e, next) => {
 
   // O modelo só vê o marcador; gravá-lo no Vault trocaria o segredo real por texto.
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
-    const command = (e as unknown as { command?: string }).command
+    const command = e.command
     if (typeof command !== 'string' || !command.includes('[prumo:')) return next(e)
     const kvWrite = /\bkv\s+(?:-\S+\s+)*(?:put|patch)\b/.test(command) || /\bwrite\s+(?:-\S+\s+)*(?:-mount=\S+|\S*(?:secret|kv)\/)/.test(command)
     const httpWrite =
@@ -183,8 +183,8 @@ on('tool.call', { tool: /^(Write|Edit|MultiEdit)$/ }, async ($, e, next) => {
     return {
       deny:
         'prumo-guard: este comando grava um marcador de redação no Vault. O valor foi redigido antes de chegar ao modelo e não está disponível; ' +
-        'gravar o marcador destruiria o segredo. A pessoa grava-o no seu terminal com `vault kv patch <caminho> <campo>=-` ' +
-        '(o valor é lido do stdin; `kv put` se o caminho ainda não existir).',
+        'gravar o marcador destruiria o segredo. A pessoa grava-o no seu terminal (com `vault` instalado e VAULT_ADDR/VAULT_TOKEN definidos) com `vault kv patch <caminho> <campo>=-` ' +
+        '(o valor é lido do stdin; `kv put` se o caminho ainda não existir). Em Docker: `docker exec -i -e VAULT_TOKEN vault vault kv patch <caminho> <campo>=-`.',
     }
   }).catch(($, e, next) => (next.called ? next(e) : { deny: 'prumo-guard: a verificação de escritas no Vault falhou.' }))
 }

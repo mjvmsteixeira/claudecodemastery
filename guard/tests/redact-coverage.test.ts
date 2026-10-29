@@ -121,3 +121,39 @@ test('cobertura: texto já redigido não é redigido outra vez', () => {
 test('cobertura: N11, PIN de 4 dígitos não é coberto de propósito', () => {
   expect(redactText('o PIN é 4821', SECRETS_ONLY).hits).toBe(0)
 })
+
+const falsePositives: Array<[string, string]> = [
+  ['P1a', 'the password is required.'],
+  ['P1b', 'the password was null.'],
+  ['P1c', 'the token expires.'],
+  ['P1d', 'Run `vault token renew`'],
+  ['P1e', 'token (optional)'],
+  ['P1f', 'Token requirement**: policy'],
+  ['P1g', 'pass rate was 99.5%'],
+  ['P1h', 'vault write -field=token auth/approle/login'],
+  ['P2', 'pass "all tests passed"'],
+  ['P3a', 'secret 2>/dev/null'],
+  ['P3b', 'jq -r .root_token ~/vault/vault-init.json'],
+  ['P3c', '/bin/pwd (realpath)'],
+  ['P3d', 'secret/ já é kv-v2.'],
+]
+
+for (const [id, text] of falsePositives) {
+  test(`cobertura: ${id} pontuação, aspas e shell ficam intactos`, () => {
+    const r = redactText(text, SECRETS_ONLY)
+    expect(r.hits).toBe(0)
+    expect(r.text).toBe(text)
+  })
+}
+
+test('cobertura: ponto final depois do valor fica fora do marcador', () => {
+  expect(redactText('a senha do servidor é ' + V + '.', SECRETS_ONLY).text).toBe('a senha do servidor é [prumo:SEGREDO].')
+})
+
+test('cobertura: valor entre aspas sem espaços depois de palavra solta é redigido', () => {
+  expect(redactText('a senha é "' + V + '"', SECRETS_ONLY).text).toBe('a senha é "[prumo:SEGREDO]"')
+})
+
+test('cobertura: PRIMARY_KEY= é redigido (limite conhecido, ver README)', () => {
+  expect(redactText('PRIMARY_KEY=id_col', SECRETS_ONLY).hits).toBe(1)
+})

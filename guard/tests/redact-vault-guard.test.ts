@@ -78,3 +78,15 @@ test('vault kv get -mount=secret passa', async ($, on) => {
   const r = await $.tool.call({ tool: 'Bash', command: 'vault kv get -mount=secret x' })
   expect(r.deny).toBeUndefined()
 })
+
+test('com a redação desligada o Vault continua a recusar marcadores', async ($, on) => {
+  mock.env(on, { HOME: '/h' })
+  on('fs.read', (_$, e) => (e.path === '/h/.prumo/guard.json' ? { value: '{"redact":{"enabled":false}}' } : { deny: 'ENOENT' }))
+  on('fs.exists', (_$, e) => ({ value: e.path === '/h/.prumo/guard.json' }))
+  on('fs.stat', () => ({ deny: 'ENOENT' }))
+  on('tool.call', () => ({ result: 'ok', text: 'ok' }))
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: '/h', surface: null, isInteractive: false })
+  const r = await $.tool.call({ tool: 'Bash', command: `vault kv patch secret/x k=${M}` })
+  expect(r.deny).toBeDefined()
+})

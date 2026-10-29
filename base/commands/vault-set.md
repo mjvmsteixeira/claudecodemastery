@@ -14,7 +14,7 @@ Perguntar ao utilizador (ou usar os argumentos passados ao comando):
 2. **Key** — nome da chave (ex: `api_key`, `token`)
 3. **Valor** — pedir que cole o valor (avisar que ficará visível no terminal)
 
-Com o prumo-guard ativo, um valor colado no chat pode chegar redigido como `[prumo:…]`, e o que seria gravado é o marcador, não o segredo. A forma preferida é a pessoa correr no seu terminal `vault kv patch <caminho> <campo>=-` (ou `vault kv put <caminho> <campo>=-` se o caminho não existir) e colar lá o valor, que é lido do stdin e nunca passa pelo chat.
+Com o prumo-guard ativo, um valor colado no chat pode chegar redigido como `[prumo:…]`, e o que seria gravado é o marcador, não o segredo. A forma preferida é a pessoa correr no seu terminal, com o `vault` instalado e `VAULT_ADDR`/`VAULT_TOKEN` definidos, `vault kv patch <caminho> <campo>=-` (ou `vault kv put <caminho> <campo>=-` se o caminho não existir) e colar lá o valor, que é lido do stdin e nunca passa pelo chat. Com o Vault em Docker: `docker exec -i -e VAULT_TOKEN vault vault kv patch <caminho> <campo>=-`.
 
 Se o utilizador não souber o path, sugerir com base no contexto:
 - API key LLM → `secret/ai/<serviço>` ou `secret/projects/<nome>/<serviço>`
@@ -47,7 +47,7 @@ EOF_VALOR
 M='[pru''mo:'
 case "$VALOR" in
   *"$M"*)
-    echo "Valor redigido pelo prumo-guard — nada foi gravado. No teu terminal: vault kv patch $PATH_VAULT $KEY=- (ou kv put se o caminho não existir) e cola lá o valor."
+    echo "Valor redigido pelo prumo-guard — nada foi gravado. No teu terminal (com vault instalado e VAULT_ADDR/VAULT_TOKEN definidos): vault kv patch $PATH_VAULT $KEY=- (ou kv put se o caminho não existir) e cola lá o valor. Em Docker: docker exec -i -e VAULT_TOKEN vault vault kv patch $PATH_VAULT $KEY=-"
     exit 1 ;;
 esac
 
