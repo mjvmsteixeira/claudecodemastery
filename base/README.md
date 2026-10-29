@@ -87,7 +87,7 @@ Se já tens `~/vault/` com `docker-compose.yml`, `vault-init.json`, `policies/`,
 
 ### Inbox do prumo-guard
 
-O `lib/vault-write-field.sh` (1.1.0) grava um campo lido do stdin em `secret/inbox/…` (`kv put -cas=0`, nunca sobrescreve) e serve a captura do prumo-guard 1.4.0: os segredos colados no chat ficam em `secret/inbox/<projeto>/<id>` (campo `value`). O token usado é o do cache AppRole (`~/.prumo/token-cache`) ou o do `vault-env.sh`, e precisa de `create` em `secret/data/inbox/*` (KV v2). Política mínima, a juntar à do AppRole em uso (não altera as existentes):
+O `lib/vault-write-field.sh` (1.1.0) grava um campo lido do stdin em `secret/inbox/…` (`kv put -cas=0`, nunca sobrescreve) e serve a captura do prumo-guard 1.4.0: os segredos colados no chat ficam em `secret/inbox/<projeto>/<id>` (campo `value`). Identidade: o `vault-write-field.sh` faz o seu próprio login AppRole como `agent-claude`, com as credenciais de `${PRUMO_VAULT_CREDS:-$HOME/vault/approle-credentials.json}` (`role_id` e `secret_id` seguem por stdin, nunca em argv), e guarda o token em `~/.prumo/inbox-token-cache` (modo 600, TTL de 600 s, separado do `token-cache` dos outros hooks). Não usa o token do cache dos hooks, nem o do ambiente, nem o token raiz do `vault-init.json`: sem credenciais `agent-claude` ou com o login a falhar, termina com erro e o segredo fica só redigido. Por isso a role do projeto (a do nome da pasta) não precisa de `prumo-inbox`: só a `agent-claude`. A `agent-claude` precisa de `create` em `secret/data/inbox/*` (KV v2; com `-cas=0` a gravação só cria, por isso `update` não é necessário). Política mínima, a juntar à que a role já tem:
 
 ```hcl
 path "secret/data/inbox/*" {
@@ -95,7 +95,7 @@ path "secret/data/inbox/*" {
 }
 ```
 
-Pré-requisito: a captura só funciona depois de anexar ao AppRole do Claude uma policy com este HCL.
+Pré-requisito: a captura só funciona depois de anexar à role `agent-claude` uma policy com este HCL.
 
 A pessoa cria o ficheiro `prumo-inbox-policy.hcl` com o HCL acima (ou passa-o no stdin) e, com um token de administração, corre:
 
@@ -105,13 +105,15 @@ vault read auth/approle/role/agent-claude                  # ver token_policies 
 vault write auth/approle/role/agent-claude token_policies="claude-policy,prumo-inbox"
 ```
 
-`token_policies` substitui a lista inteira: manter as policies que a role já tenha e acrescentar `prumo-inbox` (o exemplo parte de `claude-policy`). Nenhum path da policy atual cobre a inbox, por isso sem a `prumo-inbox` o token não tem permissão e a captura cai sempre no caminho «não guardado».
+`token_policies` substitui a lista inteira: manter as policies que a role já tenha e acrescentar `prumo-inbox` (o exemplo parte de `claude-policy`). Sem a `prumo-inbox` a role não tem permissão e a captura cai no caminho «não guardado».
 
-Roles por projeto: o token em cache (`~/.prumo/token-cache`, TTL de 600 s, emitido pelo `secops/hooks/pre-tool-vault-ttl.sh`) é o da role com o nome da pasta do projeto, se existir em `~/vault/approle-credentials.json`, e senão o da `agent-claude`. Nos projetos com role própria, a captura só funciona se essa role também tiver a `prumo-inbox`: `vault write auth/approle/role/<nome-da-pasta> token_policies="<policies atuais>,prumo-inbox"`.
+Roles por projeto: não precisam de `prumo-inbox`; o escritor usa sempre a `agent-claude`, qualquer que seja a pasta do projeto.
 
-Um token emitido antes da alteração só ganha a permissão no próximo login (apagar `~/.prumo/token-cache` ou esperar os 600 s).
+Um token em cache emitido antes de alterar as policies só ganha a permissão no próximo login (apagar `~/.prumo/inbox-token-cache` ou esperar os 600 s).
 
 Detalhe da captura em `guard/README.md`. O `vault kv put` faz uma pré-verificação em `sys/internal/ui/mounts`, que precisa da policy `default` no token. A promoção para o caminho definitivo faz-se no terminal da pessoa (ver `/vault-set`) e pede `read` na inbox e `create`/`patch` no destino; em Docker, o mesmo com `docker exec -i -e VAULT_TOKEN vault …` nos dois lados do pipe.
+
+Listar e limpar a inbox faz-se com o token da pessoa (o AppRole não lê): `vault kv list secret/inbox/<projeto>` e `vault kv metadata delete secret/inbox/<projeto>/<id>`; a fase 3 acrescenta-o ao `/vault-audit`. Um timeout de gravação pode deixar uma entrada órfã. A captura de `command.run` apanha também os argumentos de comandos de outros plugins e built-in.
 
 ### Flow típico de sessão
 

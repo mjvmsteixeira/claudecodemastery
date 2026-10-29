@@ -10,12 +10,13 @@ Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento
 
 - **Captura:** antes de redigir, os segredos do prompt (`prompt.submit`) e dos argumentos de slash commands (`command.run`) são gravados em `secret/inbox/<projeto>/<aaaammdd-hhmmss>-<n>`, campo `value`, por `vault-write-field.sh` (`kv put -cas=0`: nunca sobrescreve). O valor só viaja por stdin.
 - **Marcador com referência:** `[prumo:CLASSE→secret/inbox/<projeto>/<id>#value]`; PII e falhas ficam com o marcador simples. O mesmo valor repetido na sessão reutiliza a referência.
-- **Contexto para o modelo:** uma linha `[prumo-guard]` diz que o valor está guardado e que só a referência é visível.
+- **Contexto para o modelo:** uma linha `[prumo-guard]` diz que o valor está guardado e que só a referência é visível; o modelo não pede o valor nem o lê (o AppRole não lê a inbox), a pessoa promove-o com `/vault-set`.
 - **Falhas:** Vault inacessível, sem permissão ou colisão deixam o segredo só redigido, com aviso; sem o prumo-base 1.1.0, aviso único por sessão; se a redação do prompt falhar, o prompt é descartado (`{ drop }`).
+- **Orçamento:** 10 s por prompt para todas as gravações; à primeira falha ou esgotado o tempo, os restantes ficam só redigidos. Após 3 prompts seguidos com falha a captura desliga-se na sessão (aviso; estado em `/prumo-guard`; reinicia com a sessão).
 - **Configuração:** `redact.capture` (por omissão `true`). Padrões `extra` do `redact.json` só são capturados com `"secret": true`.
 - **Limites:** prompts `isMeta` não são tocados; imagens e anexos não são lidos; máximo de 10 segredos novos por prompt.
-- **Permissão:** o token (cache AppRole ou `vault-env.sh`) precisa de `create` em `secret/data/inbox/*`; HCL mínimo no README. Requer anexar a `prumo-inbox` à role `agent-claude` (mantendo as policies que já tem) e às roles por projeto em uso; nenhum path da policy atual cobre a inbox, por isso sem ela a captura cai sempre em «não guardado». O token em cache (TTL de 600 s) só ganha a permissão no próximo login.
-- **Redação:** falsos negativos corrigidos (`$` dentro de valores entre aspas, aspa de fecho da palavra-chave, frases entre aspas, pontuação interna).
+- **Permissão:** o escritor do prumo-base faz login próprio como `agent-claude` (nunca o token raiz nem a role do projeto); só essa role precisa de `create` em `secret/data/inbox/*` (policy `prumo-inbox`, HCL mínimo no README).
+- **Redação:** falsos negativos corrigidos (`$` dentro de valores entre aspas, aspa de fecho da palavra-chave, frases entre aspas, pontuação interna). Os marcadores `[prumo:CLASSE→ref]` já emitidos deixam de ser alterados por regras seguintes (a referência com contador >= 100 era corrompida pela regra do NIF).
 
 ## v1.3.1 — 2026-10-29
 

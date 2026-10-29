@@ -6,16 +6,30 @@ const MAX_PER_PROMPT = 10
 const FIELD = 'value'
 const NO_WRITER = 'prumo-guard: segredo redigido mas não guardado — instala o prumo-base 1.1.0 ou superior'
 const FAIL_REASON = 'Vault inacessível ou sem permissão'
+const BUDGET_REASON = 'orçamento de tempo esgotado'
+const BUDGET_MS = 10_000
+const MIN_WRITE_MS = 1_000
+const MAX_FAIL_PROMPTS = 3
+const DISABLED_TOAST =
+  'prumo-guard: captura para o Vault desligada nesta sessão após 3 falhas seguidas; /prumo-guard mostra o estado'
 
 const refs = new Map<string, string>()
 let warnedNoWriter = false
 let counter = 0
+let failStreak = 0
+let disabled = false
+
+export function captureState(): { disabled: boolean; failStreak: number } {
+  return { disabled, failStreak }
+}
 
 // Chamada pelo startRedaction: as referências valem só dentro da sessão.
 export function resetCapture(): void {
   refs.clear()
   warnedNoWriter = false
   counter = 0
+  failStreak = 0
+  disabled = false
 }
 
 // <projeto>: basename do cwd em minúsculas, só [a-z0-9-]; vazio vira "sessao".
@@ -45,11 +59,13 @@ export type Captured = {
 // com a referência; o que não for gravado fica com o marcador simples. `secretsOnly` deixa de fora PII/IP.
 export async function captureAndRedact($: EngineInterface, text: string, opts: RedactOptions, capture: boolean, secretsOnly: boolean): Promise<Captured> {
   const base = secretsOnly ? { ...opts, pii: false, internalIps: false } : opts
-  const secrets = capture ? collectSecrets(text, { ...base, pii: false, internalIps: false }) : []
+  const secrets = capture && !disabled ? collectSecrets(text, { ...base, pii: false, internalIps: false }) : []
   let created = 0
   let reused = 0
   let failed = 0
   let skipped = 0
+  let abandoned = 0
+  let budgetOut = false
   const covered: string[] = []
   if (secrets.length > 0) {
     const dir = await latestPluginDir($, 'prumo-base')
@@ -64,6 +80,7 @@ export async function captureAndRedact($: EngineInterface, text: string, opts: R
       const project = projectSegment(await $.session.cwd())
       const now = await $.clock.now()
       let attempts = 0
+      let stopped = false
       for (const s of secrets) {
         if (refs.has(s.value)) {
           reused++
@@ -75,23 +92,45 @@ export async function captureAndRedact($: EngineInterface, text: string, opts: R
           covered.push(s.value)
           continue
         }
+        if (stopped) {
+          abandoned++
+          covered.push(s.value)
+          continue
+        }
+        const left = BUDGET_MS - ((await $.clock.now()) - now)
+        if (left <= 0) {
+          stopped = budgetOut = true
+          abandoned++
+          covered.push(s.value)
+          continue
+        }
         attempts++
         const path = `secret/inbox/${project}/${stamp(now)}-${++counter}`
         const ok = await $.process
-          .run(['bash', writer, path, FIELD], { stdin: s.value, timeoutMs: 8000 })
+          .run(['bash', writer, path, FIELD], { stdin: s.value, timeoutMs: Math.max(MIN_WRITE_MS, left) })
           .then(r => r.exitCode === 0)
           .catch(() => false)
         covered.push(s.value)
         if (ok) {
           refs.set(s.value, `${path}#${FIELD}`)
           created++
-        } else failed++
+        } else {
+          failed++
+          stopped = true
+        }
       }
+      if (failed > 0 || budgetOut) {
+        if (++failStreak >= MAX_FAIL_PROMPTS && !disabled) {
+          disabled = true
+          $.ui.toast(DISABLED_TOAST)
+        }
+      } else if (created > 0) failStreak = 0
       if (created > 0 || reused > 0)
         $.ui.toast(
           `prumo-guard: ${created} segredo(s) guardado(s) em secret/inbox/${project}/ e redigido(s)` + (reused > 0 ? `; ${reused} já guardado(s)` : ''),
         )
-      if (failed > 0) $.ui.toast(`prumo-guard: ${failed} segredo(s) redigido(s) mas não guardado(s) no Vault (${FAIL_REASON})`)
+      if (failed + abandoned > 0)
+        $.ui.toast(`prumo-guard: ${failed + abandoned} segredo(s) redigido(s) mas não guardado(s) no Vault (${failed > 0 ? FAIL_REASON : BUDGET_REASON})`)
       if (skipped > 0) $.ui.toast(`prumo-guard: ${skipped} segredo(s) não guardado(s): limite de ${MAX_PER_PROMPT} por prompt`)
     }
   }
@@ -104,7 +143,8 @@ export async function captureAndRedact($: EngineInterface, text: string, opts: R
   if (saved > 0)
     parts.push(
       `O prompt tinha ${saved} segredo(s); foram guardados no Vault e o texto mostra só a referência (caminho#campo). ` +
-        'Não peças o valor à pessoa: usa a referência com run_with_secret, ou pede-lhe que o promova para o caminho definitivo com /vault-set.',
+        'Não peças o valor à pessoa nem tentes lê-lo: a referência está na inbox e o agente não a consegue ler; ' +
+        'a pessoa promove-o para o caminho definitivo com /vault-set (ou no terminal, como está documentado nesse comando).',
     )
   const unsaved = secrets.length - saved
   if (unsaved > 0)

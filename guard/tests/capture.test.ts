@@ -8,10 +8,10 @@ const TOKEN2 = 'hvs.' + 'B'.repeat(24)
 const WRITER = '/h/.claude/plugins/cache/prumo/prumo-base/1.1.0/lib/vault-write-field.sh'
 const RAN = (exitCode: number) => ({ value: { exitCode, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
 
-type Opts = { files?: Record<string, string>; writer?: boolean; exit?: number | ((n: number) => number); broken?: true; cwd?: string }
+type Opts = { files?: Record<string, string>; writer?: boolean; exit?: number | ((n: number) => number); broken?: true; cwd?: string; tick?: number }
 
 async function setup($: Engine, on: On, o: Opts = {}) {
-  const st = { runs: [] as { argv: string[]; stdin?: string }[], toasts: [] as string[], args: '' }
+  const st = { runs: [] as { argv: string[]; stdin?: string; timeoutMs?: number }[], elapsed: 0, toasts: [] as string[], args: '' }
   on('command.register', (_$, e) => ({ value: { command: e.name } }))
   on('tool.register', () => ({ value: { tool: 'x' } }))
   on('session.id', () => ({ value: 'sid-test' }))
@@ -22,14 +22,15 @@ async function setup($: Engine, on: On, o: Opts = {}) {
   on('fs.read', (_$, e) => (files[e.path] !== undefined ? { value: files[e.path] as string } : { deny: 'ENOENT' }))
   on('fs.list', () => ({ value: [{ name: '1.1.0', kind: 'dir' as const, size: 0, mtimeMs: 0, isLink: false }] }))
   on('fs.exists', (_$, e) => ({ value: e.path === WRITER && o.writer !== false }))
-  on('clock.now', () => ({ value: 1_000_000 }))
+  on('clock.now', () => ({ value: 1_000_000 + st.elapsed }))
   on('session.cwd', () => (o.broken ? { deny: 'boom' } : { value: o.cwd ?? '/p/meu projeto' }))
   on('ui.toast', (_$, e) => { st.toasts.push(e.text); return { value: undefined } })
   on('ui.status', () => ({ value: undefined }))
   on('process.run', (_$, e) => {
     if (e.argv[1] !== WRITER) return RAN(0)
     if (o.broken) return { deny: 'boom' }
-    st.runs.push({ argv: [...e.argv], stdin: e.init?.stdin })
+    st.runs.push({ argv: [...e.argv], stdin: e.init?.stdin, timeoutMs: e.init?.timeoutMs })
+    st.elapsed += o.tick ?? 0
     const n = st.runs.length
     return RAN(typeof o.exit === 'function' ? o.exit(n) : (o.exit ?? 0))
   })
@@ -197,4 +198,82 @@ test('acima do limite entra no toast; referência reaproveitada não conta como 
   await $.prompt.submit(sub(`outra vez ${toks[0]}`))
   expect(st.toasts[0]).toContain('0 segredo(s) guardado(s)')
   expect(st.toasts[0]).toContain('1 já guardado(s)')
+})
+
+const toksN = (n: number) => Array.from({ length: n }, (_, i) => 'hvs.' + String.fromCharCode(65 + i).repeat(24))
+
+test('orçamento: cada gravação recebe o tempo que resta (mínimo 1 s) e esgotado o resto fica só redigido', async ($, on) => {
+  const st = await setup($, on, { tick: 4000 })
+  const toks = toksN(5)
+  const r = await $.prompt.submit(sub(toks.join(' ')))
+  expect(st.runs.map(x => x.timeoutMs)).toEqual([10000, 6000, 2000])
+  expect(r.text.match(/→/g)).toHaveLength(3)
+  expect(r.text.match(/\[prumo:VAULT-TOKEN\]/g)).toHaveLength(2)
+  expect(st.toasts).toContain('prumo-guard: 2 segredo(s) redigido(s) mas não guardado(s) no Vault (orçamento de tempo esgotado)')
+  expect(r.context![0]).toContain('2 segredo(s) não foram guardados')
+  for (const t of toks) expect(r.text).not.toContain(t)
+})
+
+test('orçamento: timeout mínimo de 1 s quando resta menos', async ($, on) => {
+  const st = await setup($, on, { tick: 9500 })
+  await $.prompt.submit(sub(toksN(3).join(' ')))
+  expect(st.runs.map(x => x.timeoutMs)).toEqual([10000, 1000])
+})
+
+test('primeira falha pára o ciclo: os restantes ficam redigidos sem referência e sem tentativa', async ($, on) => {
+  const st = await setup($, on, { exit: 1 })
+  const toks = toksN(4)
+  const r = await $.prompt.submit(sub(toks.join(' ')))
+  expect(st.runs).toHaveLength(1)
+  expect(r.text).not.toContain('→')
+  expect(r.text.match(/\[prumo:VAULT-TOKEN\]/g)).toHaveLength(4)
+  expect(st.toasts.filter(t => t.includes('não guardado(s) no Vault (Vault inacessível'))).toEqual([
+    'prumo-guard: 4 segredo(s) redigido(s) mas não guardado(s) no Vault (Vault inacessível ou sem permissão)',
+  ])
+  for (const t of toks) expect(r.text).not.toContain(t)
+})
+
+const OFF = 'prumo-guard: captura para o Vault desligada nesta sessão após 3 falhas seguidas; /prumo-guard mostra o estado'
+
+test('3 prompts seguidos com falha desligam a captura (toast uma vez); a redação continua', async ($, on) => {
+  const st = await setup($, on, { exit: 1 })
+  const toks = toksN(6)
+  for (let i = 0; i < 3; i++) await $.prompt.submit(sub(`a ${toks[i]}`))
+  expect(st.runs).toHaveLength(3)
+  expect(st.toasts.filter(t => t === OFF)).toHaveLength(1)
+  const r = await $.prompt.submit(sub(`d ${toks[3]}`))
+  expect(st.runs).toHaveLength(3)
+  expect(r.text).toContain('[prumo:VAULT-TOKEN]')
+  expect(r.text).not.toContain(toks[3]!)
+  expect(r.context).toBeUndefined()
+  expect(st.toasts.filter(t => t === OFF)).toHaveLength(1)
+  const status = await $.command.run(cmd('prumo-guard'))
+  expect(status.text).toContain('captura para o Vault: desligada nesta sessão')
+})
+
+test('um prompt com sucesso repõe a contagem de falhas', async ($, on) => {
+  const st = await setup($, on, { exit: n => (n === 3 ? 0 : 1) })
+  const toks = toksN(6)
+  for (let i = 0; i < 5; i++) await $.prompt.submit(sub(`a ${toks[i]}`))
+  expect(st.runs).toHaveLength(5)
+  expect(st.toasts).not.toContain(OFF)
+})
+
+test('nova sessão repõe a captura', async ($, on) => {
+  const st = await setup($, on, { exit: n => (n <= 3 ? 1 : 0) })
+  const toks = toksN(6)
+  for (let i = 0; i < 3; i++) await $.prompt.submit(sub(`a ${toks[i]}`))
+  await $.session.start({ cwd: '/h', surface: null, isInteractive: false })
+  const status = await $.command.run(cmd('prumo-guard'))
+  expect(status.text).toContain('captura para o Vault: ligada')
+  const r = await $.prompt.submit(sub(`e ${toks[4]}`))
+  expect(r.text).toContain('→')
+})
+
+test('contexto: não manda pedir o valor nem usar run_with_secret; aponta para /vault-set', async ($, on) => {
+  await setup($, on)
+  const r = await $.prompt.submit(sub(`o token é ${TOKEN}`))
+  expect(r.context![0]).not.toContain('run_with_secret')
+  expect(r.context![0]).toContain('Não peças o valor')
+  expect(r.context![0]).toContain('/vault-set')
 })

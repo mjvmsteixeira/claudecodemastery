@@ -146,9 +146,12 @@ function run(text: string, opts: RedactOptions, onSecret?: (cls: string, value: 
     if (rule.ip && !opts.internalIps) continue
     const collect = !rule.pii && !rule.ip && rule.collect !== false
     const edits: [number, number, number][] = []
+    // nenhuma regra actua dentro de um marcador já emitido (a ref `…/20261029-105#value` tem dígitos que parecem PII)
+    const sealed = [...out.matchAll(PLACEHOLDER_RE)].map(m => [m.index as number, (m.index as number) + m[0].length] as const)
     out = out.replace(rule.re, (match: string, ...rest: unknown[]) => {
       if (rule.valid && !rule.valid(match)) return match
       const offset = rest[rest.findIndex(g => typeof g === 'number')] as number
+      if (sealed.some(([from, to]) => offset >= from && offset < to)) return match
       // "Bearer" solto antes de um marcador TOKEN é o prefixo do token, não o valor
       if (collect && /\bBearer$/i.test(match) && /^\s+\[prumo:TOKEN/.test(out.slice(offset + match.length))) return match
       const found: [string, string][] = []

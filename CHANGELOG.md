@@ -10,7 +10,7 @@ As tags legacy `v0.5.0`, `v0.5.1` e `v0.6.0` são anteriores à convenção e n�
 
 ## prumo-guard 1.4.0 · prumo-base 1.1.0 — 2026-10-29
 
-Os segredos colados no chat deixam de se perder: o prumo-guard grava-os em `secret/inbox/<projeto>/<id>` (campo `value`, `kv put -cas=0`, valor só por stdin) antes de os redigir, e o marcador passa a levar a referência `[prumo:CLASSE→secret/inbox/<projeto>/<id>#value]`. O prumo-base traz o `lib/vault-write-field.sh` que faz a gravação; o token (cache AppRole ou `vault-env.sh`) precisa de `create` em `secret/data/inbox/*`. Desligável com `redact.capture: false`. Detalhe em `guard/CHANGELOG.md` e `base/CHANGELOG.md`.
+Os segredos colados no chat deixam de se perder: o prumo-guard grava-os em `secret/inbox/<projeto>/<id>` (campo `value`, `kv put -cas=0`, valor só por stdin) antes de os redigir, e o marcador passa a levar a referência `[prumo:CLASSE→secret/inbox/<projeto>/<id>#value]`. O prumo-base traz o `lib/vault-write-field.sh` que faz a gravação; o escritor faz login próprio como `agent-claude` (nunca o token raiz), que precisa de `create` em `secret/data/inbox/*`. Desligável com `redact.capture: false`. Detalhe em `guard/CHANGELOG.md` e `base/CHANGELOG.md`.
 
 ## prumo-guard 1.3.1 · prumo-base 1.0.3 — 2026-10-29
 

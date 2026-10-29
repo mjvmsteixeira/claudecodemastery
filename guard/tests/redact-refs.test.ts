@@ -135,3 +135,26 @@ for (const t of GLUED) {
     expect(withRef).toContain('→' + REF + ']')
   })
 }
+
+test('refs: um marcador com referência fica intacto com PII ligada (contadores >= 100, NIF válido, projeto numérico)', () => {
+  const ok = (ref: string) => {
+    const m = '[prumo:SEGREDO→' + ref + ']'
+    const r = redactText('x ' + m + ' y', { pii: true, internalIps: true, extra: [] })
+    expect(r.text).toBe('x ' + m + ' y')
+    expect(r.hits).toBe(0)
+    const w = redactText(PW + W, { pii: true, internalIps: true, extra: [], refs: new Map([[W, ref]]) })
+    expect(w.text).toBe(PW + m)
+  }
+  for (let n = 1; n < 1000; n++) {
+    const ref = 'secret/inbox/proj/20261029-162526-' + n + '#value'
+    ok(ref)
+  }
+  ok('secret/inbox/app-123456789/20261029-102030-7#value')
+  ok('secret/inbox/192-168-1-1/20261029-102030-7#value')
+})
+
+test('refs: o marcador é protegido, o PII ao lado continua a ser redigido', () => {
+  const m = '[prumo:SEGREDO→secret/inbox/proj/20261029-162526-105#value]'
+  const r = redactText(m + ' ' + 'ana@example.com', { pii: true, internalIps: false, extra: [] })
+  expect(r.text).toBe(m + ' [prumo:EMAIL]')
+})
