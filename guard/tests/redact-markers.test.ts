@@ -180,3 +180,54 @@ test('pontuação de fecho: mínimo de 5 depois do trim; ")" com palavra-chave c
   expect(collectSecrets(KW + '=Abcd.', SECRETS_ONLY)).toEqual([])
   expect(collectSecrets('(db_' + KW + '=Abc12)', SECRETS_ONLY).map(f => f.value)).toEqual(['Abc12'])
 })
+
+// Ronda 3
+test('URL com marcador falso como password: redigido e recolhido', () => {
+  forgetRefs()
+  const pw = 'Zq8' + 'Wm4Kx7'
+  for (const t of ['https://admin:' + M('X', pw) + '@db.ex.pt/x', 'postgres://u:' + M('SEGREDO', pw) + '@h:5432']) {
+    expect(redactText(t, SECRETS_ONLY).text.includes(pw)).toBe(false)
+    expect(collectSecrets(t, SECRETS_ONLY).some(f => f.value.includes(pw))).toBe(true)
+  }
+})
+
+test('URL com credencial capturada (ref conhecida): o marcador fica intacto', () => {
+  forgetRefs()
+  rememberRef(REF7)
+  const t = 'postgres://u:' + M('SEGREDO', REF7) + '@h:5432/db'
+  expect(redactText(t, ALL).text).toBe(t)
+  expect(collectSecrets(t, SECRETS_ONLY)).toEqual([])
+  const pw = 'Pw9' + 'xQ2zz'
+  expect(redactText('postgres://u:' + pw + '@h', { ...SECRETS_ONLY, refs: new Map([[pw, REF7]]) }).text).toBe('postgres://u:' + M('SEGREDO', REF7) + '@h')
+  forgetRefs()
+})
+
+test('desempenho: 1 MB de chaves AWS unidas por "-" em menos de 2 s', () => {
+  let t = ''
+  for (let i = 0; t.length < 1e6; i++) t += 'AK' + 'IA' + 'IOSFODNN7EXAMPL' + String.fromCharCode(65 + (i % 26)) + '-'
+  const s = performance.now()
+  const r = redactText(t, ALL)
+  expect(performance.now() - s).toBeLessThan(2000)
+  expect(r.text.includes('IOSFODNN7')).toBe(false)
+})
+
+test('desempenho: 200 KB de telefones unidos por "-" em menos de 2 s', () => {
+  let t = ''
+  for (let i = 0; t.length < 2e5; i++) t += '+351 912 345 ' + String(100 + (i % 900)) + '-'
+  const s = performance.now()
+  redactText(t, ALL)
+  expect(performance.now() - s).toBeLessThan(2000)
+})
+
+test('desempenho: 200 KB de "291-234-567-" seguidos (corrida longa sem @) em menos de 2 s', () => {
+  let t = ''
+  while (t.length < 2e5) t += '291-234-567-'
+  const s = performance.now()
+  redactText(t, ALL)
+  expect(performance.now() - s).toBeLessThan(2000)
+})
+
+test('email: parte local até 64 caracteres continua redigida', () => {
+  const local = 'nome.apelido+tag_' + 'x'.repeat(40)
+  expect(redactText('contacto ' + local + '@exemplo.pt fim', ALL).text).toBe('contacto ' + M('EMAIL') + ' fim')
+})

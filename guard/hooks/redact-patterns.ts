@@ -8,7 +8,7 @@ type Rule = {
   ip?: boolean
   collect?: boolean
   valid?: (match: string) => boolean
-  replace?: (mark: Mark, match: string, groups: (string | undefined)[], ctx: Ctx) => string
+  replace?: (mark: Mark, match: string, groups: (string | undefined)[], ctx: () => Ctx) => string
 }
 
 // `at`: posição do valor dentro do match (por omissão, a última ocorrência)
@@ -71,6 +71,7 @@ const S_OPEN = '\uFDD0'
 const S_CLOSE = '\uFDD1'
 const SENTINEL = String.raw`\uFDD0[\uFDD2-\uFDEF]+\uFDD1`
 const SENTINEL_RE = new RegExp(SENTINEL, 'g')
+const NEXT_SENTINEL = new RegExp(String.raw`\s+(${SENTINEL})`, 'y')
 const encode = (n: number): string => {
   let out = ''
   do {
@@ -111,13 +112,14 @@ const PAIRS: Record<string, string> = { ']': '[', ')': '(' }
 
 function segredoRules(keywords: string, flags: string, passKeywords?: string): Rule[] {
   // o grupo 2 é a aspa quando o valor vem entre aspas; sem aspas fica undefined
-  const replace = (mark: Mark, m: string, [lead, q]: (string | undefined)[], ctx: Ctx) => {
+  const replace = (mark: Mark, m: string, [lead, q]: (string | undefined)[], context: () => Ctx) => {
     const quote = typeof q === 'string' ? q : ''
     const head = (lead ?? '').length + quote.length
     let value = m.slice(head, m.length - quote.length)
     let rest = ''
     // pontuação de fecho fica fora do valor: "." no fim da frase e "]"/")" cujo par abre logo antes da palavra-chave
     if (!quote) {
+      const ctx = context()
       if (value.endsWith('.') && !/\S/.test(ctx.after)) [value, rest] = [value.slice(0, -1), '.']
       const close = value.slice(-1)
       if (PAIRS[close] !== undefined && ctx.before === PAIRS[close]) [value, rest] = [value.slice(0, -1), close + rest]
@@ -152,8 +154,9 @@ const RULES: Rule[] = [
   { name: 'TOKEN', re: /\b(Bearer)\s+([A-Za-z0-9._~+/-]{16,}=*)/g, replace: (mark, _m, [kw, val]) => `${kw} ${mark(val as string)}` },
   ...segredoRules(KEYWORDS_OTHER, 'giu', KEYWORDS_PASS),
   ...segredoRules(KEYWORDS_ENV, 'gu'),
-  { name: 'URL-CREDENCIAIS', re: /(\b[a-z][a-z0-9+.-]*:\/\/[^\s:\/@]+:)(?!(?:\[prumo:[A-Z0-9-]+(?:→[^\]\s]+)?\]|\uFDD0[\uFDD2-\uFDEF]+\uFDD1)@)([^\s@\/]{3,})(@)/gi, replace: (mark, _m, [lead, pw, at]) => `${lead}${mark(pw as string, 'SEGREDO', (lead as string).length)}${at}` },
-  { name: 'EMAIL', pii: true, re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g },
+  { name: 'URL-CREDENCIAIS', re: /(\b[a-z][a-z0-9+.-]*:\/\/[^\s:\/@]+:)(?!\uFDD0[\uFDD2-\uFDEF]+\uFDD1@)([^\s@\/]{3,})(@)/gi, replace: (mark, _m, [lead, pw, at]) => `${lead}${mark(pw as string, 'SEGREDO', (lead as string).length)}${at}` },
+  // parte local limitada a 64 (RFC 5321): sem limite, uma corrida longa de [A-Za-z0-9.-] sem @ era quadrática
+  { name: 'EMAIL', pii: true, re: /\b[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,}\b/g },
   { name: 'IBAN', pii: true, re: /\bPT\d{2}(?:\s?\d{4}){5}\s?\d\b/gi, valid: ibanValid },
   { name: 'CC', pii: true, re: /\b\d{8}\s?\d\s?[A-Za-z]{2}\d\b/g, valid: ccValid },
   { name: 'NIF', pii: true, re: /\b[1-9]\d{2}[\s-]?\d{3}[\s-]?\d{3}\b/g, valid: nifValid },
@@ -211,14 +214,28 @@ function run(text: string, opts: RedactOptions, onSecret?: (cls: string, value: 
     const legit = new Map<number, number>()
     for (const m of current.matchAll(SENTINEL_RE)) legit.set(m.index as number, (m.index as number) + m[0].length)
     for (const m of current.matchAll(PLACEHOLDER_RE)) if (knownMarker(m[0], opts)) legit.set(m.index as number, (m.index as number) + m[0].length)
-    const sealed = [...legit]
+    const sealed = [...legit].sort((a, b) => a[0] - b[0])
+    // os intervalos não se sobrepõem: basta o último que começa antes do offset
+    const inSealed = (offset: number): boolean => {
+      let lo = 0
+      let hi = sealed.length - 1
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1
+        if ((sealed[mid] as [number, number])[0] <= offset) lo = mid + 1
+        else hi = mid - 1
+      }
+      return hi >= 0 && offset < (sealed[hi] as [number, number])[1]
+    }
     out = current.replace(rule.re, (match: string, ...rest: unknown[]) => {
       if (rule.valid && !rule.valid(match)) return match
       const offset = rest[rest.findIndex(g => typeof g === 'number')] as number
-      if (sealed.some(([from, to]) => offset >= from && offset < to)) return match
+      if (inSealed(offset)) return match
       // "Bearer" solto antes de um marcador TOKEN emitido é o prefixo do token, não o valor
-      const next = /^\s+(\uFDD0[\uFDD2-\uFDEF]+\uFDD1)/.exec(current.slice(offset + match.length))
-      if (collect && /\bBearer$/i.test(match) && next && (markers[decode(next[1] as string)] as string).startsWith('[prumo:TOKEN')) return match
+      if (collect && /\bBearer$/i.test(match)) {
+        NEXT_SENTINEL.lastIndex = offset + match.length
+        const next = NEXT_SENTINEL.exec(current)
+        if (next && (markers[decode(next[1] as string)] as string).startsWith('[prumo:TOKEN')) return match
+      }
       const found: [string, string][] = []
       const emit = (cls: string, ref?: string) => {
         markers.push(ref === undefined ? ph(cls) : `[prumo:${cls}→${ref}]`)
@@ -246,10 +263,12 @@ function run(text: string, opts: RedactOptions, onSecret?: (cls: string, value: 
         return emit(cls, opts.refs?.get(value))
       }
       const groups = rest.slice(0, rest.findIndex(g => typeof g === 'number')) as (string | undefined)[]
-      // o par de abertura conta antes da palavra inteira (`(db_password=…)`)
-      let word = offset
-      while (word > 0 && /[A-Za-z0-9_-]/.test(current[word - 1] as string)) word--
-      const ctx = { before: current[word - 1] ?? '', after: current[offset + match.length] ?? '' }
+      // o par de abertura conta antes da palavra inteira (`(db_password=…)`); só as regras SEGREDO o pedem, e no máximo 64 caracteres atrás
+      const ctx = (): Ctx => {
+        let word = offset
+        while (word > 0 && offset - word < 64 && /[A-Za-z0-9_-]/.test(current[word - 1] as string)) word--
+        return { before: current[word - 1] ?? '', after: current[offset + match.length] ?? '' }
+      }
       const replaced = rule.replace ? rule.replace(mark, match, groups, ctx) : mark(match, undefined, 0)
       if (replaced === match) return match
       hits += 1
