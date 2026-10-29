@@ -50,19 +50,50 @@ function ibanValid(raw: string): boolean {
   return rem === 1
 }
 
+const KEYWORDS = String.raw`(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]?secret|senha|palavra[-_ ]passe|passphrase|(?<![A-Za-z])pass)(?:_[A-Za-z0-9_]*)?`
+// sensível a maiúsculas para não apanhar sort_key=created_at
+const KEYWORDS_ENV = String.raw`\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*_KEY`
+
+// referências a variáveis, placeholders e literais não são valores
+const NOT_A_VALUE = String.raw`(?!\[prumo:|\$|process\.env|os\.environ|ENV\[|<|\{\{)(?!(?:true|false|null|none|nil|undefined|string|str|number|int|bool|boolean|required|optional)(?![^\s"'&;,]))`
+const UNQUOTED = String.raw`(?:[^\s"'&;,]|[;,](?=[^\s"'&;,])){5,}`
+const QUOTED = String.raw`(["'])${NOT_A_VALUE}[^"'\n]{5,}\2`
+// depois de ': ' ou em prosa só conta com dígito ou símbolo; sem isto "password reset" seria segredo
+const HAS_DIGIT_OR_SYMBOL = String.raw`(?=\p{L}*(?:[^\p{L}\s"'&;,]|[;,][^\s"'&;,]))`
+
+function segredoRules(keywords: string, flags: string): Rule[] {
+  // sem aspas o segundo argumento já é o texto inteiro (redactText filtra os undefined)
+  const replace = (_m: string, lead: string, q?: string) => {
+    const quote = q === '"' || q === "'" ? q : ''
+    return `${lead}${quote}${ph('SEGREDO')}${quote}`
+  }
+  const loose = String.raw`[ \t]*[=:][ \t]+|[^\n]{0,30}?[ \t](?:é|is|era|was)[ \t]+|[ \t]+`
+  return [
+    {
+      name: 'SEGREDO',
+      re: new RegExp(String.raw`(${keywords}["']?[ \t]*[=:])(?:${QUOTED}|${NOT_A_VALUE}${UNQUOTED})`, flags),
+      replace,
+    },
+    {
+      name: 'SEGREDO',
+      re: new RegExp(String.raw`(${keywords}["']?(?:${loose}))(?:${QUOTED}|${HAS_DIGIT_OR_SYMBOL}${NOT_A_VALUE}${UNQUOTED})`, flags),
+      replace,
+    },
+  ]
+}
+
 const RULES: Rule[] = [
   { name: 'CHAVE-PRIVADA', re: /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g },
   { name: 'JWT', re: /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}/g },
   { name: 'VAULT-TOKEN', re: /\bhv[sbr]\.[A-Za-z0-9_-]{20,}/g },
   { name: 'AWS-KEY', re: /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g },
   { name: 'GITHUB-TOKEN', re: /\b(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,})/g },
-  { name: 'SLACK-TOKEN', re: /\bxox[abprs]-[A-Za-z0-9-]{10,}/g },
+  { name: 'SLACK-TOKEN', re: /\b(?:xox[abprs]|xapp)-[A-Za-z0-9-]{10,}/g },
+  { name: 'CHAVE-API', re: /\b(?:sk-[A-Za-z0-9_-]{20,}|(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{10,}|AIza[A-Za-z0-9_-]{35}|glpat-[A-Za-z0-9_-]{20,}|npm_[A-Za-z0-9]{36})/g },
+  { name: 'TELEGRAM-TOKEN', re: /\b\d{8,10}:AA[A-Za-z0-9_-]{33}\b/g },
   { name: 'TOKEN', re: /\b(Bearer)\s+[A-Za-z0-9._~+/-]{16,}=*/g, replace: (_m, kw) => `${kw} ${ph('TOKEN')}` },
-  {
-    name: 'SEGREDO',
-    re: /((?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]?secret)(?:_[A-Za-z0-9_]*)?["']?\s*[=:]\s*)(["']?)(?!\[prumo:)([^\s"'&;,]{6,})\2/gi,
-    replace: (_m, lead, q) => `${lead}${q}${ph('SEGREDO')}${q}`,
-  },
+  ...segredoRules(KEYWORDS, 'giu'),
+  ...segredoRules(KEYWORDS_ENV, 'gu'),
   { name: 'URL-CREDENCIAIS', re: /(\b[a-z][a-z0-9+.-]*:\/\/[^\s:\/@]+:)(?!\[prumo:)([^\s@\/]{3,})(@)/gi, replace: (_m, lead, _pw, at) => `${lead}${ph('SEGREDO')}${at}` },
   { name: 'EMAIL', pii: true, re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g },
   { name: 'IBAN', pii: true, re: /\bPT\d{2}(?:\s?\d{4}){5}\s?\d\b/gi, valid: ibanValid },
