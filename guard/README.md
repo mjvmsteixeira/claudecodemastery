@@ -98,7 +98,7 @@ path "secret/data/inbox/*" {
   
   Roles por projeto: não precisam de `prumo-inbox`; a captura usa sempre a `agent-claude`.
   
-  Um token em cache emitido antes de alterar as policies só ganha a permissão no próximo login (apagar `~/.prumo/inbox-token-cache` ou esperar os 600 s); uma gravação falhada apaga essa cache, por isso um token revogado não fica a falhar até ao fim do TTL. O login corre com um `HOME` temporário vazio, para o token helper do CLI não enviar o `~/.vault-token` da pessoa.
+  Um token em cache emitido antes de alterar as policies só ganha a permissão no próximo login (apagar `~/.prumo/inbox-token-cache` ou esperar os 600 s); uma gravação falhada apaga essa cache, por isso um token revogado não fica a falhar até ao fim do TTL (também numa colisão do `-cas=0`, em que o token estava bom: o único custo é um login a mais na gravação seguinte). O login corre com um `HOME` temporário vazio, para o token helper do CLI não enviar o `~/.vault-token` da pessoa.
 
   Ler de volta ou promover a entrada (`vault kv get`) pede `read` no mesmo caminho e é feito pela pessoa, com o seu token, no terminal. O `kv put` faz uma pré-verificação em `sys/internal/ui/mounts`, que precisa da policy `default` no token.
 

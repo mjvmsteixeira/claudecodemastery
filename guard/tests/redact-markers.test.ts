@@ -73,3 +73,65 @@ test('palavra-chave como valor: prosa e forma "kw: " também', () => {
     expect(leaks(redactText(t, SECRETS_ONLY).text, V)).toBe(false)
   }
 })
+
+// Ronda 1: o lookahead só salta uma palavra-chave que uma regra seguinte redige (ENV é sensível a maiúsculas).
+test('palavra-chave como valor: nome minúsculo terminado em _key é valor, não palavra-chave', () => {
+  for (const t of ['token: my_key=' + V, 'secret abc_key=' + V, 'a senha é sort_key=' + V]) {
+    expect(leaks(redactText(t, SECRETS_ONLY).text, V)).toBe(false)
+    expect(collectSecrets(t, SECRETS_ONLY).some(f => f.value.includes(V))).toBe(true)
+  }
+})
+
+// Ronda 1: um marcador que nenhuma regra desta chamada emitiu, dentro do valor, faz parte do valor.
+const REF7 = 'secret/inbox/proj/20261029-162526-7#value'
+const glued: [string, string][] = [
+  ['password=ab+M', KW + '=ab' + M('X') + PW],
+  ['password: ab+M', KW + ': ab' + M('X') + PW],
+  ['a senha é ab+M', 'a senha é ab' + M('X') + PW],
+  ['password="ab+M"', KW + '="ab' + M('X') + PW + '"'],
+  ['password=ab+M(ref conhecida)', KW + '=ab' + M('X', REF7) + PW],
+  ['password=abcde+M', KW + '=abcde' + M('X') + PW],
+  ['password=M colado', KW + '=' + M('X') + PW],
+]
+for (const [n, t] of glued) {
+  test(`marcador falso dentro do valor: ${n} redige o valor inteiro`, () => {
+    forgetRefs()
+    rememberRef(REF7)
+    const out = redactText(t, ALL).text
+    expect(out.includes(PW)).toBe(false)
+    expect(out.includes('ab')).toBe(false)
+    expect(collectSecrets(t, SECRETS_ONLY).some(f => f.value.includes(PW))).toBe(true)
+    forgetRefs()
+  })
+}
+
+test('marcador emitido nesta chamada dentro do valor: api_key "Bearer <tok>" mantém TOKEN com a ref e não recolhe Bearer', () => {
+  const tok = 'abcdEFGH' + '12345678xyz'
+  expect(collectSecrets('api_key: "Bearer ' + tok + '"', SECRETS_ONLY)).toEqual([{ cls: 'TOKEN', value: tok }])
+  const out = redactText('api_key: "Bearer ' + tok + '"', { ...SECRETS_ONLY, refs: new Map([[tok, REF7]]) }).text
+  expect(out).toBe('api_key: "Bearer ' + M('TOKEN', REF7) + '"')
+})
+
+test('marcador emitido nesta chamada colado ao valor: o prefixo é redigido e o marcador fica', () => {
+  const pem = '-----BEGIN RSA PRIVATE KEY-----\nMIIabc\n-----END RSA PRIVATE KEY-----'
+  const t = KW + '=' + V + pem
+  const got = collectSecrets(t, SECRETS_ONLY).map(f => f.value)
+  expect(got).toContain(V)
+  expect(got).toContain(pem)
+  const out = redactText(t, SECRETS_ONLY).text
+  expect(out).toBe(KW + '=' + M('SEGREDO') + M('CHAVE-PRIVADA'))
+})
+
+// Ronda 1 (ruling): pontuação de fecho não entra no valor gravado
+test('pontuação de fecho: [password=V], (password=V) e "password=V." recolhem exactamente V', () => {
+  for (const [t, tail] of [['[' + KW + '=' + V + ']', ']'], ['(' + KW + '=' + V + ')', ')'], ['use ' + KW + '=' + V + '.', '.'], ['use ' + KW + '=' + V + '. e mais', '. e mais']]) {
+    expect(collectSecrets(t, SECRETS_ONLY).map(f => f.value)).toEqual([V])
+    expect(redactText(t, SECRETS_ONLY).text.endsWith(M('SEGREDO') + tail)).toBe(true)
+  }
+})
+
+test('pontuação de fecho: ")" sem parêntese de abertura antes da palavra-chave é do valor', () => {
+  expect(collectSecrets(KW + '=' + V + ')', SECRETS_ONLY).map(f => f.value)).toEqual([V + ')'])
+  expect(collectSecrets('x ' + KW + '=' + V + ']', SECRETS_ONLY).map(f => f.value)).toEqual([V + ']'])
+  expect(collectSecrets(KW + '=' + V + '.x', SECRETS_ONLY).map(f => f.value)).toEqual([V + '.x'])
+})

@@ -8,10 +8,13 @@ type Rule = {
   ip?: boolean
   collect?: boolean
   valid?: (match: string) => boolean
-  replace?: (mark: Mark, match: string, ...groups: (string | undefined)[]) => string
+  replace?: (mark: Mark, match: string, groups: (string | undefined)[], ctx: Ctx) => string
 }
 
-type Mark = (value: string, cls?: string) => string
+// `at`: posição do valor dentro do match (por omissão, a última ocorrência)
+type Mark = (value: string, cls?: string, at?: number) => string
+// carácter imediatamente antes e depois do match
+type Ctx = { before: string; after: string }
 
 const ph = (name: string) => `[prumo:${name}]`
 
@@ -60,10 +63,12 @@ const KEYWORDS_PASS = String.raw`(?<![A-Za-z])pass${KEYWORD_SUFFIX}`
 // sensível a maiúsculas para não apanhar sort_key=created_at
 const KEYWORDS_ENV = String.raw`\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*_KEY`
 
-// referências a variáveis, placeholders e literais não são valores; "99.5%" é uma taxa, não uma palavra-passe
-const NOT_A_VALUE = String.raw`(?!\[prumo:|\$|\\\$(?:[({]|[A-Z_]{2})|process\.env|os\.environ|ENV\[|<|\{\{|\d[\d.,]*%(?![^\s"'&;,.)]))(?!(?:true|false|null|none|nil|undefined|string|str|number|int|bool|boolean|required|optional)(?![^\s"'&;,.)]))`
 // pontuação de fim de frase ou de markdown: nunca conta como símbolo nem pertence ao valor
 const TRAIL = '.)\\]`*!?:'
+// um marcador sozinho é um valor já redigido; colado a mais texto é texto (um marcador falso não esconde o resto)
+const MARKER_ALONE = String.raw`\[prumo:[A-Z0-9-]+(?:→[^\]\s]+)?\](?![^\s"'&;,${TRAIL}])`
+// referências a variáveis, placeholders e literais não são valores; "99.5%" é uma taxa, não uma palavra-passe
+const NOT_A_VALUE = String.raw`(?!${MARKER_ALONE}|\$|\\\$(?:[({]|[A-Z_]{2})|process\.env|os\.environ|ENV\[|<|\{\{|\d[\d.,]*%(?![^\s"'&;,.)]))(?!(?:true|false|null|none|nil|undefined|string|str|number|int|bool|boolean|required|optional)(?![^\s"'&;,.)]))`
 const UNQUOTED = String.raw`(?:[^\s"'&;,]|[;,](?=[^\s"'&;,])){5,}`
 const UNQUOTED_TRIM = String.raw`${UNQUOTED}(?<![${TRAIL}])`
 const QUOTED = String.raw`(["'])${NOT_A_VALUE}[^"'\n]{5,}\2`
@@ -85,14 +90,24 @@ const QUOTED_PASS = String.raw`(["'])${NOT_A_VALUE}(?:${QUOTED_NOSPACE}|${QUOTED
 // código de shell a seguir a uma palavra solta: flags, redirecções, caminhos, subshells, pipes
 const SHELL_START = String.raw`(?:[-~/(|>]|\d>)`
 // depois de uma palavra-chave, "password=…" é a palavra-chave seguinte, não o valor (`api_key password=<v>`)
-const NOT_A_KEYWORD = String.raw`(?!(?:${KEYWORDS_OTHER}|${KEYWORDS_PASS}|${KEYWORDS_ENV})["']?[ \t]*[=:])`
+// Só salta uma palavra-chave que uma regra seguinte redige: a ENV é sensível a maiúsculas mesmo dentro de regras `giu`.
+const NOT_A_KEYWORD = String.raw`(?!(?:${KEYWORDS_OTHER}|${KEYWORDS_PASS}|(?-i:${KEYWORDS_ENV}))["']?[ \t]*[=:])`
+const PAIRS: Record<string, string> = { ']': '[', ')': '(' }
 
 function segredoRules(keywords: string, flags: string, passKeywords?: string): Rule[] {
   // o grupo 2 é a aspa quando o valor vem entre aspas; sem aspas fica undefined
-  const replace = (mark: Mark, m: string, lead?: string, q?: string) => {
+  const replace = (mark: Mark, m: string, [lead, q]: (string | undefined)[], ctx: Ctx) => {
     const quote = typeof q === 'string' ? q : ''
     const head = (lead ?? '').length + quote.length
-    return `${lead}${quote}${mark(m.slice(head, m.length - quote.length))}${quote}`
+    let value = m.slice(head, m.length - quote.length)
+    let rest = ''
+    // pontuação de fecho fica fora do valor: "." no fim da frase e "]"/")" cujo par abre logo antes da palavra-chave
+    if (!quote) {
+      if (value.endsWith('.') && !/\S/.test(ctx.after)) [value, rest] = [value.slice(0, -1), '.']
+      const close = value.slice(-1)
+      if (PAIRS[close] !== undefined && ctx.before === PAIRS[close]) [value, rest] = [value.slice(0, -1), close + rest]
+    }
+    return `${lead}${quote}${mark(value, undefined, head)}${rest}${quote}`
   }
   const rule = (lead: string, value: string): Rule => ({ name: 'SEGREDO', re: new RegExp(String.raw`(${lead})${value}`, flags), replace })
   const unquoted = (symbol: string, skip?: string) => `${hasDigitOrSymbol(symbol, skip)}${NOT_A_VALUE}${UNQUOTED_TRIM}`
@@ -118,10 +133,10 @@ const RULES: Rule[] = [
   { name: 'SLACK-TOKEN', re: /\b(?:xox[abprs]|xapp)-[A-Za-z0-9-]{10,}/g },
   { name: 'CHAVE-API', re: /\b(?:sk-[A-Za-z0-9_-]{20,}|(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{10,}|AIza[A-Za-z0-9_-]{35}|glpat-[A-Za-z0-9_-]{20,}|npm_[A-Za-z0-9]{36})/g },
   { name: 'TELEGRAM-TOKEN', re: /\b\d{8,10}:AA[A-Za-z0-9_-]{33}\b/g },
-  { name: 'TOKEN', re: /\b(Bearer)\s+([A-Za-z0-9._~+/-]{16,}=*)/g, replace: (mark, _m, kw, val) => `${kw} ${mark(val as string)}` },
+  { name: 'TOKEN', re: /\b(Bearer)\s+([A-Za-z0-9._~+/-]{16,}=*)/g, replace: (mark, _m, [kw, val]) => `${kw} ${mark(val as string)}` },
   ...segredoRules(KEYWORDS_OTHER, 'giu', KEYWORDS_PASS),
   ...segredoRules(KEYWORDS_ENV, 'gu'),
-  { name: 'URL-CREDENCIAIS', re: /(\b[a-z][a-z0-9+.-]*:\/\/[^\s:\/@]+:)(?!\[prumo:)([^\s@\/]{3,})(@)/gi, replace: (mark, _m, lead, pw, at) => `${lead}${mark(pw as string, 'SEGREDO')}${at}` },
+  { name: 'URL-CREDENCIAIS', re: /(\b[a-z][a-z0-9+.-]*:\/\/[^\s:\/@]+:)(?!\[prumo:)([^\s@\/]{3,})(@)/gi, replace: (mark, _m, [lead, pw, at]) => `${lead}${mark(pw as string, 'SEGREDO', (lead as string).length)}${at}` },
   { name: 'EMAIL', pii: true, re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g },
   { name: 'IBAN', pii: true, re: /\bPT\d{2}(?:\s?\d{4}){5}\s?\d\b/gi, valid: ibanValid },
   { name: 'CC', pii: true, re: /\b\d{8}\s?\d\s?[A-Za-z]{2}\d\b/g, valid: ccValid },
@@ -154,6 +169,13 @@ export function countPlaceholders(text: string): number {
   return (text.match(PLACEHOLDER_RE) ?? []).length
 }
 
+function knownMarker(marker: string, opts: RedactOptions): boolean {
+  const arrow = marker.indexOf('→')
+  return arrow >= 0 && isKnownRef(marker.slice(arrow + 1, -1), opts)
+}
+
+type Edit = { offset: number; oldLen: number; newLen: number; keepFrom: number; fresh: [number, number][] }
+
 function run(text: string, opts: RedactOptions, onSecret?: (cls: string, value: string, pos: number) => void): { text: string; hits: number; classes: string[] } {
   let out = text
   let hits = 0
@@ -161,58 +183,113 @@ function run(text: string, opts: RedactOptions, onSecret?: (cls: string, value: 
   const rules: Rule[] = [...RULES, ...opts.extra.map(x => ({ name: x.name, re: x.re, collect: x.secret === true }))]
   // origin[i] = posição no texto original do carácter i do texto actual; serve a ordem de aparição
   let origin: number[] = onSecret ? Array.from({ length: text.length + 1 }, (_, k) => k) : []
+  // intervalos [início, fim) dos marcadores emitidos nesta chamada, nas coordenadas do texto actual
+  let emitted: [number, number][] = []
   for (const rule of rules) {
     if (rule.pii && !opts.pii) continue
     if (rule.ip && !opts.internalIps) continue
     const collect = !rule.pii && !rule.ip && rule.collect !== false
-    const edits: [number, number, number][] = []
-    // nenhuma regra actua dentro de um marcador com ref conhecida (a ref `…/20261029-105#value` tem dígitos que parecem PII);
-    // os marcadores com outra ref, ou sem ref, são texto como outro qualquer: um marcador falso não esconde um segredo
-    const sealed = [...out.matchAll(PLACEHOLDER_RE)]
-      .filter(m => m[0].includes('→') && isKnownRef(m[0].slice(m[0].indexOf('→') + 1, -1), opts))
-      .map(m => [m.index as number, (m.index as number) + m[0].length] as const)
+    const edits: Edit[] = []
+    // nenhuma regra actua dentro de um marcador emitido nesta chamada ou com ref conhecida (a ref `…/20261029-105#value`
+    // tem dígitos que parecem PII); qualquer outro texto com forma de marcador é texto: um marcador falso não esconde um segredo
+    const sealed: [number, number][] = [...emitted]
+    for (const m of out.matchAll(PLACEHOLDER_RE)) if (knownMarker(m[0], opts)) sealed.push([m.index as number, (m.index as number) + m[0].length])
+    const legitEnd = new Map(sealed)
+    const legit = new Set(legitEnd.keys())
+    const current = out
     out = out.replace(rule.re, (match: string, ...rest: unknown[]) => {
       if (rule.valid && !rule.valid(match)) return match
       const offset = rest[rest.findIndex(g => typeof g === 'number')] as number
       if (sealed.some(([from, to]) => offset >= from && offset < to)) return match
       // "Bearer" solto antes de um marcador TOKEN é o prefixo do token, não o valor
-      if (collect && /\bBearer$/i.test(match) && /^\s+\[prumo:TOKEN/.test(out.slice(offset + match.length))) return match
+      if (collect && /\bBearer$/i.test(match) && /^\s+\[prumo:TOKEN/.test(current.slice(offset + match.length))) return match
       const found: [string, string][] = []
-      let tainted = false
-      const mark: Mark = (value, cls = rule.name) => {
-        // um marcador dentro do valor vem de uma regra anterior: redige-se o prefixo e o resto fica como está
-        const at = value.indexOf('[prumo:')
-        if (at >= 0) {
-          const pre = value.slice(0, at)
-          if (pre.length < 5 || /^\s*Bearer\s*$/i.test(pre)) {
-            tainted = true
-            return ph(cls)
+      const end = offset + match.length
+      const edit: Edit = { offset, oldLen: match.length, newLen: 0, keepFrom: Infinity, fresh: [] }
+      // marcador simples para um pedaço curto colado a um marcador legítimo: redigido, não recolhido
+      const plain = (cls: string, rel: number, len: number) => {
+        const marker = ph(cls)
+        edit.fresh.push([end - (offset + rel + len) + marker.length, marker.length])
+        return marker
+      }
+      const mark: Mark = (value, cls = rule.name, at = match.lastIndexOf(value)) => {
+        const start = offset + at
+        // um marcador legítimo (emitido por uma regra anterior ou com ref conhecida) dentro do valor fica como está;
+        // o que está antes e depois dele continua a ser valor. "Bearer " antes dele é o prefixo do token.
+        let cut = -1
+        for (let k = 0; k < value.length; k++)
+          if (legit.has(start + k)) {
+            cut = k
+            break
           }
-          return mark(pre, cls) + value.slice(at)
+        if (cut >= 0) {
+          const span = legitEnd.get(start + cut) as number
+          const stop = Math.min(value.length, span - start)
+          const pre = value.slice(0, cut)
+          const post = value.slice(stop)
+          edit.keepFrom = Math.min(edit.keepFrom, start + cut)
+          const head = /^\s*Bearer\s*$/i.test(pre) || pre === '' ? pre : pre.length < 5 ? plain(cls, at, cut) : mark(pre, cls, at)
+          const tail = post === '' ? '' : post.length < 5 ? plain(cls, at + stop, post.length) : mark(post, cls, at + stop)
+          return head + value.slice(cut, stop) + tail
         }
         found.push([cls, value])
         const ref = opts.refs?.get(value)
-        return ref === undefined ? ph(cls) : `[prumo:${cls}→${ref}]`
+        const marker = ref === undefined ? ph(cls) : `[prumo:${cls}→${ref}]`
+        // o que vem depois do valor sai igual, por isso o marcador fica à mesma distância do fim do match
+        edit.fresh.push([end - (start + value.length) + marker.length, marker.length])
+        return marker
       }
       const groups = rest.slice(0, rest.findIndex(g => typeof g === 'number')) as (string | undefined)[]
-      const replaced = rule.replace ? rule.replace(mark, match, ...groups) : mark(match)
-      if (tainted) return match
+      const ctx = { before: current[offset - 1] ?? '', after: current[end] ?? '' }
+      const replaced = rule.replace ? rule.replace(mark, match, groups, ctx) : mark(match, undefined, 0)
+      if (replaced === match) return match
       hits += 1
       classes.add(rule.name)
       if (collect) for (const [cls, value] of found) onSecret?.(cls, value, origin[offset] as number)
-      edits.push([offset, match.length, replaced.length])
+      edit.newLen = replaced.length
+      edits.push(edit)
       return replaced
     })
-    if (onSecret && edits.length > 0) {
-      const next: number[] = []
+    if (edits.length === 0) continue
+    // novas coordenadas dos marcadores emitidos: fora dos matches desloca-se; dentro, o que veio da cauda do valor
+    // conta a partir do fim e o que veio do início do match (palavra-chave) a partir do início
+    const next: [number, number][] = []
+    let delta = 0
+    let ei = 0
+    const shifted: number[] = []
+    for (const e of edits) {
+      shifted.push(e.offset + delta)
+      delta += e.newLen - e.oldLen
+    }
+    for (const [from, to] of emitted) {
+      while (ei < edits.length && (edits[ei] as Edit).offset + (edits[ei] as Edit).oldLen <= from) ei++
+      const e = edits[ei]
+      if (e && from >= e.offset) {
+        const at = shifted[ei] as number
+        const s = from >= e.keepFrom ? at + e.newLen - (e.offset + e.oldLen - from) : at + (from - e.offset)
+        next.push([s, s + (to - from)])
+      } else {
+        const d = ei > 0 ? (shifted[ei - 1] as number) + (edits[ei - 1] as Edit).newLen - ((edits[ei - 1] as Edit).offset + (edits[ei - 1] as Edit).oldLen) : 0
+        next.push([from + d, to + d])
+      }
+    }
+    edits.forEach((e, i) => {
+      for (const [dist, len] of e.fresh) {
+        const s = (shifted[i] as number) + e.newLen - dist
+        next.push([s, s + len])
+      }
+    })
+    emitted = next.sort((a, b) => a[0] - b[0])
+    if (onSecret) {
+      const map: number[] = []
       let cursor = 0
-      for (const [offset, oldLen, newLen] of edits) {
-        for (let k = cursor; k < offset; k++) next.push(origin[k] as number)
-        for (let k = 0; k < newLen; k++) next.push(origin[offset] as number)
+      for (const { offset, oldLen, newLen } of edits) {
+        for (let k = cursor; k < offset; k++) map.push(origin[k] as number)
+        for (let k = 0; k < newLen; k++) map.push(origin[offset] as number)
         cursor = offset + oldLen
       }
-      for (let k = cursor; k < origin.length; k++) next.push(origin[k] as number)
-      origin = next
+      for (let k = cursor; k < origin.length; k++) map.push(origin[k] as number)
+      origin = map
     }
   }
   return { text: out, hits, classes: [...classes] }

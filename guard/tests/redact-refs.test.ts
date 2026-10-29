@@ -120,16 +120,20 @@ test('refs: padrões extra só são recolhidos com secret: true, e são sempre r
   expect(redactText(t, o).text).toBe('cod [prumo:ORG-SEG] em [prumo:ORG-HOST]')
 })
 
-// ronda 2: segredo colado a um marcador
-const GLUED = [PW + V + '[prumo:TOKEN]', 'api_key: "' + V + '[prumo:TOKEN]"', 'senha: ' + V + '[prumo:TOKEN]']
+// ronda 2: segredo colado a um marcador emitido nesta chamada (aqui, o de um token GitHub). Um marcador que
+// nenhuma regra emitiu faz parte do valor (redact-markers.test.ts).
+const GH = 'ghp_' + 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8'
+const VG = V + '#'
+const GH_MARK = '[' + 'prumo:GITHUB-TOKEN'
+const GLUED = [PW + VG + GH, 'api_key: "' + VG + GH + '"', 'senha: ' + VG + GH]
 for (const t of GLUED) {
   test(`refs: segredo colado a marcador, ${t.slice(0, 12)}`, () => {
     const found = collectSecrets(t, SECRETS_ONLY)
-    expect(found.map(f => f.value)).toEqual([V])
+    expect(found.map(f => f.value)).toEqual([VG, GH])
     const out = redactText(t, SECRETS_ONLY).text
     expect(out.includes(V)).toBe(false)
-    expect(out).toContain('[prumo:TOKEN]')
-    const refs = new Map([[V, REF]])
+    expect(out).toContain(GH_MARK)
+    const refs = new Map([[VG, REF]])
     const withRef = redactText(t, { ...SECRETS_ONLY, refs }).text
     expect(leaks(withRef, V)).toBe(false)
     expect(withRef).toContain('→' + REF + ']')
