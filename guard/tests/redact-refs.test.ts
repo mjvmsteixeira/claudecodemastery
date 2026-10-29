@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { collectSecrets, countPlaceholders, redactText } from '../hooks/redact-patterns.ts'
+import { collectSecrets, compileExtra, countPlaceholders, redactText } from '../hooks/redact-patterns.ts'
 import { positives, leaks, SECRETS_ONLY, W } from './coverage-cases.ts'
 
 const REF = 'secret/inbox/demo/abc123#value'
@@ -56,4 +56,64 @@ test('refs: marcador com referência é contado e não é redigido de novo', () 
   expect(r.hits).toBe(0)
   expect(r.text).toBe(t)
   expect(collectSecrets(t, SECRETS_ONLY)).toEqual([])
+})
+
+// I1/M3: regras sobrepostas
+const TOK = 'abcdEFGH' + '12345678xyz'
+const overlaps = [
+  'api_key: "Bearer ' + TOK + '"',
+  'password=Bearer ' + TOK,
+  'Authorization: Bearer ' + TOK + ' e senha: ' + W,
+  'token = Bearer ' + TOK + ' ' + 'sk-' + 'proj-' + 'A1b2'.repeat(10),
+]
+
+for (const t of overlaps) {
+  test(`refs: sobreposição ${t.slice(0, 22)}, valores recolhidos existem no original e sem marcador`, () => {
+    const found = collectSecrets(t, SECRETS_ONLY)
+    for (const f of found) {
+      expect(t.includes(f.value)).toBe(true)
+      expect(f.value.includes('[prumo:')).toBe(false)
+    }
+    expect(found.map(f => f.value)).toContain(TOK)
+    const refs = new Map(found.map((f, i) => [f.value, `secret/inbox/demo/o${i}#value`]))
+    const out = redactText(t, { ...SECRETS_ONLY, refs }).text
+    expect(out).toContain('[prumo:TOKEN→secret/inbox/demo/o' + found.findIndex(f => f.value === TOK) + '#value]')
+    expect(out.includes(TOK)).toBe(false)
+  })
+}
+
+test('refs: api_key com Bearer entre aspas mantém o marcador TOKEN com a ref', () => {
+  const out = redactText('api_key: "Bearer ' + TOK + '"', { ...SECRETS_ONLY, refs: new Map([[TOK, REF]]) }).text
+  expect(out).toBe('api_key: "Bearer [prumo:TOKEN→' + REF + ']"')
+})
+
+test('refs: password=Bearer <tok> recolhe só o token', () => {
+  expect(collectSecrets('password=Bearer ' + TOK, SECRETS_ONLY)).toEqual([{ cls: 'TOKEN', value: TOK }])
+})
+
+// M1
+test('refs: valor que é substring de outro mantém a ordem de aparição', () => {
+  const long = 'Xk9mPq2vL' + 'ZZ'
+  const got = collectSecrets('senha: ' + long + ' e depois password=' + W, SECRETS_ONLY).map(s => s.value)
+  expect(got).toEqual([long, W])
+  const got2 = collectSecrets('password=' + W + 'ZZ' + ' antes\npassword=' + W, SECRETS_ONLY).map(s => s.value)
+  expect(got2).toEqual([W + 'ZZ', W])
+})
+
+// M2
+test('refs: referência ecoada depois de palavra-chave não é recolhida', () => {
+  expect(collectSecrets('senha: secret/inbox/demo/abc#value', SECRETS_ONLY)).toEqual([])
+})
+
+// I2
+test('refs: padrões extra só são recolhidos com secret: true, e são sempre redigidos', () => {
+  const { patterns } = compileExtra({ patterns: [
+    { name: 'ORG-SEG', regex: 'ORG-\\d{4}', secret: true },
+    { name: 'ORG-HOST', regex: 'h\\d{4}\\.org' },
+  ] })
+  expect(patterns.map(p => p.secret)).toEqual([true, false])
+  const o = { ...SECRETS_ONLY, extra: patterns }
+  const t = 'cod ORG-1234 em h5678.org'
+  expect(collectSecrets(t, o)).toEqual([{ cls: 'ORG-SEG', value: 'ORG-1234' }])
+  expect(redactText(t, o).text).toBe('cod [prumo:ORG-SEG] em [prumo:ORG-HOST]')
 })

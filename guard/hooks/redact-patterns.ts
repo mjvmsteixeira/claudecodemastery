@@ -1,4 +1,4 @@
-export type ExtraPattern = { name: string; re: RegExp }
+export type ExtraPattern = { name: string; re: RegExp; secret?: boolean }
 export type RedactOptions = { pii: boolean; internalIps: boolean; extra: ExtraPattern[]; refs?: ReadonlyMap<string, string> }
 
 type Rule = {
@@ -6,6 +6,7 @@ type Rule = {
   re: RegExp
   pii?: boolean
   ip?: boolean
+  collect?: boolean
   valid?: (match: string) => boolean
   replace?: (mark: Mark, match: string, ...groups: (string | undefined)[]) => string
 }
@@ -133,27 +134,52 @@ export function countPlaceholders(text: string): number {
   return (text.match(PLACEHOLDER_RE) ?? []).length
 }
 
-function run(text: string, opts: RedactOptions, onSecret?: (cls: string, value: string) => void): { text: string; hits: number; classes: string[] } {
+function run(text: string, opts: RedactOptions, onSecret?: (cls: string, value: string, pos: number) => void): { text: string; hits: number; classes: string[] } {
   let out = text
   let hits = 0
   const classes = new Set<string>()
-  const rules: Rule[] = [...RULES, ...opts.extra.map(x => ({ name: x.name, re: x.re }))]
+  const rules: Rule[] = [...RULES, ...opts.extra.map(x => ({ name: x.name, re: x.re, collect: x.secret === true }))]
+  // origin[i] = posição no texto original do carácter i do texto actual; serve a ordem de aparição
+  let origin: number[] = onSecret ? Array.from({ length: text.length + 1 }, (_, k) => k) : []
   for (const rule of rules) {
     if (rule.pii && !opts.pii) continue
     if (rule.ip && !opts.internalIps) continue
-    const secret = !rule.pii && !rule.ip
+    const collect = !rule.pii && !rule.ip && rule.collect !== false
+    const edits: [number, number, number][] = []
     out = out.replace(rule.re, (match: string, ...rest: unknown[]) => {
       if (rule.valid && !rule.valid(match)) return match
-      hits += 1
-      classes.add(rule.name)
+      const offset = rest[rest.findIndex(g => typeof g === 'number')] as number
+      // "Bearer" solto antes de um marcador TOKEN é o prefixo do token, não o valor
+      if (collect && /\bBearer$/i.test(match) && /^\s+\[prumo:TOKEN/.test(out.slice(offset + match.length))) return match
+      const found: [string, string][] = []
+      let tainted = false
       const mark: Mark = (value, cls = rule.name) => {
-        if (secret) onSecret?.(cls, value)
+        // um valor que já contém um marcador é texto alterado por uma regra anterior
+        if (value.includes('[prumo:')) tainted = true
+        found.push([cls, value])
         const ref = opts.refs?.get(value)
         return ref === undefined ? ph(cls) : `[prumo:${cls}→${ref}]`
       }
       const groups = rest.slice(0, rest.findIndex(g => typeof g === 'number')) as (string | undefined)[]
-      return rule.replace ? rule.replace(mark, match, ...groups) : mark(match)
+      const replaced = rule.replace ? rule.replace(mark, match, ...groups) : mark(match)
+      if (tainted) return match
+      hits += 1
+      classes.add(rule.name)
+      if (collect) for (const [cls, value] of found) onSecret?.(cls, value, origin[offset] as number)
+      edits.push([offset, match.length, replaced.length])
+      return replaced
     })
+    if (onSecret && edits.length > 0) {
+      const next: number[] = []
+      let cursor = 0
+      for (const [offset, oldLen, newLen] of edits) {
+        for (let k = cursor; k < offset; k++) next.push(origin[k] as number)
+        for (let k = 0; k < newLen; k++) next.push(origin[offset] as number)
+        cursor = offset + oldLen
+      }
+      for (let k = cursor; k < origin.length; k++) next.push(origin[k] as number)
+      origin = next
+    }
   }
   return { text: out, hits, classes: [...classes] }
 }
@@ -163,16 +189,14 @@ export function redactText(text: string, opts: RedactOptions): { text: string; h
 }
 
 export function collectSecrets(text: string, opts: RedactOptions): { cls: string; value: string }[] {
-  const found = new Map<string, string>()
-  run(text, opts, (cls, value) => {
-    if (!found.has(value)) found.set(value, cls)
+  const found = new Map<string, { cls: string; pos: number }>()
+  run(text, opts, (cls, value, pos) => {
+    // uma referência ecoada depois de uma palavra-chave não é um segredo novo
+    if (value.startsWith('secret/inbox/')) return
+    const prev = found.get(value)
+    if (!prev || pos < prev.pos) found.set(value, { cls: prev?.cls ?? cls, pos })
   })
-  // as regras correm em sequência; a ordem de aparição é a do texto original
-  const at = (v: string) => {
-    const i = text.indexOf(v)
-    return i < 0 ? Infinity : i
-  }
-  return [...found].map(([value, cls]) => ({ cls, value })).sort((a, b) => at(a.value) - at(b.value))
+  return [...found].sort((a, b) => a[1].pos - b[1].pos).map(([value, f]) => ({ cls: f.cls, value }))
 }
 
 export function compileExtra(raw: unknown): { patterns: ExtraPattern[]; errors: string[] } {
@@ -188,7 +212,7 @@ export function compileExtra(raw: unknown): { patterns: ExtraPattern[]; errors: 
     }
     const flags = typeof p.flags === 'string' ? p.flags : 'g'
     try {
-      patterns.push({ name: p.name, re: new RegExp(p.regex, flags.includes('g') ? flags : `${flags}g`) })
+      patterns.push({ name: p.name, re: new RegExp(p.regex, flags.includes('g') ? flags : `${flags}g`), secret: (item as { secret?: unknown }).secret === true })
     } catch (err) {
       errors.push(`${p.name}: ${String(err)}`)
     }
