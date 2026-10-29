@@ -71,7 +71,7 @@ const SYMBOL_STRICT = String.raw`[^\p{L}\s"'&;,${TRAIL}/_-]`
 const hasDigitOrSymbol = (symbol: string, skip = '') =>
   String.raw`(?=(?:\p{L}|[${TRAIL}${skip}])*(?:${symbol}|[;,][^\s"'&;,]))`
 // entre aspas, depois de uma palavra solta: sem espaços pede símbolo e sem expansão de shell; com espaços ("correct horse battery") serve qualquer frase sem sinais de código
-const VAR = String.raw`\$(?:[({]|[A-Za-z_]{2})`
+const VAR = String.raw`\$(?:[({]|[A-Za-z_]{2}(?=[^"'\n]*\/))`
 const QUOTED_SYMBOL = String.raw`[^\p{L}\s"'${TRAIL}/_-]`
 const QUOTED_NOSPACE = String.raw`(?![^"'\s]*${VAR})(?=[^"'\s]*${QUOTED_SYMBOL})[^"'\s]{5,}`
 const QUOTED_SPACED = String.raw`(?=[^"'\n]* )(?![^"'\n]*${VAR})[^"'\n\[\]{}+]{5,}`
@@ -93,7 +93,7 @@ function segredoRules(keywords: string, flags: string, passKeywords?: string): R
   const all = passKeywords ? `(?:${keywords}|${passKeywords})` : keywords
   const prose = (kw: string, quoted: string) => [
     rule(String.raw`${kw}(?![A-Za-z/\\])["']?[^\n]{0,30}?[ \t](?:é|is|era|was)[ \t]+`, `(?:${quoted}|${unquoted(SYMBOL)})`),
-    rule(String.raw`${kw}(?![A-Za-z/\\])["']?[ \t]+(?!${SHELL_START})`, `(?:${quoted}|${unquoted(SYMBOL_STRICT, '/_-')})`),
+    rule(String.raw`${kw}(?![A-Za-z/\\])(?:["'](?![ \t]+["']))?[ \t]+(?!${SHELL_START})`, `(?:${quoted}|${unquoted(SYMBOL_STRICT, '/_-')})`),
   ]
   return [
     rule(String.raw`${all}["']?[ \t]*[=:]`, `(?:${QUOTED}|${NOT_A_VALUE}${UNQUOTED})`),

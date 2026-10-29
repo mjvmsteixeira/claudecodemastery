@@ -177,3 +177,33 @@ for (const [id, text, value] of reposicao) {
     expect(r.text.includes(value)).toBe(false)
   })
 }
+
+const reposicaoVar: Array<[string, string, string]> = [
+  ['R5a', 'password "' + 'Xk9mPq2vL$xy"', 'mPq2'],
+  ['R5b', 'pass "' + 'Xk9mPq2vL$xy"', 'mPq2'],
+  ['R5c', 'a senha é "' + 'Xk9mPq$Ab1"', 'mPq'],
+  ['R5d', 'the password is "' + 'Xk9mPq$xyz"', 'mPq'],
+]
+
+for (const [id, text, value] of reposicaoVar) {
+  test(`cobertura: ${id} $ dentro do valor não é variável`, () => {
+    const r = redactText(text, SECRETS_ONLY)
+    expect(r.hits).toBe(1)
+    expect(r.text.includes(value)).toBe(false)
+  })
+}
+
+const aspasDaPalavra: Array<[string, string]> = [
+  ['Q1', 'echo "token" "next phrase here"'],
+  ['Q2', 'run "secret" "my value here"'],
+  ['Q3', 'jq ".token" "file name.json"'],
+  ['Q4', 'check "password" "must be long enough"'],
+]
+
+for (const [id, text] of aspasDaPalavra) {
+  test(`cobertura: ${id} aspa de fecho da palavra-chave não abre a frase seguinte`, () => {
+    const r = redactText(text, SECRETS_ONLY)
+    expect(r.hits).toBe(0)
+    expect(r.text).toBe(text)
+  })
+}
