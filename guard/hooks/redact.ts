@@ -147,7 +147,7 @@ export function registerRedaction(on: On): void {
     await ensureExtra($)
     const r = await captureAndRedact($, e.text, { pii: true, internalIps: c.redact.internalIps, extra }, c.redact.capture, false)
     if (r.hits === 0) return next(e)
-    if (!r.context) $.ui.toast(`prumo-guard: ${r.hits} valor(es) redigido(s) no prompt (${r.classes.join(', ')})`)
+    if (r.uncovered > 0) $.ui.toast(`prumo-guard: ${r.uncovered} valor(es) redigido(s) no prompt (${r.classes.join(', ')})`)
     return next({ ...e, text: r.text, ...(r.context ? { context: [...(e.context ?? []), r.context] } : {}) })
   }).catch(($, e, next) =>
     next.called
@@ -164,6 +164,7 @@ export function registerRedaction(on: On): void {
     await ensureExtra($)
     const r = await captureAndRedact($, e.args, { pii: false, internalIps: false, extra }, c.redact.capture, true)
     if (r.hits === 0) return next(e)
+    if (r.uncovered > 0) $.ui.toast(`prumo-guard: ${r.uncovered} valor(es) redigido(s) nos argumentos (${r.classes.join(', ')})`)
     return next({ ...e, args: r.text })
   }).catch(($, e, next) => (next.called ? next(e) : { text: 'prumo-guard: a redação dos argumentos falhou; o comando não correu.' }))
 

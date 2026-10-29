@@ -23,11 +23,11 @@ fi
 source "$(dirname "${BASH_SOURCE[0]}")/vault-env.sh" >/dev/null 2>&1
 
 if [ "${VAULT_MODE:-}" = "native" ]; then
-  vault kv put "$P" "$F=-" >/dev/null 2>&1
+  vault kv put -cas=0 "$P" "$F=-" >/dev/null 2>&1
 else
   # A função V ocupa o stdin com o token; aqui token e valor seguem juntos.
   { printf '%s\n' "${VAULT_TOKEN:-}"; cat; } | docker exec -i \
     -e VAULT_ADDR="$VAULT_ADDR" \
     -e VAULT_CACERT="$VAULT_CACERT_IN_CONTAINER" \
-    "$VAULT_CONTAINER" sh -c 'IFS= read -r t; VAULT_TOKEN="$t" exec vault kv put "$1" "$2=-"' sh "$P" "$F" >/dev/null 2>&1
+    "$VAULT_CONTAINER" sh -c 'IFS= read -r t; VAULT_TOKEN="$t" exec vault kv put -cas=0 "$1" "$2=-"' sh "$P" "$F" >/dev/null 2>&1
 fi || { echo "vault-write-field: gravação falhou ($P#$F)" >&2; exit 1; }

@@ -18,16 +18,24 @@ export function resetCapture(): void {
   counter = 0
 }
 
-// O nome da pasta do projeto vira um segmento válido do caminho do escritor ([A-Za-z0-9._-], sem segmentos . ou ..).
+// <projeto>: basename do cwd em minúsculas, só [a-z0-9-]; vazio vira "sessao".
 function projectSegment(cwd: string): string {
   const name = cwd.split('/').filter(Boolean).pop() ?? ''
-  const seg = name.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^[.-]+/, '').replace(/-+$/, '')
-  return seg || 'sem-projeto'
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/^-+|-+$/g, '') || 'sessao'
+}
+
+// aaaammdd-hhmmss, hora local.
+function stamp(ms: number): string {
+  const d = new Date(ms)
+  const p = (n: number, w = 2) => String(n).padStart(w, '0')
+  return `${p(d.getFullYear(), 4)}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
 }
 
 export type Captured = {
   text: string
   hits: number
+  // Redigido sem que nenhum toast de captura o tenha dito (o chamador avisa).
+  uncovered: number
   classes: string[]
   // Contexto para o modelo (uma entrada) ou null quando não houve segredos.
   context: string | null
@@ -38,9 +46,11 @@ export type Captured = {
 export async function captureAndRedact($: EngineInterface, text: string, opts: RedactOptions, capture: boolean, secretsOnly: boolean): Promise<Captured> {
   const base = secretsOnly ? { ...opts, pii: false, internalIps: false } : opts
   const secrets = capture ? collectSecrets(text, { ...base, pii: false, internalIps: false }) : []
-  let stored = 0
+  let created = 0
+  let reused = 0
   let failed = 0
-  let reason = ''
+  let skipped = 0
+  const covered: string[] = []
   if (secrets.length > 0) {
     const dir = await latestPluginDir($, 'prumo-base')
     const writer = dir ? `${dir}/lib/vault-write-field.sh` : null
@@ -48,6 +58,7 @@ export async function captureAndRedact($: EngineInterface, text: string, opts: R
       if (!warnedNoWriter) {
         warnedNoWriter = true
         $.ui.toast(NO_WRITER)
+        covered.push(...secrets.map(s => s.value))
       }
     } else {
       const project = projectSegment(await $.session.cwd())
@@ -55,40 +66,57 @@ export async function captureAndRedact($: EngineInterface, text: string, opts: R
       let attempts = 0
       for (const s of secrets) {
         if (refs.has(s.value)) {
-          stored++
+          reused++
+          covered.push(s.value)
           continue
         }
-        if (attempts >= MAX_PER_PROMPT) continue
+        if (attempts >= MAX_PER_PROMPT) {
+          skipped++
+          covered.push(s.value)
+          continue
+        }
         attempts++
-        const path = `secret/inbox/${project}/${now}-${++counter}`
+        const path = `secret/inbox/${project}/${stamp(now)}-${++counter}`
         const ok = await $.process
           .run(['bash', writer, path, FIELD], { stdin: s.value, timeoutMs: 8000 })
           .then(r => r.exitCode === 0)
           .catch(() => false)
+        covered.push(s.value)
         if (ok) {
           refs.set(s.value, `${path}#${FIELD}`)
-          stored++
-        } else {
-          failed++
-          reason = FAIL_REASON
-        }
+          created++
+        } else failed++
       }
-      if (stored > 0) $.ui.toast(`prumo-guard: ${stored} segredo(s) guardado(s) em secret/inbox/${project}/ e redigido(s)`)
-      if (failed > 0) $.ui.toast(`prumo-guard: ${failed} segredo(s) redigido(s) mas não guardado(s) no Vault (${reason})`)
+      if (created > 0 || reused > 0)
+        $.ui.toast(
+          `prumo-guard: ${created} segredo(s) guardado(s) em secret/inbox/${project}/ e redigido(s)` + (reused > 0 ? `; ${reused} já guardado(s)` : ''),
+        )
+      if (failed > 0) $.ui.toast(`prumo-guard: ${failed} segredo(s) redigido(s) mas não guardado(s) no Vault (${FAIL_REASON})`)
+      if (skipped > 0) $.ui.toast(`prumo-guard: ${skipped} segredo(s) não guardado(s): limite de ${MAX_PER_PROMPT} por prompt`)
     }
   }
   const r = redactText(text, { ...base, refs })
+  const residue = covered.reduce((t, v) => t.split(v).join(' '), text)
+  const rest = redactText(residue, { ...base, refs })
+  const coveredHits = covered.reduce((n, v) => n + (text.split(v).length - 1), 0)
+  const saved = created + reused
   const parts: string[] = []
-  if (stored > 0)
+  if (saved > 0)
     parts.push(
-      `O prompt tinha ${stored} segredo(s); foram guardados no Vault e o texto mostra só a referência (caminho#campo). ` +
+      `O prompt tinha ${saved} segredo(s); foram guardados no Vault e o texto mostra só a referência (caminho#campo). ` +
         'Não peças o valor à pessoa: usa a referência com run_with_secret, ou pede-lhe que o promova para o caminho definitivo com /vault-set.',
     )
-  const unsaved = secrets.length - stored
-  if (unsaved > 0 && capture)
+  const unsaved = secrets.length - saved
+  if (unsaved > 0)
     parts.push(
       `${unsaved} segredo(s) não foram guardados no Vault e ficam só redigidos; a pessoa deve gravá-los no seu terminal ` +
         '(com `vault` instalado e VAULT_ADDR/VAULT_TOKEN definidos) com `vault kv patch <caminho> <campo>=-` (o valor é lido do stdin; `kv put` se o caminho ainda não existir).',
     )
-  return { text: r.text, hits: r.hits, classes: r.classes, context: parts.length ? `[prumo-guard] ${parts.join(' ')}` : null }
+  return {
+    text: r.text,
+    hits: r.hits,
+    uncovered: Math.max(0, r.hits - coveredHits),
+    classes: rest.classes,
+    context: parts.length ? `[prumo-guard] ${parts.join(' ')}` : null,
+  }
 }

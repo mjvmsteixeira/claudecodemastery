@@ -41,7 +41,7 @@ VAL="$SECRET"; run 0 secret/inbox/x/y value
 [ "$RC" = 0 ] && ok "exit 0" || bad "exit $RC"
 [ ! -s "$T/out" ] && ok "stdout vazio" || bad "stdout não vazio"
 grep -qx 'kv' "$T/argv" && grep -qx 'put' "$T/argv" && grep -qx 'secret/inbox/x/y' "$T/argv" && grep -qx 'value=-' "$T/argv" \
-  && ok "argv kv put <caminho> value=-" || bad "argv inesperado: $(tr '\n' ' ' <"$T/argv")"
+  && grep -qx -- '-cas=0' "$T/argv" && ok "argv kv put -cas=0 <caminho> value=-" || bad "argv inesperado: $(tr '\n' ' ' <"$T/argv")"
 grep -qF -- "$SECRET" "$T/argv" && bad "valor no argv" || ok "valor fora do argv"
 [ "$(cat "$T/stdin")" = "$VAL" ] && ok "stdin == valor" || bad "stdin difere"
 
@@ -72,6 +72,7 @@ VAL=$'v1\nv2 $(x)\n'; DOCKER=1 run 0 secret/inbox/d/e value
 cmp -s <(printf 'tok-%s\n%s' "$TOKX" "$VAL") "$T/stdin" && ok "stdin = token\\nvalor" || bad "stdin difere"
 grep -qF -- "tok-$TOKX" "$T/argv" && bad "token no argv" || ok "token fora do argv"
 grep -qF -- 'v2 $(x)' "$T/argv" && bad "valor no argv" || ok "valor fora do argv"
+grep -qF -- 'kv put -cas=0' "$T/argv" && ok "docker: kv put -cas=0" || bad "docker sem -cas=0"
 grep -qx 'secret/inbox/d/e' "$T/argv" && grep -qx 'value' "$T/argv" && grep -qx -- '-i' "$T/argv" && ok "argv docker exec -i … caminho campo" || bad "argv: $(tr '\n' ' ' <"$T/argv")"
 VAL="$SECRET"; DOCKER=1 ECHO=1 run 3 secret/inbox/d/e value
 [ -e "$T/ran" ] && [ "$RC" = 1 ] && ok "docker falha -> exit 1" || bad "docker falha: rc=$RC"

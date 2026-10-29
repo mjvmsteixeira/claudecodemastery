@@ -8,7 +8,7 @@ const TOKEN2 = 'hvs.' + 'B'.repeat(24)
 const WRITER = '/h/.claude/plugins/cache/prumo/prumo-base/1.1.0/lib/vault-write-field.sh'
 const RAN = (exitCode: number) => ({ value: { exitCode, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
 
-type Opts = { files?: Record<string, string>; writer?: boolean; exit?: number | ((n: number) => number); broken?: true }
+type Opts = { files?: Record<string, string>; writer?: boolean; exit?: number | ((n: number) => number); broken?: true; cwd?: string }
 
 async function setup($: Engine, on: On, o: Opts = {}) {
   const st = { runs: [] as { argv: string[]; stdin?: string }[], toasts: [] as string[], args: '' }
@@ -23,7 +23,7 @@ async function setup($: Engine, on: On, o: Opts = {}) {
   on('fs.list', () => ({ value: [{ name: '1.1.0', kind: 'dir' as const, size: 0, mtimeMs: 0, isLink: false }] }))
   on('fs.exists', (_$, e) => ({ value: e.path === WRITER && o.writer !== false }))
   on('clock.now', () => ({ value: 1_000_000 }))
-  on('session.cwd', () => (o.broken ? { deny: 'boom' } : { value: '/p/meu projeto' }))
+  on('session.cwd', () => (o.broken ? { deny: 'boom' } : { value: o.cwd ?? '/p/meu projeto' }))
   on('ui.toast', (_$, e) => { st.toasts.push(e.text); return { value: undefined } })
   on('ui.status', () => ({ value: undefined }))
   on('process.run', (_$, e) => {
@@ -50,7 +50,7 @@ test('captura: grava por stdin, referência no texto, contexto, sem valor em arg
   expect(st.runs[0]!.argv.join(' ')).not.toContain(TOKEN)
   expect(st.runs[0]!.argv.slice(0, 2)).toEqual(['bash', WRITER])
   expect(st.runs[0]!.argv[3]).toBe('value')
-  expect(st.runs[0]!.argv[2]).toMatch(/^secret\/inbox\/meu-projeto\/[A-Za-z0-9._/-]+$/)
+  expect(st.runs[0]!.argv[2]).toMatch(/^secret\/inbox\/meu-projeto\/\d{8}-\d{6}-\d+$/)
   expect(r.text).toContain('→secret/inbox/meu-projeto/')
   expect(r.text).toContain('#value]')
   expect(r.text).not.toContain(TOKEN)
@@ -127,10 +127,74 @@ test('command.run: segredo nos args é gravado e reescrito', async ($, on) => {
   expect(st.runs[0]!.stdin).toBe(TOKEN)
   expect(st.args).toContain('→secret/inbox/meu-projeto/')
   expect(st.args).not.toContain(TOKEN)
+  expect(st.toasts).toEqual(['prumo-guard: 1 segredo(s) guardado(s) em secret/inbox/meu-projeto/ e redigido(s)'])
 })
 
-test('command.run de prumo-guard não é tocado', async ($, on) => {
+test('command.run de prumo-guard não é tocado: nada gravado, args intactos, sem toast', async ($, on) => {
   const st = await setup($, on)
   await $.command.run(cmd('prumo-guard-mode', TOKEN))
+  await $.command.run(cmd('prumo-guard-outro', TOKEN))
   expect(st.runs).toHaveLength(0)
+  expect(st.args).toBe(TOKEN)
+  expect(st.toasts).toEqual([])
+})
+
+const pathOf = (st: { runs: { argv: string[] }[] }, i: number) => st.runs[i]!.argv[2]!
+
+test('projeto: maiúsculas, ponto e sublinhado viram -; vazio ou símbolos -> sessao; id com contador da sessão', async ($, on) => {
+  const st = await setup($, on, { cwd: '/x/MyApp_v2.0' })
+  await $.prompt.submit(sub(`a ${TOKEN}`))
+  await $.prompt.submit(sub(`b ${TOKEN2}`))
+  expect(pathOf(st, 0)).toMatch(/^secret\/inbox\/myapp-v2-0\/\d{8}-\d{6}-1$/)
+  expect(pathOf(st, 1)).toMatch(/-2$/)
+})
+
+test('cwd só com símbolos usa sessao', async ($, on) => {
+  const st = await setup($, on, { cwd: '/x/___' })
+  await $.prompt.submit(sub(`a ${TOKEN}`))
+  expect(pathOf(st, 0)).toMatch(/^secret\/inbox\/sessao\/\d{8}-\d{6}-1$/)
+})
+
+test('cwd vazio usa sessao', async ($, on) => {
+  const st = await setup($, on, { cwd: '/' })
+  await $.prompt.submit(sub(`a ${TOKEN}`))
+  expect(pathOf(st, 0)).toMatch(/^secret\/inbox\/sessao\//)
+})
+
+test('sem escritor, o segundo prompt continua a dar o toast genérico de redação', async ($, on) => {
+  const st = await setup($, on, { writer: false })
+  await $.prompt.submit(sub(`a ${TOKEN}`))
+  st.toasts.length = 0
+  await $.prompt.submit(sub(`b ${TOKEN2}`))
+  expect(st.toasts).toEqual(['prumo-guard: 1 valor(es) redigido(s) no prompt (VAULT-TOKEN)'])
+})
+
+test('PII ao lado de segredo gravado também dá toast', async ($, on) => {
+  const st = await setup($, on)
+  await $.prompt.submit(sub(`${TOKEN} e ana@exemplo.pt`))
+  expect(st.toasts).toHaveLength(2)
+  expect(st.toasts[0]).toContain('1 segredo(s) guardado(s)')
+  expect(st.toasts[1]).toContain('1 valor(es) redigido(s) no prompt (EMAIL)')
+})
+
+test('misto: uma gravação OK e outra falhada no mesmo prompt', async ($, on) => {
+  const st = await setup($, on, { exit: n => (n === 1 ? 0 : 1) })
+  const r = await $.prompt.submit(sub(`a ${TOKEN} b ${TOKEN2}`))
+  expect(r.text.match(/→/g)).toHaveLength(1)
+  expect(r.text).toContain('[prumo:VAULT-TOKEN]')
+  expect(st.toasts[0]).toContain('1 segredo(s) guardado(s)')
+  expect(st.toasts[1]).toContain('1 segredo(s) redigido(s) mas não guardado(s)')
+  expect(r.context![0]).toContain('1 segredo(s) não foram guardados')
+})
+
+test('acima do limite entra no toast; referência reaproveitada não conta como guardada', async ($, on) => {
+  const st = await setup($, on)
+  const toks = Array.from({ length: 12 }, (_, i) => 'hvs.' + String.fromCharCode(65 + i).repeat(24))
+  await $.prompt.submit(sub(toks.join(' ')))
+  expect(st.toasts).toContain('prumo-guard: 2 segredo(s) não guardado(s): limite de 10 por prompt')
+  expect(st.toasts[0]).toContain('10 segredo(s) guardado(s)')
+  st.toasts.length = 0
+  await $.prompt.submit(sub(`outra vez ${toks[0]}`))
+  expect(st.toasts[0]).toContain('0 segredo(s) guardado(s)')
+  expect(st.toasts[0]).toContain('1 já guardado(s)')
 })
