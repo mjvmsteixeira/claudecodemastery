@@ -50,6 +50,18 @@ if [ -f "$POLICY_FILE" ]; then
 fi
 ```
 
+## Passo 2b — Inbox do projecto
+
+A inbox do prumo-guard (`secret/inbox/<projecto>/`) guarda os valores capturados antes de serem promovidos. Mostra-se à parte, só com metadados e sem prévia: a prévia mascarada acima não se aplica à inbox (`kv get` na inbox é N2 e mostraria parte do valor).
+
+```bash
+source "${CLAUDE_PLUGIN_ROOT}/lib/vault-env.sh"
+vault_ready || { echo "Vault inacessível ou sealed — abortar."; exit 1; }
+
+echo "=== INBOX ==="
+bash "${CLAUDE_PLUGIN_ROOT}/lib/vault-inbox-list.sh"
+```
+
 ## Passo 3 — Apresentar como tabela markdown
 
 Com os dados recolhidos, apresentar em duas secções:
@@ -68,6 +80,14 @@ Com os dados recolhidos, apresentar em duas secções:
 | `secret/ai/<serviço>` | `api_key` | `sk-ant-a...` | OK |
 | `secret/tokens/github` | `token` | `ghp_Ab1C...` | OK |
 
+**Inbox do projecto** (`secret/inbox/<nome>/`), bloco separado e sem prévia
+
+| Path | created_time | Idade | Estado |
+|------|--------------|-------|--------|
+| `secret/inbox/<nome>/<aaaammdd-hhmmss>-<n>` | `2026-10-20T09:15:02Z` | 9 dias | ⚠ >7 dias |
+
+Para promover uma entrada: `/vault-set --from secret/inbox/<nome>/<entrada>#value <destino> <campo>`.
+
 **Regras de prévia:**
 - Valor preenchido → primeiros 8 caracteres + `...`
 - `PLACEHOLDER` ou vazio → `⚠ PLACEHOLDER`
@@ -79,3 +99,5 @@ Com os dados recolhidos, apresentar em duas secções:
 - Se não existir `<nome>-policy.hcl`, mostrar apenas os segredos específicos e avisar que a policy não foi encontrada
 - Se o Vault estiver inacessível, informar e parar
 - Nunca listar segredos de outros projectos
+- Inbox: a listagem é o `lib/vault-inbox-list.sh` (só `kv list` e `kv metadata get`, nunca `kv get`, nem prévia do valor), com o token da pessoa (o AppRole não lista a inbox). Distingue «Inbox vazia» de `⚠ não foi possível listar …` (token, permissões ou Vault selado): nunca apresentar a falha como inbox vazia. Subpastas aparecem como `⚠ subpasta inesperada`. Limite: nomes de pasta com emoji ou Unicode raro (`İ`) podem dar um segmento diferente do da captura. Não apagar entradas aqui
+

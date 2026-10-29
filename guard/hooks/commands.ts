@@ -4,6 +4,7 @@ import { APPROVAL_PANE } from './approval.tsx'
 import { loadConfig, prumoHome } from './config.ts'
 import { readMode, writeMode, type PrumoMode } from './mode.ts'
 import { redactConfigProblem, setRedactOn } from './redact.ts'
+import { captureState } from './capture.ts'
 import { refreshStatus } from './status.ts'
 
 const redactOn = atom({ plugin: 'prumo-guard', key: 'redactOn' } as const, true)
@@ -26,6 +27,14 @@ export async function setRedact($: EngineInterface, value: boolean): Promise<voi
   await refreshStatus($)
 }
 
+function captureLine(enabled: boolean): string {
+  if (!enabled) return 'captura para o Vault: desligada (guard.json → redact.capture)'
+  const st = captureState()
+  return st.disabled
+    ? 'captura para o Vault: desligada nesta sessão (3 falhas seguidas; reinicia com a sessão)'
+    : `captura para o Vault: ligada${st.failStreak > 0 ? ` · ${st.failStreak} prompt(s) seguido(s) com falha` : ''}`
+}
+
 export async function startCommands($: EngineInterface): Promise<void> {
   await $.command.register({ name: 'prumo-guard', description: 'Estado do prumo-guard: modo, RGPD (redação) e aprovações pendentes' })
   await $.command.register({ name: 'prumo-guard-mode', description: 'Muda o modo operacional prumo (prod, dev ou lab). Só pela pessoa.', argumentHint: 'prod|dev|lab' })
@@ -41,6 +50,7 @@ export function registerCommands(on: On): void {
     const lines = [
       `modo: ${mode}`,
       `RGPD: ${(await read($, redactOn)) ? 'on' : 'off'} · ${await read($, redactHits)} valor(es) redigido(s) nesta sessão`,
+      captureLine(cfg.redact.capture),
       ...(problem ? [`aviso: ${problem}`] : []),
       `travão: ${cfg.brake.enabled ? 'ligado' : 'desligado (guard.json → brake.enabled)'}`,
       `orçamento: ${cfg.brake.usdBudget} USD · repetição: ${cfg.brake.repeatLimit} · ips internos: ${cfg.redact.internalIps ? 'on' : 'off'}`,

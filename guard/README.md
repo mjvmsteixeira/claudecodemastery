@@ -48,14 +48,65 @@ Só N1; o `run_with_secret` pede sempre, sem as opções 4 e 5. Uma regra "todos
 
 Antes de o conteúdo chegar ao modelo, os valores sensíveis são trocados por `[prumo:CLASSE]`. Aplica-se a resultados de ferramentas, mensagens de ferramentas, anexos, contexto de hooks e entregas (`session.append`) e ao texto que a pessoa escreve (`prompt.submit`, desligável com `redact.prompt`).
 
-- Segredos (sempre): chave privada, JWT, token do Vault, chave AWS, token GitHub, token Slack, `Bearer`, pares `password/secret/token/api_key=valor`, credenciais em URL.
+- Segredos (sempre): chave privada, JWT, token do Vault, chave AWS, token GitHub, token Slack (`xoxb-`, `xoxp-`, `xapp-` e afins), token do Telegram, chaves de fornecedores (`sk-`, `sk-proj-`, `sk-ant-`, `sk-svcacct-`, `sk_live_`/`sk_test_`/`rk_live_`/`rk_test_`, `AIza`, `glpat-`, `npm_`, classe `CHAVE-API`), `Bearer`, credenciais em URL e pares chave-valor com `password`, `senha`, `palavra-passe` (também com espaço ou `_`), `passphrase`, `pass`, `secret`, `token`, `api_key` ou variáveis `*_KEY=` em maiúsculas (por exemplo num `.env`).
+  - Também em prosa: `<palavra-chave> … é|is|era|was <valor>` e `<palavra-chave> <valor>`. Sem aspas, o valor em prosa ou depois de `: ` ou de `=` seguido de espaço tem de conter um dígito ou um símbolo (só a primeira palavra do valor é verificada); com aspas pode ter espaços (frases como `password "correct horse battery"` ou `a senha é "…"` são redigidas; só `pass` sozinho, que também é verbo, pede dígito ou símbolo dentro das aspas, no máximo 4 palavras). Valores com menos de 5 caracteres ficam de fora (o mínimo desceu de 6 para 5, também para as palavras-chave que já existiam), e `pass` não dispara dentro de palavras como `bypass`, `compass` ou `passport`.
+  - Referências e tipos não são redigidos: `$VAR`, `process.env`, `os.environ`, `ENV[`, `<…>`, `{{…}}`, `true`, `false`, `null`, `none`, `nil`, `undefined`, `string`, `str`, `number`, `int`, `bool`, `boolean`, `required` e `optional`.
+  - Limite conhecido: um PIN de 4 dígitos não é coberto (curto demais para distinguir de números comuns).
+  - Em prosa e depois de `: `, a pontuação final (`.`, `,`, `)`, `]`, crase, `*`, `!`, `?`, `:`) não conta como símbolo nem entra no valor, mas a interna conta (`senha: abc!def`, `Correct.Horse`; o `:` interno não, por causa de `severity:critical`). Entre aspas, depois de uma palavra solta, o valor sem espaços pede um símbolo e nenhuma expansão de shell (`${…}`, `$(…)`, ou `$nome` quando o valor tem um `/`, como em caminhos); com espaços serve qualquer frase sem `[`, `]`, `{`, `}` ou `+`, e só `pass` pede dígito ou símbolo (`pass "all tests passed"` fica de fora). `\$abc123` com a barra é um valor, `\$HOME` e `\$(…)` não. Depois de uma palavra solta, valores que começam por `-`, `~`, `/`, `(`, `|`, `>` ou `2>` (código de shell) e valores só com letras, `/`, `_` e `-` ficam de fora.
+  - Limite conhecido: `*_KEY=` apanha identificadores de esquema como `PRIMARY_KEY=id_col`. A regra mantém-se por decisão de plano.
+  - Limite conhecido: o hook que recusa gravar marcadores no Vault só vê o texto do comando. `vault kv put secret/x @f.json` com um marcador dentro do ficheiro, ou uma variável definida numa chamada Bash anterior, passa.
 - PII (ligada por omissão, mas não em `Read`, `Grep`, `Glob` e `NotebookRead` salvo `redact.readPii`): email, IBAN PT, cartão de cidadão, NIF (com validação do dígito de controlo) e telefone PT.
 - IPs internos (10.x, 172.16-31.x, 192.168.x): só com `redact.internalIps`.
 - Padrões próprios em `redact.json` (ver abaixo).
 - Guarda contra corrupção: um `Write`, `Edit` ou `MultiEdit` que traga marcadores `[prumo:...]` para um ficheiro existente e apagaria os valores reais é recusado. Os ficheiros do próprio prumo-guard estão isentos.
 - Se a redação falhar, o resultado é retido em vez de passar em claro.
+- Gravações no Vault com marcadores: um comando Bash que grave no Vault um valor com um marcador `[prumo:` é recusado, mesmo com a redação desligada. Cobre `vault kv put|patch` (também com opções como `-mount=` pelo meio), `vault write` em `secret/`, `kv` ou com `-mount=`, e `curl`/`wget` de escrita em `/v1/secret/` ou `/v1/<mount>/(data|metadata)/`. A recusa manda a pessoa guardar o valor no seu terminal com `vault kv patch <caminho> <campo>=-` (o valor é lido do stdin; `kv put` se o caminho não existir).
 
 Estado: `/prumo-guard-redact on|off` (só pela pessoa) liga ou desliga durante a sessão. Na linha de estado e no `/prumo-guard` aparece como `RGPD on` ou `RGPD off`.
+
+### Captura para o Vault
+
+Um segredo colado no chat deixa de se perder: antes de ser redigido, é gravado na inbox do Vault e o marcador passa a apontar para ele. Requer o prumo-base 1.1.0 ou superior (`lib/vault-write-field.sh`) e um Vault acessível.
+
+- **O que é capturado:** só as classes de segredo (as da lista acima), no texto do prompt (`prompt.submit`) e nos argumentos de slash commands (`command.run`, exceto os `prumo-guard…`). PII e IPs internos continuam só redigidos, sem referência. Os padrões `extra` do `redact.json` só são capturados com `"secret": true`.
+- **Caminho:** `secret/inbox/<projeto>/<aaaammdd-hhmmss>-<n>`, campo `value`. `<projeto>` é o nome do diretório de trabalho em minúsculas, só `[a-z0-9-]` (vazio vira `sessao`); `<n>` é o contador da sessão, a partir de 1. A gravação usa `kv put -cas=0`: nunca sobrescreve, e uma colisão (só entre sessões que arranquem no mesmo segundo com o mesmo contador) deixa o valor só redigido, com aviso.
+- **Marcador com referência:** `[prumo:CLASSE→secret/inbox/<projeto>/<id>#value]`. Sem referência (`[prumo:CLASSE]`) para PII e para os segredos que não foram guardados. O mesmo valor repetido na sessão reutiliza a referência.
+- **Contexto dado ao modelo:** uma linha `[prumo-guard]` a dizer quantos segredos foram guardados e que o texto mostra só a referência `caminho#campo`. O modelo não pede o valor à pessoa nem tenta lê-lo (o AppRole só tem `create` na inbox, não lê): a pessoa promove-o para o caminho definitivo com `/vault-set --from <referência> <destino> <campo>` (prumo-base 1.2.0), que lê a inbox e grava o destino sem o valor passar pelo chat. Para os não guardados, a linha manda gravar no terminal com `vault kv patch <caminho> <campo>=-`.
+- **Valor:** vai ao Vault só por stdin, nunca em argumentos, ficheiros, logs, avisos, contexto do modelo ou CEF.
+- **Falhas:** Vault inacessível, sem permissão, colisão ou gravação a passar o tempo que resta do orçamento (conta como falha; um timeout pode deixar uma entrada órfã na inbox): o segredo fica redigido sem referência e a pessoa vê o aviso `N segredo(s) redigido(s) mas não guardado(s) no Vault`. Sem o prumo-base 1.1.0, um aviso (uma vez por sessão) diz para o instalar. Se a própria redação do prompt falhar, o prompt é descartado (`{ drop }`) com uma mensagem, em vez de seguir em claro; a saída é `/prumo-guard-redact off`. Se a redação falhar nos argumentos de um slash command, o comando não corre.
+- **Desligar:** `redact.capture: false` no `guard.json` mantém a redação e deixa de gravar; `redact.prompt: false` desliga a redação e, com ela, a captura.
+- **Limites:** prompts `isMeta` não são tocados; imagens e anexos não são lidos; máximo de 10 segredos novos por prompt (os restantes ficam só redigidos, com aviso).
+- **Orçamento e paragem:** no máximo 10 s por prompt para todas as gravações (cada uma recebe o tempo que resta, mínimo 1 s); esgotado, ou à primeira falha, os segredos restantes ficam redigidos sem referência e sem tentativa. Após 3 prompts seguidos com falha a captura desliga-se na sessão (a redação continua), com o aviso `captura para o Vault desligada nesta sessão após 3 falhas seguidas; /prumo-guard mostra o estado`; reinicia com a sessão. O estado aparece em `/prumo-guard`.
+- **Ciclo:** colar no chat, captura para `secret/inbox/<projeto>/<id>`, `/vault-set --from <referência> <destino> <campo>` (prumo-base 1.2.0; aprovação N2 do prumo-secops 1.0.3), caminho definitivo e inbox apagada; auditoria no `/vault-audit` e `/vault-list`. A captura funciona em todos os projetos, porque o escritor faz login como `agent-claude`.
+- **Limites conhecidos:** tokens colados a uma letra ou dígito não são redigidos; palavras-passe em URL com `/`; parte local de email com mais de 64 caracteres; emoji ou Unicode raro em nomes de pasta podem alterar o segmento da inbox; o gate de aprovação é best-effort contra ofuscação (variáveis, `eval`, base64, percentagem); uma palavra-passe que termine em `.` antes de um espaço ou do fim é guardada sem o ponto.
+- **Pré-requisito:** a captura só funciona depois de anexar ao AppRole do Claude uma policy com o HCL mínimo abaixo (ver «Permissão»). O plugin não aplica nada no Vault.
+- **Permissão:** Identidade: o `vault-write-field.sh` faz o seu próprio login AppRole como `agent-claude`, com as credenciais de `${PRUMO_VAULT_CREDS:-$HOME/vault/approle-credentials.json}` (`role_id` e `secret_id` seguem por stdin, nunca em argv), e guarda o token em `~/.prumo/inbox-token-cache` (modo 600, TTL de 600 s, separado do `token-cache` dos outros hooks). Não usa o token do cache dos hooks, nem o do ambiente, nem o token raiz do `vault-init.json`: sem credenciais `agent-claude` ou com o login a falhar, termina com erro e o segredo fica só redigido. Por isso a role do projeto (a do nome da pasta) não precisa de `prumo-inbox`: só a `agent-claude`. A `agent-claude` precisa de `create` em `secret/data/inbox/*` (KV v2; com `-cas=0` a gravação só cria, por isso `update` não é necessário). Política mínima, a juntar à que a role já tem:
+
+```hcl
+path "secret/data/inbox/*" {
+  capabilities = ["create"]
+}
+```
+
+  A pessoa cria o ficheiro `prumo-inbox-policy.hcl` com o HCL acima (ou passa-o no stdin) e, com um token de administração, corre:
+  
+  ```bash
+  vault policy write prumo-inbox prumo-inbox-policy.hcl     # ou: vault policy write prumo-inbox -   (HCL no stdin)
+  vault read auth/approle/role/agent-claude                  # ver token_policies atuais
+  vault write auth/approle/role/agent-claude token_policies="claude-policy,prumo-inbox"
+  ```
+  
+  `token_policies` substitui a lista inteira: manter as policies que a role já tenha e acrescentar `prumo-inbox` (o exemplo parte de `claude-policy`). Sem a `prumo-inbox` a role não tem permissão e a captura cai no caminho «não guardado».
+  
+  Roles por projeto: não precisam de `prumo-inbox`; a captura usa sempre a `agent-claude`.
+  
+  Um token em cache emitido antes de alterar as policies só ganha a permissão no próximo login (apagar `~/.prumo/inbox-token-cache` ou esperar os 600 s); uma gravação falhada apaga essa cache, por isso um token revogado não fica a falhar até ao fim do TTL (também numa colisão do `-cas=0`, em que o token estava bom: o único custo é um login a mais na gravação seguinte). O login corre com um `HOME` temporário vazio, para o token helper do CLI não enviar o `~/.vault-token` da pessoa.
+
+  Promover a entrada faz-se com `/vault-set --from secret/inbox/<projeto>/<id>#value <destino> <campo>` (prumo-base 1.2.0, `lib/vault-promote.sh`): corre com o token da pessoa, que precisa de `read` na inbox, e o prumo-secops 1.0.3 pede aprovação N2. Ler a entrada à mão (`vault kv get`) também é N2. O `kv put` faz uma pré-verificação em `sys/internal/ui/mounts`, que precisa da policy `default` no token.
+
+  Listar e limpar a inbox faz-se com o token da pessoa (o AppRole não lê): `vault kv list secret/inbox/<projeto>` e `vault kv metadata delete secret/inbox/<projeto>/<id>`. O `/vault-audit` e o `/vault-list` do prumo-base 1.2.0 listam a inbox (só metadados, destaque às entradas com mais de 7 dias).
+
+  Âmbito do `command.run`: apanha os argumentos de qualquer comando não-`prumo-guard`, incluindo comandos de outros plugins e built-in; um comando que precise do segredo real nos argumentos recebe o marcador. Um timeout de gravação pode deixar uma entrada órfã na inbox.
 
 ### Painel do loop
 
@@ -156,9 +207,10 @@ Caminho: `$PRUMO_HOME/guard.json` (`~/.prumo/guard.json` por omissão). Cada sec
 | Campo | Default | Efeito |
 |---|---|---|
 | `redact.enabled` | `true` | Redação ligada ao arrancar a sessão |
-| `redact.prompt` | `true` | Redige também o que a pessoa escreve |
+| `redact.prompt` | `true` | Redige também o que a pessoa escreve (e os argumentos de slash commands) |
 | `redact.readPii` | `false` | Aplica PII a resultados de `Read`, `Grep`, `Glob` |
 | `redact.internalIps` | `false` | Redige IPs privados |
+| `redact.capture` | `true` | Grava os segredos do prompt e dos argumentos de slash commands em `secret/inbox/<projeto>/` (campo `value`, via `vault-write-field.sh` do prumo-base 1.1.0+) antes de os redigir, e o marcador leva a referência. Prompts `isMeta` ficam fora do âmbito: não são tocados. |
 | `brake.enabled` | `false` | Liga o travão (opt-in); desligado, nenhum dos limites abaixo atua |
 | `brake.usdBudget` | `20` | Orçamento em USD por loop (0 desliga) |
 | `brake.tokenBudget` | `0` | Orçamento de tokens (0 desliga) |
@@ -181,7 +233,7 @@ Padrões extra de redação:
 { "patterns": [ { "name": "PROCESSO-INTERNO", "regex": "PI-\\d{6}", "flags": "g" } ] }
 ```
 
-`name` só aceita `A-Z`, `0-9` e `-` e aparece como `[prumo:NOME]`; `flags` é opcional e o `g` é acrescentado se faltar. Um padrão inválido é ignorado e a pessoa recebe um aviso. Um ficheiro ilegível, com JSON inválido ou sem uma lista em `patterns` desliga todos os padrões da organização: a pessoa recebe o aviso `redact.json inválido — padrões da organização desligados`, que também aparece no `/prumo-guard`. As classes por omissão continuam ativas.
+`name` só aceita `A-Z`, `0-9` e `-` e aparece como `[prumo:NOME]`; `"secret": true` marca o padrão como segredo e só então é capturado para o Vault (sem ele, é só redigido); `flags` é opcional e o `g` é acrescentado se faltar. Um padrão inválido é ignorado e a pessoa recebe um aviso. Um ficheiro ilegível, com JSON inválido ou sem uma lista em `patterns` desliga todos os padrões da organização: a pessoa recebe o aviso `redact.json inválido — padrões da organização desligados`, que também aparece no `/prumo-guard`. As classes por omissão continuam ativas.
 
 ### `~/.prumo/secret-exec.json`
 
@@ -198,7 +250,7 @@ Ficheiro ilegível, JSON inválido, `allow` que não seja uma lista de nomes ou 
 
 ## O que o `/prumo-mod-audit` mostra
 
-`bash secops/lib/mod-audit.sh guard` conta hooks "gating" (que podem negar ou alterar) sem `.catch`: sem `.catch`, se o hook falhar o motor segue o caminho por omissão (deixa passar). Medido em 2026-10-24 (1.3.0): 7 sem `.catch` e 4 com (`session.append` da redação, `tool.call` de `Write|Edit|MultiEdit`, `tool.call` do `run_with_secret` e `tool.call` do Bash da aprovação, que apaga e recusa um ficheiro de aprovação forjado).
+`bash secops/lib/mod-audit.sh guard` conta hooks "gating" (que podem negar ou alterar) sem `.catch`: sem `.catch`, se o hook falhar o motor segue o caminho por omissão (deixa passar). Medido em 2026-10-29 (1.3.1): 7 sem `.catch` e 5 com (`session.append` da redação, `tool.call` de `Write|Edit|MultiEdit`, `tool.call` do `run_with_secret`, `tool.call` do Bash da aprovação, que apaga e recusa um ficheiro de aprovação forjado, e `tool.call` do Bash da redação, que recusa gravar marcadores no Vault).
 
 Dos 7, 4 só observam ou acrescentam informação e a falha deles não abre nada: `agent.spawn`, o `tool.call` do `loop_phase`, o `tool.call` do Bash do painel de testes e o `session.append` da idade das memórias. Os 3 restantes **decidem e falham aberto**: o `prompt.submit` da redação (se falhar, o prompt segue sem redação), o `agent.offer` (se falhar, o agente fica visível) e o despachante `tool.call`, que aplica a recusa do travão em pausa (se o estado do travão não se puder ler, a chamada passa). Estão registados no BACKLOG.
 

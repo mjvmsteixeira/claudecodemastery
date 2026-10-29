@@ -85,6 +85,47 @@ Se já tens `~/vault/` com `docker-compose.yml`, `vault-init.json`, `policies/`,
 - Acrescenta entries a `$VAULT_HOME/approle-credentials.json` (via `jq` merge, preserva existentes)
 - Escreve backups em `$VAULT_HOME/backups/projects/<projecto>-<timestamp>.json.enc` (subdir nova, não conflita)
 
+### Inbox do prumo-guard
+
+O `lib/vault-write-field.sh` (1.1.0) grava um campo lido do stdin em `secret/inbox/…` (`kv put -cas=0`, nunca sobrescreve) e serve a captura do prumo-guard 1.4.0: os segredos colados no chat ficam em `secret/inbox/<projeto>/<id>` (campo `value`). Identidade: o `vault-write-field.sh` faz o seu próprio login AppRole como `agent-claude`, com as credenciais de `${PRUMO_VAULT_CREDS:-$HOME/vault/approle-credentials.json}` (`role_id` e `secret_id` seguem por stdin, nunca em argv), e guarda o token em `~/.prumo/inbox-token-cache` (modo 600, TTL de 600 s, separado do `token-cache` dos outros hooks). Não usa o token do cache dos hooks, nem o do ambiente, nem o token raiz do `vault-init.json`: sem credenciais `agent-claude` ou com o login a falhar, termina com erro e o segredo fica só redigido. Por isso a role do projeto (a do nome da pasta) não precisa de `prumo-inbox`: só a `agent-claude`. A `agent-claude` precisa de `create` em `secret/data/inbox/*` (KV v2; com `-cas=0` a gravação só cria, por isso `update` não é necessário). Política mínima, a juntar à que a role já tem:
+
+```hcl
+path "secret/data/inbox/*" {
+  capabilities = ["create"]
+}
+```
+
+Pré-requisito: a captura só funciona depois de anexar à role `agent-claude` uma policy com este HCL.
+
+A pessoa cria o ficheiro `prumo-inbox-policy.hcl` com o HCL acima (ou passa-o no stdin) e, com um token de administração, corre:
+
+```bash
+vault policy write prumo-inbox prumo-inbox-policy.hcl     # ou: vault policy write prumo-inbox -   (HCL no stdin)
+vault read auth/approle/role/agent-claude                  # ver token_policies atuais
+vault write auth/approle/role/agent-claude token_policies="claude-policy,prumo-inbox"
+```
+
+`token_policies` substitui a lista inteira: manter as policies que a role já tenha e acrescentar `prumo-inbox` (o exemplo parte de `claude-policy`). Sem a `prumo-inbox` a role não tem permissão e a captura cai no caminho «não guardado».
+
+Roles por projeto: não precisam de `prumo-inbox`; o escritor usa sempre a `agent-claude`, qualquer que seja a pasta do projeto.
+
+Um token em cache emitido antes de alterar as policies só ganha a permissão no próximo login (apagar `~/.prumo/inbox-token-cache` ou esperar os 600 s).
+
+Detalhe da captura em `guard/README.md`. O `vault kv put` faz uma pré-verificação em `sys/internal/ui/mounts`, que precisa da policy `default` no token. A promoção para o caminho definitivo faz-se com `/vault-set --from` (`lib/vault-promote.sh`) e pede `read` na inbox e `create`/`patch` no destino ao token da pessoa.
+
+Listar e limpar a inbox faz-se com o token da pessoa (o AppRole não lê): o `/vault-audit` e o `/vault-list` listam-na (`lib/vault-inbox-list.sh`, só metadados) e `vault kv metadata delete secret/inbox/<projeto>/<id>` apaga uma entrada (N2). Um timeout de gravação pode deixar uma entrada órfã. A captura de `command.run` apanha também os argumentos de comandos de outros plugins e built-in.
+
+### Ciclo completo: colar, guardar, promover, auditar
+
+1. **Colar:** a pessoa cola o segredo no chat; o prumo-guard grava-o em `secret/inbox/<projeto>/<id>` (campo `value`) antes de o redigir, e o modelo só vê a referência. Funciona em qualquer projeto: o escritor faz login como `agent-claude`, qualquer que seja a pasta.
+2. **Promover:** `/vault-set --from secret/inbox/<projeto>/<id>#value <destino> <campo>` corre o `lib/vault-promote.sh`, que lê a inbox com o token da pessoa (o AppRole não lê), escreve no destino com `-cas` (`-cas=0` se o destino não existe, `-cas=<versão>` se existe), confirma por hash, reverte se não conferir e só então apaga a entrada da inbox. O valor não passa pelo chat, argv, ficheiros nem logs. O approval-gate do prumo-secops 1.0.3 classifica a corrida do script como N2 e a pessoa aprova o pedido.
+3. **Auditar:** `/vault-audit` (secção «Inbox») e `/vault-list` mostram as entradas da inbox do projeto só com metadados (caminho, data, idade), sem valores, e destacam as com mais de 7 dias. A listagem é o `lib/vault-inbox-list.sh` (`kv list` e `kv metadata get`).
+4. **Apagar:** `vault kv metadata delete secret/inbox/<projeto>/<id>` só por decisão da pessoa; é N2 no gate. O gate cobre também as formas `-mount=secret`. Caminhos com `//`, `/./` ou `dir/../` são normalizados em voltas até não mudar nada, até 64 níveis de aninhamento (`a/b/c/../../../inbox/x` é `inbox/x`; `..` nunca conta como `dir`); acima disso, um comando que ainda tenha `../` e `inbox` é N2 por falha segura. Com `-mount=secret`, `./inbox/x`, `/inbox/x` e um `../` que sobre à cabeça (`../inbox/x`, `x/../../inbox/x`) contam como inbox, por falha segura; `-mount=secret projects/x` e `secret/inbox/../projects/x` (que sai da inbox) continuam livres.
+
+**Fronteira de confiança.** O N2 protege o valor só enquanto está na inbox. Depois da promoção, o valor fica tão legível como qualquer outro em `secret/projects/*`: quem tem `read` no destino (o token da pessoa, um AppRole cuja policy cubra esse caminho) lê-o com um `kv get` sem aprovação N2, como aos restantes segredos do projeto. Escolher o destino é escolher quem o lê.
+
+Limites conhecidos da redação: tokens colados a uma letra ou dígito não são redigidos; palavras-passe em URL que contenham `/`; parte local de email com mais de 64 caracteres; nomes de pasta com emoji ou Unicode raro podem alterar o segmento da inbox; o gate de aprovação é best-effort contra ofuscação (variáveis, `eval`, base64, codificação em percentagem); uma palavra-passe que termine em `.` antes de um espaço ou do fim é guardada sem o ponto.
+
 ### Flow típico de sessão
 
 Quando arrancas uma sessão Claude Code:

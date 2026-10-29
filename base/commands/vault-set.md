@@ -2,7 +2,7 @@
 name: vault-set
 description: Adiciona/actualiza um segredo no Vault local; substitui PLACEHOLDERs.
 allowed-tools: Bash
-argument-hint: "[path] [key] — opcional; se omitido, pergunta interactivamente"
+argument-hint: "[path] [key] | --from <ref da inbox> [destino] [campo] — opcional; se omitido, pergunta interactivamente"
 ---
 
 # Vault Set — Adicionar ou Actualizar Segredo
@@ -13,6 +13,24 @@ Perguntar ao utilizador (ou usar os argumentos passados ao comando):
 1. **Path** — onde guardar (ex: `secret/projects/<nome>/<serviço>`, `secret/tokens/github`)
 2. **Key** — nome da chave (ex: `api_key`, `token`)
 3. **Valor** — pedir que cole o valor (avisar que ficará visível no terminal)
+
+Com o prumo-guard ativo, um valor colado no chat pode chegar redigido como `[prumo:…]`, e o que seria gravado é o marcador, não o segredo. A forma preferida é a pessoa correr no seu terminal, com o `vault` instalado e `VAULT_ADDR`/`VAULT_TOKEN` definidos, `vault kv patch <caminho> <campo>=-` (ou `vault kv put <caminho> <campo>=-` se o caminho não existir) e colar lá o valor, que é lido do stdin e nunca passa pelo chat. Com o Vault em Docker: `docker exec -i -e VAULT_TOKEN vault vault kv patch <caminho> <campo>=-`.
+
+Se o valor chegou como um marcador de redação com referência `secret/inbox/…#value`, já está no Vault (inbox do prumo-guard) e o modelo nunca o viu: promover com `--from` (ver abaixo). Não pedir o valor de novo.
+
+### `--from <referência da inbox> [destino] [campo]`
+
+Promove o segredo da inbox para o destino definitivo sem que o valor passe pelo chat, por argv, ficheiros ou logs. Se faltar o destino ou o campo, perguntar (um de cada vez), com as sugestões abaixo. Correr por Bash:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/lib/vault-promote.sh" "<secret/inbox/…#campo>" "<destino>" "<campo>"
+```
+
+O script lê a inbox com o token da pessoa, que é o que o `vault-env.sh` resolve: o `VAULT_TOKEN` da sessão ou, sem ele, o root do `vault-init.json` (o AppRole não tem `read` na inbox). Canaliza `kv get | kv patch -cas=<versão>` num só processo (uma escrita concorrente no destino faz a promoção falhar, sem sobrescrever); se o destino não existir, usa `kv put -cas=0` (nunca `put` sobre um destino existente: se o destino existe mas o token não o consegue ler, a gravação falha e nada é alterado). Confirma a leitura de volta por hash. Se não conferir, reverte o destino (`kv rollback` para a versão anterior, ou apaga-o se foi criado agora), diz o que fez e sai com 1, com a inbox intacta. Só com o hash igual apaga a entrada da inbox. Uma inbox vazia é recusada. Saída: `OK: <destino>#<campo> (promovido de <inbox>)`; se o apagamento da inbox falhar, imprime o `OK` e um aviso no stderr e sai com 3. Os erros são genéricos e nunca mostram o valor.
+
+Aprovação: o approval-gate do prumo-secops classifica como N2 a corrida do `vault-promote.sh` com uma referência da inbox, as formas comuns de ler a inbox (`kv get` com caminho ou `-mount=secret`, `vault read`, curl/wget a `/v1/secret/data/inbox/`) e de a apagar (`kv delete`, `kv metadata delete`, curl DELETE). Caminhos com `//`, `/./` ou `dir/../` são normalizados em voltas até não mudar nada, até 64 níveis de aninhamento (`a/b/c/../../../inbox/x` é `inbox/x`; `..` nunca conta como `dir`); acima disso, um comando que ainda tenha `../` e `inbox` é N2 por falha segura. Com `-mount=secret`, `./inbox/x`, `/inbox/x` e um `../` que sobre à cabeça (`../inbox/x`, `x/../../inbox/x`) contam como inbox, por falha segura; `-mount=secret projects/x` e `secret/inbox/../projects/x` (que sai da inbox) continuam livres. O gate é best-effort contra ofuscação; fora do seu alcance, por coerência com o modelo de confiança: codificações em percentagem, variáveis, `eval` e base64. A pessoa responde ao pedido de aprovação do prumo-guard (só esta, ou 10 minutos); sem o prumo-secops instalado não há esse pedido, e o prompt de permissão da tool Bash é a única barreira. O valor continua a não aparecer.
+
+Um destino apagado (soft-deleted) é recusado: a promoção falha e nada é alterado.
 
 Se o utilizador não souber o path, sugerir com base no contexto:
 - API key LLM → `secret/ai/<serviço>` ou `secret/projects/<nome>/<serviço>`
@@ -39,6 +57,21 @@ VALOR=$(cat <<'EOF_VALOR'
 EOF_VALOR
 )
 
+# Recusar marcadores de redação: o valor real não chegou até aqui.
+# O marcador é construído por partes: escrito por inteiro no comando, o hook
+# do prumo-guard recusaria o próprio script.
+M='[pru''mo:'
+case "$VALOR" in
+  *"$M"*secret/inbox/*)
+    # Referência da inbox do prumo-guard: o valor já está no Vault; promover com --from.
+    INBOX=$(printf '%s' "$VALOR" | sed -n 's/.*\(secret\/inbox\/[A-Za-z0-9._\/-]*#[A-Za-z0-9_.-]*\).*/\1/p')
+    echo "O valor já está no Vault em ${INBOX:-secret/inbox/…} — nada foi gravado. Promover com: /vault-set --from ${INBOX:-<referência da inbox>} $PATH_VAULT $KEY"
+    exit 1 ;;
+  *"$M"*)
+    echo "Valor redigido pelo prumo-guard — nada foi gravado. No teu terminal (com vault instalado e VAULT_ADDR/VAULT_TOKEN definidos): vault kv patch $PATH_VAULT $KEY=- (ou kv put se o caminho não existir) e cola lá o valor. Em Docker: docker exec -i -e VAULT_TOKEN vault vault kv patch $PATH_VAULT $KEY=-"
+    exit 1 ;;
+esac
+
 # Verificar se o path já existe
 if V kv get -format=json "$PATH_VAULT" > /dev/null 2>&1; then
   # Actualizar só a key (preserva as restantes) — valor passado como argv único
@@ -57,6 +90,10 @@ Após o comando, verificar que foi guardado lendo apenas o início:
 source "${CLAUDE_PLUGIN_ROOT}/lib/vault-env.sh"
 
 VAL=$(V kv get -format=json "<PATH>" | jq -r '.data.data.<KEY>')
+M='[pru''mo:'
+case "$VAL" in
+  *"$M"*) echo "ERRO: o valor guardado é um marcador de redação"; exit 1 ;;
+esac
 if [ "$VAL" = "PLACEHOLDER" ] || [ -z "$VAL" ]; then
   echo "ERRO: valor não foi guardado"
 else

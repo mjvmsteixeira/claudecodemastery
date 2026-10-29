@@ -2,11 +2,23 @@
 
 Histórico agregado do marketplace. Cada plugin mantém o seu `CHANGELOG.md` próprio com detalhe completo (`base/`, `secops/`, `devkit/`, `design/`); este ficheiro regista os marcos ao nível do ecossistema — releases coordenadas, plugins novos, mudanças de branding e de infra do repo.
 
-Estado actual: **prumo-base 1.0.3 · prumo-secops 1.0.2 · prumo-devkit 1.0.0 · prumo-design 1.0.0 · prumo-guard 1.3.0**
+Estado actual: **prumo-base 1.2.0 · prumo-secops 1.0.3 · prumo-devkit 1.0.0 · prumo-design 1.0.0 · prumo-guard 1.4.1**
 
 **Convenção de tags: `prumo-<plugin>-v<versão>`, uma por plugin e por release.** Todas as tags actuais apontam para o commit onde o `plugin.json` desse plugin tem essa versão — invariante verificável com `git show <tag>:<plugin>/.claude-plugin/plugin.json`. Releases coordenadas do marketplace inteiro levam também uma tag de calendário (`prumo-2026.10.0`).
 
 As tags legacy `v0.5.0`, `v0.5.1` e `v0.6.0` são anteriores à convenção e não identificam o plugin (a `v0.5.1` era do devkit, não do base, apesar de a numeração o sugerir). Ficam como estão, por já estarem publicadas; não usar como referência.
+
+## prumo-base 1.2.0 · prumo-guard 1.4.1 · prumo-secops 1.0.3 — 2026-10-29
+
+O ciclo dos segredos colados no chat fecha-se: colar, captura para `secret/inbox/<projeto>/…`, `/vault-set --from` (aprovação N2) para o caminho definitivo, e auditoria da inbox no `/vault-audit` e `/vault-list` (só metadados, destaque aos 7 dias). A captura funciona em todos os projetos (o escritor faz login como `agent-claude`). O prumo-secops 1.0.3 acrescenta ao approval-gate o N2 para ler, apagar e promover a inbox. O prumo-guard 1.4.1 corrige a redação (marcadores falsos, palavra-chave como valor, pontuação final) e segue symlinks de plugins. Limites: tokens colados a uma letra ou dígito, palavras-passe em URL com `/`, parte local de email acima de 64 caracteres, Unicode raro em nomes de pasta, gate best-effort contra ofuscação, palavra-passe terminada em `.` guardada sem o ponto. Detalhe nos CHANGELOG de cada plugin.
+
+## prumo-guard 1.4.0 · prumo-base 1.1.0 — 2026-10-29
+
+Os segredos colados no chat deixam de se perder: o prumo-guard grava-os em `secret/inbox/<projeto>/<id>` (campo `value`, `kv put -cas=0`, valor só por stdin) antes de os redigir, e o marcador passa a levar a referência `[prumo:CLASSE→secret/inbox/<projeto>/<id>#value]`. O prumo-base traz o `lib/vault-write-field.sh` que faz a gravação; o escritor faz login próprio como `agent-claude` (nunca o token raiz), que precisa de `create` em `secret/data/inbox/*`. Desligável com `redact.capture: false`. Detalhe em `guard/CHANGELOG.md` e `base/CHANGELOG.md`.
+
+## prumo-guard 1.3.1 · prumo-base 1.0.4 — 2026-10-29
+
+A redação do prumo-guard cobre palavras-passe em prosa (`senha`, `palavra-passe`, `passphrase`, `pass`), variáveis `*_KEY=` de `.env`, chaves de fornecedores (`CHAVE-API`), tokens do Telegram e `xapp-` do Slack, com exclusões para referências e tipos; o comprimento mínimo do valor desce de 6 para 5 caracteres, também para as palavras-chave que já existiam. Um hook novo recusa gravar no Vault valores com marcadores `[prumo:`, e o `/vault-set` do prumo-base aborta sem gravar quando recebe um e indica o comando `vault kv patch <caminho> <campo>=-` para correr no terminal. Detalhe em `guard/CHANGELOG.md` e `base/CHANGELOG.md`.
 
 ## prumo-base 1.0.3 — 2026-10-28
 

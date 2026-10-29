@@ -2,6 +2,53 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.4.1 — 2026-10-29
+
+**Redação mais fiel e captura mais robusta.** Requer o prumo-base 1.2.0 para o ciclo completo (promoção e auditoria da inbox).
+
+- **Marcadores:** só os marcadores emitidos pelo próprio redactor ficam protegidos, através de sentinelas internas; um marcador falso (incluindo o de uma credencial de URL) deixa de proteger um segredo.
+- **Palavra-chave como valor:** uma palavra-chave (também depois de `(` ou `[`) seguida de `=`/`:`, ou de espaço e de um valor (aspa, ou 5+ caracteres sem espaço com dígito ou símbolo), não é o valor da anterior: `api_key password=<v>` deixa de gravar `password=`, e `password is (AWS_SECRET_KEY <v>`, `token: password <v>` e `password: token <v>` redigem `<v>`. Sem valor a seguir, a palavra é o próprio valor (`password: secret_x9 fim` grava `secret_x9`). Um valor sem aspas acaba antes de uma palavra-chave colada a um marcador até 40 caracteres atrás (`token: <marcador>(db_password <v>`).
+- **Sentinelas com o comprimento do marcador:** a sentinela interna de um marcador emitido ocupa tantos caracteres como `[prumo:CLASSE]`, com ou sem ref; a janela de 30 caracteres da prosa (`… é|is <valor>`) deixa de chegar mais longe depois de um marcador do que no motor da fase 1 (`4ccea37`; regressão encontrada por fuzzing).
+- **Marcador falso com ref:** só conta como marcador sozinho a ref com a forma da inbox (`secret/inbox/…#campo`); `password=` seguido de um marcador com outro texto depois da seta é redigido e recolhido.
+- **Pontuação:** o `]`, o `)` e o `.` finais ficam fora do valor sem aspas; uma palavra-passe que termine em `.` antes de um espaço ou do fim é guardada sem o ponto.
+- **Desempenho:** a parte local do email fica limitada a 64 caracteres; o esquema de uma URL com credenciais a 32, sem `\b` antes (390 KB de `a-a-…` levavam 44 s, agora 0,27 s; um esquema colado a mais de 32 letras continua a ser apanhado).
+- **Teste de fuzzing:** `tests/redact-fuzz.test.ts` (semente fixa) verifica que nenhuma sentinela sai, que nenhum valor recolhido fica no texto (com e sem refs) e que nada do corpus de positivos e de frases separadas por espaço que o motor da fase 1 redigia passa em claro; em texto colado, o número de regressões face à fase 1 tem um limite explícito (0 na semente fixa).
+- **Plugins por symlink:** `latestPluginDir` segue symlinks, e as versões instaladas assim passam a ser encontradas.
+- **Captura (via prumo-base 1.2.0):** uma gravação falhada apaga a cache do token da inbox e o login corre com um `HOME` vazio.
+- **Limites conhecidos:** tokens colados a uma letra ou dígito não são redigidos; palavras-passe em URL com `/`; emoji ou Unicode raro em nomes de pasta podem alterar o segmento da inbox.
+
+## v1.4.0 — 2026-10-29
+
+**Os segredos colados no chat ficam guardados no Vault.** Antes eram redigidos e perdiam-se; agora o prumo-guard grava-os numa inbox e o marcador aponta para lá. Requer o prumo-base 1.1.0.
+
+### Mudanças de comportamento
+
+- **Captura:** antes de redigir, os segredos do prompt (`prompt.submit`) e dos argumentos de slash commands (`command.run`) são gravados em `secret/inbox/<projeto>/<aaaammdd-hhmmss>-<n>`, campo `value`, por `vault-write-field.sh` (`kv put -cas=0`: nunca sobrescreve). O valor só viaja por stdin.
+- **Marcador com referência:** `[prumo:CLASSE→secret/inbox/<projeto>/<id>#value]`; PII e falhas ficam com o marcador simples. O mesmo valor repetido na sessão reutiliza a referência.
+- **Contexto para o modelo:** uma linha `[prumo-guard]` diz que o valor está guardado e que só a referência é visível; o modelo não pede o valor nem o lê (o AppRole não lê a inbox), a pessoa promove-o com `/vault-set`.
+- **Falhas:** Vault inacessível, sem permissão ou colisão deixam o segredo só redigido, com aviso; sem o prumo-base 1.1.0, aviso único por sessão; se a redação do prompt falhar, o prompt é descartado (`{ drop }`).
+- **Orçamento:** 10 s por prompt para todas as gravações; à primeira falha ou esgotado o tempo, os restantes ficam só redigidos. Após 3 prompts seguidos com falha a captura desliga-se na sessão (aviso; estado em `/prumo-guard`; reinicia com a sessão).
+- **Configuração:** `redact.capture` (por omissão `true`). Padrões `extra` do `redact.json` só são capturados com `"secret": true`.
+- **Limites:** prompts `isMeta` não são tocados; imagens e anexos não são lidos; máximo de 10 segredos novos por prompt.
+- **Permissão:** o escritor do prumo-base faz login próprio como `agent-claude` (nunca o token raiz nem a role do projeto); só essa role precisa de `create` em `secret/data/inbox/*` (policy `prumo-inbox`, HCL mínimo no README).
+- **Redação:** falsos negativos corrigidos (`$` dentro de valores entre aspas, aspa de fecho da palavra-chave, frases entre aspas, pontuação interna). Os marcadores `[prumo:CLASSE→ref]` já emitidos deixam de ser alterados por regras seguintes (a referência com contador >= 100 era corrompida pela regra do NIF).
+
+## v1.3.1 — 2026-10-29
+
+**A redação apanha mais, e o Vault deixa de receber marcadores.** Uma palavra-passe escrita em prosa passava em claro, e um valor já redigido podia ser gravado no Vault como se fosse o segredo.
+
+### Mudanças de comportamento
+
+- **Palavras-chave novas:** `senha`, `palavra-passe` (também com espaço ou `_`), `passphrase` e `pass` (não dentro de `bypass`, `compass`, `passport`).
+- **Prosa:** `<palavra-chave> … é|is|era|was <valor>` e `<palavra-chave> <valor>`. Sem aspas, o valor em prosa ou depois de `: ` tem de conter um dígito ou um símbolo. Valores com 5 ou mais caracteres (o mínimo desceu de 6 para 5, também para as palavras-chave que já existiam); com aspas podem ter espaços (exceto em `pass` sozinho, que pede dígito ou símbolo dentro das aspas), sem aspas podem ter `,` e `;`.
+- **`.env`:** variáveis em maiúsculas `*_KEY=`.
+- **Classes novas:** `CHAVE-API` (`sk-`, `sk-proj-`, `sk-ant-`, `sk-svcacct-`, `sk_live_`/`sk_test_`/`rk_live_`/`rk_test_`, `AIza`, `glpat-`, `npm_`) e `TELEGRAM-TOKEN`. `SLACK-TOKEN` aceita também `xapp-`.
+- **Exclusões:** referências (`$…`, `process.env`, `os.environ`, `ENV[`, `<…>`, `{{…}}`) e tipos ou literais (`true`, `false`, `null`, `none`, `nil`, `undefined`, `string`, `str`, `number`, `int`, `bool`, `boolean`, `required`, `optional`).
+- **Limite conhecido:** um PIN de 4 dígitos não é coberto.
+- **Menos falsos positivos:** a pontuação final não conta como símbolo nem entra no valor, a interna conta (`the token expires.`, `token (optional)`); `pass "all tests passed"` não é redigido (frase sem dígito nem símbolo); código de shell a seguir à palavra (`secret 2>/dev/null`, `.root_token ~/vault/…`, `auth/approle/login`) e taxas como `99.5%` ficam de fora. `a senha é <valor>.` redige o valor sem o ponto final.
+- **Limites conhecidos:** `PRIMARY_KEY=id_col` é redigido (regra `*_KEY=` mantida); o hook do Vault não vê o conteúdo de ficheiros (`@f.json`) nem variáveis de chamadas anteriores.
+- **Gravações no Vault com marcadores recusadas** (hook `tool.call` no Bash, fail-closed, ativo mesmo com a redação desligada): `vault kv put|patch` (também com opções como `-mount=` pelo meio), `vault write` em `secret/`, `kv` ou com `-mount=`, e `curl`/`wget` de escrita em `/v1/secret/` ou `/v1/<mount>/(data|metadata)/`. A recusa manda guardar o valor no terminal da pessoa com `vault kv patch <caminho> <campo>=-` (`kv put` se o caminho não existir).
+
 ## v1.3.0 — 2026-10-24
 
 **Painel com consumo a cores.** A band acima do prompt passa a mostrar o consumo de contexto, dos limites de taxa e do custo com barras coloridas, e avisa quando um limite se aproxima do fim.

@@ -596,7 +596,7 @@ if [ -z "$ONLY_PLUGIN" ] && [ -x "$REPO_ROOT/scripts/eval/run.sh" ]; then
   # Contratos do prumo-guard com os hooks bash (aprovação por ficheiro, marker CEF, caminhos
   # do self-guard, leitura de um campo do Vault, rm no scratchpad com symlinks). Herméticos,
   # só bash + jq: correm também no CI.
-  for t in approval-file cef-marker guard-paths vault-read-field scratch-rm; do
+  for t in approval-file cef-marker guard-paths vault-read-field scratch-rm inbox-n2; do
     tf="$REPO_ROOT/scripts/eval/$t-test.sh"
     if [ ! -x "$tf" ]; then
       fail "scripts/eval/$t-test.sh em falta ou sem bit de execução"
@@ -639,6 +639,23 @@ if [ -z "$ONLY_PLUGIN" ] && [ -x "$REPO_ROOT/scripts/eval/run.sh" ]; then
     else
       info "security-scan eval saltado (semgrep/gitleaks ausentes)"
     fi
+  fi
+fi
+
+# ──────────────────────── 10. redação: falsos positivos nos ficheiros versionados ────────────────────────
+# Total medido em 2026-10-29: 20, sem guard/tests/ e base/tests/ (fixtures); limite = medido + 4. Sobe quando uma regra de redação alarga.
+REDACT_FP_MAX=24
+if [ -z "$ONLY_PLUGIN" ] && command -v node >/dev/null 2>&1 && [ -f scripts/redact-fp-baseline.ts ]; then
+  section "redação: falsos positivos (git ls-files)"
+  if fp_out=$(node scripts/redact-fp-baseline.ts 2>/dev/null); then
+    fp_n=${fp_out##total }
+    if [ "$fp_n" -le "$REDACT_FP_MAX" ] 2>/dev/null; then
+      pass "redação toca ${fp_n} linhas versionadas (limite ${REDACT_FP_MAX})"
+    else
+      warn "redação toca ${fp_n} linhas versionadas (limite ${REDACT_FP_MAX}) — corre 'node scripts/redact-fp-baseline.ts --list'"
+    fi
+  else
+    info "redact-fp-baseline saltado (node sem suporte a TypeScript)"
   fi
 fi
 

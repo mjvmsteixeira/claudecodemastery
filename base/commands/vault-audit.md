@@ -49,6 +49,10 @@ grep -rl "loadVaultSecrets\|VAULT_ROLE_ID\|vault.*approle" . \
   --include="*.js" --include="*.ts" --include="*.py" --include="*.go" 2>/dev/null \
   | head -5 \
   || echo "⚠ Nenhum ficheiro com integração Vault detectado — correr /vault-integrate"
+
+echo ""
+echo "### 6. INBOX"
+bash "${CLAUDE_PLUGIN_ROOT}/lib/vault-inbox-list.sh"
 ```
 
 ## Output esperado
@@ -70,8 +74,20 @@ Apresentar em 5 secções:
 
 **5. Integração** — ficheiros com código de integração detectados, ou sugestão de correr `/vault-integrate`
 
+**6. Inbox** — entradas de `secret/inbox/<projecto>/` (a inbox do prumo-guard, onde ficam os valores capturados). Só metadados:
+
+| Entrada | created_time | Idade | Estado |
+|---------|--------------|-------|--------|
+| `secret/inbox/<projecto>/<aaaammdd-hhmmss>-<n>` | `2026-10-20T09:15:02Z` | 9 dias | ⚠ >7 dias |
+
+Para cada entrada com mais de 7 dias, propor à pessoa uma de duas saídas:
+- promover: `/vault-set --from secret/inbox/<projecto>/<entrada>#value <destino> <campo>`
+- apagar: `V kv metadata delete secret/inbox/<projecto>/<entrada>`, só depois de a pessoa o decidir, entrada a entrada, e numa chamada Bash própria. O approval-gate do prumo-secops classifica este apagamento como N2 e a pessoa aprova o pedido. Nunca apagar por iniciativa do audit.
+
 ## Regras
 
 - Nunca imprimir valores — apenas estado OK / PLACEHOLDER
+- Inbox: a listagem é o `lib/vault-inbox-list.sh` (só `kv list` e `kv metadata get`, nunca `kv get`: ler a inbox é N2 e mostraria o valor). É um único comando Bash para todas as entradas, e não é N2, por isso a pessoa não é interrompida por entrada. Distingue «Inbox vazia» de `⚠ não foi possível listar …` (token, permissões ou Vault selado): nunca reportar a falha como inbox vazia. Subpastas aparecem como `⚠ subpasta inesperada`. Limite: nomes de pasta com emoji ou Unicode raro (`İ`) podem dar um segmento diferente do da captura
+- Inbox: usa o token da pessoa que o `vault-env.sh` resolve; o AppRole não tem `list` nem `read` na inbox
 - Se o projecto não tiver nada em `secret/projects/<nome>/`, sugerir `/vault-integrate`
 - Se o Vault estiver inacessível, reportar e parar

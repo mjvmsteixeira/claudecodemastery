@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# prumo · eval · approval-gate N2 para a inbox do prumo-guard: correr vault-promote.sh,
+# ler a inbox (kv get, vault read, curl/wget à API) e apagar nela exigem aprovação,
+# com o pedido N2 e o approval-id. Leituras fora da inbox continuam livres.
+# Hermético: HOME num sandbox.
+set -uo pipefail
+EVAL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GATE="$(cd "$EVAL_DIR/../.." && pwd)/secops/hooks/pre-tool-approval-gate.sh"
+SANDBOX="$(mktemp -d)"; trap 'rm -r "$SANDBOX"' EXIT
+mkdir -p "$SANDBOX/.claude/plugins/cache"
+FAILS=0
+
+run() { # run <comando> -> RC, ERR
+  ERR=$(jq -cn --arg c "$1" '{tool_name:"Bash",tool_input:{command:$c}}' \
+    | HOME="$SANDBOX" env -u PRUMO_OPERATING_MODE -u PRUMO_APPROVE -u PRUMO_HOME bash "$GATE" 2>&1 >/dev/null)
+  RC=$?
+}
+blocks() { # blocks <nome> <comando>
+  run "$2"
+  if [ "$RC" = 2 ] && grep -q 'Operação N2' <<<"$ERR" && grep -qE 'approval-id: [0-9a-f]{64}' <<<"$ERR"; then echo "  ✓ $1"
+  else echo "  ✗ $1 (rc=$RC)"; FAILS=$((FAILS+1)); fi
+}
+passes() { # passes <nome> <comando>
+  run "$2"
+  if [ "$RC" = 0 ]; then echo "  ✓ $1"; else echo "  ✗ $1 (rc=$RC)"; FAILS=$((FAILS+1)); fi
+}
+
+echo "approval-gate · inbox (N2)"
+blocks "vault-promote.sh" 'bash "$CLAUDE_PLUGIN_ROOT/lib/vault-promote.sh" secret/inbox/a/b#value secret/projects/x/y k'
+blocks "vault-promote.sh por caminho absoluto" '/Users/p/plugins/base/lib/vault-promote.sh secret/inbox/a#value secret/x k'
+blocks "vault kv get da inbox" 'vault kv get secret/inbox/a/b'
+blocks "vault kv get -field da inbox" 'vault kv get -field=value secret/inbox/a/b'
+blocks "V kv get da inbox" 'source vault-env.sh; V kv get -field=value secret/inbox/a/b'
+blocks "docker exec vault kv get da inbox" 'docker exec -i vault vault kv get -field=value secret/inbox/a/b'
+blocks "vault read secret/data/inbox" 'vault read secret/data/inbox/a/b'
+blocks "vault read -format=json secret/data/inbox" 'vault read -format=json secret/data/inbox/a/b'
+blocks "curl à API da inbox" 'curl -s -H "X-Vault-Token: $T" https://127.0.0.1:8200/v1/secret/data/inbox/a/b'
+blocks "wget à API da inbox" 'wget -qO- https://127.0.0.1:8200/v1/secret/data/inbox/a/b'
+blocks "kv metadata delete da inbox" 'vault kv metadata delete secret/inbox/a/b'
+blocks "kv delete da inbox" 'vault kv delete secret/inbox/a/b'
+blocks "V kv metadata delete da inbox" 'V kv metadata delete secret/inbox/a/b'
+blocks "vault delete secret/data/inbox" 'vault delete secret/data/inbox/a/b'
+blocks "multi-linha" $'echo x\nvault kv get secret/inbox/a/b'
+
+blocks "kv get -mount=secret" 'vault kv get -mount=secret inbox/x'
+blocks "kv get -mount=secret -field" 'vault kv get -mount=secret -field=value inbox/x'
+blocks "kv get -mount secret (espaço)" 'vault kv get -mount secret -field=value inbox/x'
+blocks "kv get -mount entre aspas" 'vault kv get -mount="secret" inbox/x'
+blocks "kv get -mount aspas simples" "vault kv get -mount='secret' inbox/x"
+blocks "kv get -mount com aspas no caminho" 'vault kv get -mount=secret "inbox/x"'
+blocks "kv delete -mount" 'vault kv delete -mount=secret inbox/x'
+blocks "kv metadata delete -mount" 'vault kv metadata delete -mount=secret inbox/x'
+blocks "kv destroy -mount" 'vault kv destroy -mount=secret -versions=1 inbox/x'
+blocks "kv get -mount com ./inbox" 'vault kv get -mount=secret ./inbox/x'
+blocks "kv get -mount com /inbox" 'vault kv get -mount=secret /inbox/x'
+blocks "kv get -mount com foo/../inbox" 'vault kv get -mount=secret foo/../inbox/x'
+blocks "kv get secret/foo/../inbox" 'vault kv get secret/foo/../inbox/x'
+blocks "kv delete -mount com ./inbox" 'vault kv delete -mount=secret ./inbox/x'
+blocks "kv metadata delete -mount com /inbox" 'vault kv metadata delete -mount=secret /inbox/x'
+blocks "kv delete -mount com foo/../inbox" 'vault kv delete -mount=secret foo/../inbox/x'
+blocks "secret//inbox" 'vault kv get secret//inbox/x'
+blocks "kv get -mount com três ../ (a/b/c/../../../inbox)" 'vault kv get -mount=secret a/b/c/../../../inbox/x'
+blocks "kv get -mount com cinco ../" 'vault kv get -mount=secret a/b/c/d/e/../../../../../inbox/x'
+blocks "kv get -mount com ../ intercalados" 'vault kv get -mount=secret a/b/../c/../../inbox/x'
+blocks "kv get secret/ com três ../" 'vault kv get secret/a/b/c/../../../inbox/x'
+blocks "kv get -mount com ../ à cabeça" 'vault kv get -mount=secret ../inbox/x'
+blocks "kv get -mount com x/../../inbox" 'vault kv get -mount=secret x/../../inbox/x'
+blocks "kv metadata delete -mount com três ../" 'vault kv metadata delete -mount=secret a/b/c/../../../inbox/x'
+blocks "vault read secret/data com três ../" 'vault read secret/data/a/b/c/../../../inbox/x'
+blocks "curl com três ../" 'curl -s https://h:8200/v1/secret/data/a/b/c/../../../inbox/x'
+blocks "kv get -mount com /./ repetido" 'vault kv get -mount=secret a/././../inbox/x'
+DEEP="$(printf 'a/%.0s' $(seq 100))$(printf '../%.0s' $(seq 100))inbox/x"
+T0=$SECONDS
+blocks "kv get -mount com 100 níveis de ../ (limite de voltas, falha segura)" "vault kv get -mount=secret $DEEP"
+[ $((SECONDS - T0)) -le 1 ] && echo "  ✓ 100 níveis em ≤ 1 s" || { echo "  ✗ 100 níveis levou $((SECONDS - T0)) s"; FAILS=$((FAILS+1)); }
+passes "100 níveis fora da inbox continuam livres" "vault kv get -mount=secret $(printf 'a/%.0s' $(seq 100))$(printf '../%.0s' $(seq 100))projects/x"
+blocks "secret/./inbox" 'vault kv get secret/./inbox/x'
+blocks "secret/data//inbox" 'vault read secret/data//inbox/x'
+blocks "curl com //" 'curl -s https://h:8200/v1/secret//data/inbox/x'
+blocks "curl -X DELETE metadata" 'curl -s -X DELETE -H "X-Vault-Token: $T" https://h:8200/v1/secret/metadata/inbox/x'
+blocks "curl DELETE data" 'curl -X DELETE https://h:8200/v1/secret/data/inbox/x'
+blocks "vault-promote.sh entre aspas" 'bash "x/vault-promote.sh" "secret/inbox/a#value" secret/x k'
+
+echo "approval-gate · fora da inbox"
+passes "cat do script" 'cat base/lib/vault-promote.sh'
+passes "grep do nome" 'grep -rn vault-promote.sh .'
+passes "shellcheck do script" 'shellcheck base/lib/vault-promote.sh'
+passes "git diff do script" 'git diff -- base/lib/vault-promote.sh'
+passes "kv get -mount de projecto" 'vault kv get -mount=secret projects/x'
+passes "kv get -mount de projecto com ./" 'vault kv get -mount=secret ./projects/x'
+passes "kv get -mount=kv noutro mount" 'vault kv get -mount=kv inboxes/x'
+passes "kv delete -mount de projecto" 'vault kv delete -mount=secret projects/x'
+passes "curl DELETE de projecto" 'curl -X DELETE https://h:8200/v1/secret/metadata/projects/x'
+passes "kv get de projecto" 'vault kv get secret/projects/x'
+passes "kv get -field de projecto" 'vault kv get -field=api_key secret/projects/x/y'
+passes "vault read de projecto" 'vault read secret/data/projects/x'
+passes "curl a outro caminho" 'curl -s https://127.0.0.1:8200/v1/secret/data/projects/x'
+passes "captura: vault-write-field.sh" 'printf x | bash lib/vault-write-field.sh secret/inbox/a value'
+passes "kv metadata delete de projecto" 'vault kv metadata delete secret/projects/x'
+passes "secret/inbox/../projects sai da inbox" 'vault kv get secret/inbox/../projects/x'
+passes "-mount inbox/a/../../projects sai da inbox" 'vault kv get -mount=secret inbox/a/../../projects/x'
+passes "dir..x não é .." 'vault kv get -mount=secret a/..b/../projects/x'
+
+[ "$FAILS" -eq 0 ] || { echo "✗ $FAILS falha(s)"; exit 1; }
+echo "✓ inbox-n2-test passou"

@@ -2,6 +2,33 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.2.0 — 2026-10-29
+
+**Promoção e auditoria da inbox.** Fecha o ciclo do prumo-guard: o segredo guardado na inbox passa ao caminho definitivo sem passar pelo chat.
+
+- **`lib/vault-promote.sh <inbox#campo> <destino> <campo>`:** lê a inbox com o token da pessoa e escreve no destino com `kv patch -cas=<versão>` (ou `kv put -cas=0` se o destino não existe), confirma por hash, reverte se não conferir (`kv rollback`, ou apaga o destino criado agora) e só então apaga a entrada da inbox. Uma inbox vazia é recusada; erros genéricos, sem valores.
+- **`/vault-set --from <referência> [destino] [campo]`:** promove através do script. A corrida do `vault-promote.sh` é N2 no approval-gate do prumo-secops 1.0.3.
+- **`lib/vault-inbox-list.sh`:** lista a inbox do projeto só com metadados (`kv list` e `kv metadata get`, nunca `kv get`), distingue inbox vazia de falha ao listar e destaca entradas com mais de 7 dias.
+- **`/vault-audit` e `/vault-list`:** secção «Inbox» com essa listagem.
+- **Redação (em conjunto com o prumo-guard 1.4.1):** `vault-write-field.sh` apaga a cache do token da inbox quando a gravação falha e faz o login com um `HOME` vazio.
+- **Limites:** o gate é best-effort contra ofuscação; ver `README.md`.
+
+## v1.1.0 — 2026-10-29
+
+**`vault-write-field.sh`: gravação de um campo lido do stdin.** Serve a captura do prumo-guard 1.4.0, que guarda em `secret/inbox/…` os segredos colados no chat.
+
+- **`lib/vault-write-field.sh <caminho> <campo>`:** o valor vem do stdin (nunca em argv); só aceita caminhos em `secret/inbox/` e campos `[A-Za-z0-9_.-]`; grava com `kv put -cas=0` (não sobrescreve), em modo nativo ou via `docker exec`. Sem saída em sucesso, erros genéricos.
+- **Identidade:** login AppRole próprio como `agent-claude` (credenciais de `${PRUMO_VAULT_CREDS:-$HOME/vault/approle-credentials.json}`, `role_id`/`secret_id` por stdin), token em `~/.prumo/inbox-token-cache` (600, TTL 600 s). Nunca usa o token raiz, um `VAULT_TOKEN` herdado nem a role do projeto; sem credenciais ou com login falhado, erro e nenhuma gravação. Só a `agent-claude` precisa de `create` em `secret/data/inbox/*` (policy `prumo-inbox`, HCL mínimo no README); as roles por projeto não precisam.
+- **`/vault-set` passo 1:** um valor que chegou como referência `secret/inbox/…#value` já está no Vault; a promoção faz-se no terminal da pessoa (`vault kv get -field=value <inbox> | vault kv patch <destino> <campo>=-`).
+
+## v1.0.4 — 2026-10-29
+
+**O `/vault-set` recusa valores redigidos.** Com o prumo-guard ativo, um valor colado no chat pode chegar como marcador `[prumo:…]`, e o comando gravava o marcador no Vault como se fosse o segredo.
+
+- **Passo 1:** avisa que o valor pode chegar redigido e propõe a forma preferida: a pessoa corre no seu terminal `vault kv patch <caminho> <campo>=-` (ou `kv put` se o caminho não existir) e cola lá o valor.
+- **Passo 2:** se o valor contiver `[prumo:`, aborta sem gravar e repete a instrução do terminal.
+- **Passo 3:** a verificação falha também quando o valor lido do Vault contém `[prumo:`.
+
 ## v1.0.3 — 2026-10-28
 
 **O `secret-read` deixa passar a chave de um `ssh`.** Um `ssh -i ~/.ssh/id_claude host ...` era bloqueado como leitura da chave, e com ele todas as receitas de acesso SSH com chave do Vault. O `ssh` autentica com a chave sem a mostrar, por isso o conteúdo nunca chegava ao modelo.

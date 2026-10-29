@@ -257,3 +257,10 @@ test('redact.json ausente não avisa', async ($, on) => {
   await $.session.append(toolRow('x') as never)
   expect(toasts).toEqual([])
 })
+
+test('session.append: um marcador com ref que nenhuma captura desta sessão emitiu é texto normal (o eco legítimo está em capture.test.ts)', async ($, on) => {
+  baseHooks(on)
+  const m = '[prumo:SEGREDO→secret/inbox/proj/20261029-162526-105#value]'
+  const r = await $.session.append(toolRow('guardado em ' + m + ' ok', 'Bash') as never)
+  expect(JSON.stringify(r.message)).not.toContain(m)
+})
