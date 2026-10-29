@@ -1,6 +1,6 @@
 import { test, expect } from 'claude-code/testing'
 import { collectSecrets, compileExtra, countPlaceholders, redactText } from '../hooks/redact-patterns.ts'
-import { positives, leaks, SECRETS_ONLY, W } from './coverage-cases.ts'
+import { positives, leaks, SECRETS_ONLY, V, W } from './coverage-cases.ts'
 
 const PW = 'pass' + 'word='
 const SN = 'sen' + 'ha: '
@@ -113,9 +113,25 @@ test('refs: padrões extra só são recolhidos com secret: true, e são sempre r
     { name: 'ORG-SEG', regex: 'ORG-\\d{4}', secret: true },
     { name: 'ORG-HOST', regex: 'h\\d{4}\\.org' },
   ] })
-  expect(patterns.map(p => !!p.secret)).toEqual([true, false])
+  expect(patterns.map(p => p.secret)).toEqual([true, undefined])
   const o = { ...SECRETS_ONLY, extra: patterns }
   const t = 'cod ORG-1234 em h5678.org'
   expect(collectSecrets(t, o)).toEqual([{ cls: 'ORG-SEG', value: 'ORG-1234' }])
   expect(redactText(t, o).text).toBe('cod [prumo:ORG-SEG] em [prumo:ORG-HOST]')
 })
+
+// ronda 2: segredo colado a um marcador
+const GLUED = [PW + V + '[prumo:TOKEN]', 'api_key: "' + V + '[prumo:TOKEN]"', 'senha: ' + V + '[prumo:TOKEN]']
+for (const t of GLUED) {
+  test(`refs: segredo colado a marcador, ${t.slice(0, 12)}`, () => {
+    const found = collectSecrets(t, SECRETS_ONLY)
+    expect(found.map(f => f.value)).toEqual([V])
+    const out = redactText(t, SECRETS_ONLY).text
+    expect(out.includes(V)).toBe(false)
+    expect(out).toContain('[prumo:TOKEN]')
+    const refs = new Map([[V, REF]])
+    const withRef = redactText(t, { ...SECRETS_ONLY, refs }).text
+    expect(leaks(withRef, V)).toBe(false)
+    expect(withRef).toContain('→' + REF + ']')
+  })
+}

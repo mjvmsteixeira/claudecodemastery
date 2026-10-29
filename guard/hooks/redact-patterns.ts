@@ -154,8 +154,16 @@ function run(text: string, opts: RedactOptions, onSecret?: (cls: string, value: 
       const found: [string, string][] = []
       let tainted = false
       const mark: Mark = (value, cls = rule.name) => {
-        // um valor que já contém um marcador é texto alterado por uma regra anterior
-        if (value.includes('[prumo:')) tainted = true
+        // um marcador dentro do valor vem de uma regra anterior: redige-se o prefixo e o resto fica como está
+        const at = value.indexOf('[prumo:')
+        if (at >= 0) {
+          const pre = value.slice(0, at)
+          if (pre.length < 5 || /^\s*Bearer\s*$/i.test(pre)) {
+            tainted = true
+            return ph(cls)
+          }
+          return mark(pre, cls) + value.slice(at)
+        }
         found.push([cls, value])
         const ref = opts.refs?.get(value)
         return ref === undefined ? ph(cls) : `[prumo:${cls}→${ref}]`

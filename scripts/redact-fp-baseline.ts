@@ -1,12 +1,12 @@
 // Conta quantas linhas dos ficheiros versionados a redação de segredos tocaria.
-// Serve de regressão para falsos positivos: se o total sobe, uma regra ficou mais larga.
+// Exclui guard/tests/ e base/tests/: os fixtures de segredo são positivos de propósito. Serve de regressão para falsos positivos: se o total sobe, uma regra ficou mais larga.
 // Uso: node scripts/redact-fp-baseline.ts [--list]   (imprime só o total sem --list)
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { redactText } from '../guard/hooks/redact-patterns.ts'
 
 const opts = { pii: false, internalIps: false, extra: [] }
-const files = execFileSync('git', ['ls-files'], { encoding: 'utf8' }).split('\n').filter(Boolean)
+const files = execFileSync('git', ['ls-files'], { encoding: 'utf8' }).split('\n').filter(f => f && !/^(?:guard|base)\/tests\//.test(f))
 let total = 0
 const lines: string[] = []
 for (const f of files) {

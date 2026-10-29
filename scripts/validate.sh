@@ -643,8 +643,8 @@ if [ -z "$ONLY_PLUGIN" ] && [ -x "$REPO_ROOT/scripts/eval/run.sh" ]; then
 fi
 
 # ──────────────────────── 10. redação: falsos positivos nos ficheiros versionados ────────────────────────
-# Total medido em 2026-10-29: 72 (base pré-fase 1: 95; antes desta correção: 151). Sobe quando uma regra de redação alarga.
-REDACT_FP_MAX=76
+# Total medido em 2026-10-29: 20, sem guard/tests/ e base/tests/ (fixtures); limite = medido + 4. Sobe quando uma regra de redação alarga.
+REDACT_FP_MAX=24
 if [ -z "$ONLY_PLUGIN" ] && command -v node >/dev/null 2>&1 && [ -f scripts/redact-fp-baseline.ts ]; then
   section "redação: falsos positivos (git ls-files)"
   if fp_out=$(node scripts/redact-fp-baseline.ts 2>/dev/null); then
