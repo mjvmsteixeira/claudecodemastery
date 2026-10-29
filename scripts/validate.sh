@@ -596,7 +596,7 @@ if [ -z "$ONLY_PLUGIN" ] && [ -x "$REPO_ROOT/scripts/eval/run.sh" ]; then
   # Contratos do prumo-guard com os hooks bash (aprovação por ficheiro, marker CEF, caminhos
   # do self-guard, leitura de um campo do Vault, rm no scratchpad com symlinks). Herméticos,
   # só bash + jq: correm também no CI.
-  for t in approval-file cef-marker guard-paths vault-read-field scratch-rm; do
+  for t in approval-file cef-marker guard-paths vault-read-field scratch-rm inbox-n2; do
     tf="$REPO_ROOT/scripts/eval/$t-test.sh"
     if [ ! -x "$tf" ]; then
       fail "scripts/eval/$t-test.sh em falta ou sem bit de execução"

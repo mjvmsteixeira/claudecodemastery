@@ -26,9 +26,9 @@ Promove o segredo da inbox para o destino definitivo sem que o valor passe pelo 
 bash "${CLAUDE_PLUGIN_ROOT}/lib/vault-promote.sh" "<secret/inbox/…#campo>" "<destino>" "<campo>"
 ```
 
-O script lê a inbox com o token da pessoa (o AppRole não tem `read` na inbox), canaliza `kv get | kv patch` (`kv put` se o destino não existir) num só processo, confirma a leitura de volta por hash e só então apaga a entrada da inbox. Se a leitura de volta não conferir, a inbox fica intacta e o script sai com 1. Saída: `OK: <destino>#<campo> (promovido de <inbox>)` ou um erro genérico.
+O script lê a inbox com o token da pessoa, que é o que o `vault-env.sh` resolve: o `VAULT_TOKEN` da sessão ou, sem ele, o root do `vault-init.json` (o AppRole não tem `read` na inbox). Canaliza `kv get | kv patch` num só processo; se o destino não existir, usa `kv put -cas=0` (nunca `put` sobre um destino existente: se o destino existe mas o token não o consegue ler, a gravação falha e nada é alterado). Confirma a leitura de volta por hash. Se não conferir, reverte o destino (`kv rollback` para a versão anterior, ou apaga-o se foi criado agora), diz o que fez e sai com 1, com a inbox intacta. Só com o hash igual apaga a entrada da inbox. Uma inbox vazia é recusada. Saída: `OK: <destino>#<campo> (promovido de <inbox>)`; se o apagamento da inbox falhar, imprime o `OK` e um aviso no stderr e sai com 3. Os erros são genéricos e nunca mostram o valor.
 
-Esta corrida lê um segredo, por isso passa pelo approval-gate: a pessoa aprova uma vez, e o valor continua a não aparecer.
+Aprovação: o approval-gate do prumo-secops classifica como N2 a corrida do `vault-promote.sh`, qualquer leitura da inbox (`kv get`, `vault read`, curl/wget a `/v1/secret/data/inbox/`) e o seu apagamento. A pessoa responde ao pedido de aprovação do prumo-guard (só esta, ou 10 minutos); sem o prumo-secops instalado não há esse pedido, e o prompt de permissão da tool Bash é a única barreira. O valor continua a não aparecer.
 
 Se o utilizador não souber o path, sugerir com base no contexto:
 - API key LLM → `secret/ai/<serviço>` ou `secret/projects/<nome>/<serviço>`

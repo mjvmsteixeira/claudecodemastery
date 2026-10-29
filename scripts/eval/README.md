@@ -20,6 +20,7 @@ já introduziram regressões que só um review manual apanhou.
 | `guard-paths-test.sh` | caminhos que o corpus não exprime no self-guard e no secret-read: symlinks, `..`, maiúsculas, espaços, stdin vazio |
 | `scratch-rm-test.sh` | isenção do scratchpad no approval-gate com ficheiros reais: symlinks em componentes intermédios e no final com barra continuam N1 |
 | `vault-read-field-test.sh` | `vault-read-field.sh` com um `vault` falso: token da cache, campo pedido, sem eco de tokens |
+| `inbox-n2-test.sh` | approval-gate N2 para a inbox: `vault-promote.sh`, leituras (`kv get`, `vault read`, curl/wget) e apagamentos de `secret/inbox/…` pedem aprovação; o resto do Vault passa |
 | `mod-audit-test.sh` | (precisa do CLI `claude`) o `mod-audit.sh` distingue mods de plugins clássicos e conta os gating hooks |
 
 ## Correr
@@ -35,7 +36,7 @@ já introduziram regressões que só um review manual apanhou.
 Exit `0` se tudo bate certo; exit `1` se houver mismatch (serve de gate).
 Corre também dentro do `scripts/validate.sh` (secção 9), logo entra no CI, a par
 dos cinco testes de contrato acima (`approval-file`, `cef-marker`, `guard-paths`,
-`scratch-rm`, `vault-read-field`). O `mod-audit-test.sh` e o `claude plugin test` de cada mod
+`scratch-rm`, `vault-read-field`, `inbox-n2`). O `mod-audit-test.sh` e o `claude plugin test` de cada mod
 correm no `validate.sh` quando o CLI `claude` existe (no CI, não existe).
 
 **Hermético:** cada caso corre com `HOME` sandbox — não toca no teu `~/.prumo`.

@@ -32,24 +32,46 @@ hash_of() { V kv get -field="$2" "$1" 2>/dev/null | shasum -a 256 | cut -d' ' -f
 H_IN=$(hash_of "$IN" "$IF") || fail "leitura da inbox falhou"
 { [ -n "$H_IN" ] && [ "$H_IN" != "$EMPTY" ]; } || fail "inbox vazia ou ilegível"
 
-if V kv get -format=json "$DEST" >/dev/null 2>&1; then VERB=patch; else VERB=put; fi
+# A versão corrente do destino (o JSON do get passa direto ao jq, só sai o número).
+# Falha de leitura conta como «não existe»; o `put -cas=0` falha então se existir.
+PREV=$(V kv get -format=json "$DEST" 2>/dev/null | jq -r '.data.metadata.version // empty' 2>/dev/null) || PREV=""
+if [ -n "$PREV" ]; then
+  VERB="patch"; CAS=""
+else
+  VERB="put"; CAS="-cas=0"
+fi
 
 if [ "$VAULT_MODE" = "native" ]; then
-  V kv get -field="$IF" "$IN" 2>/dev/null | V kv "$VERB" "$DEST" "$F=-" >/dev/null 2>&1
+  V kv get -field="$IF" "$IN" 2>/dev/null | V kv "$VERB" ${CAS:+"$CAS"} "$DEST" "$F=-" >/dev/null 2>&1
 else
   # O stdin leva o token e o valor, nunca argv.
   { printf '%s\n' "$VAULT_TOKEN"; V kv get -field="$IF" "$IN" 2>/dev/null; } | docker exec -i \
     -e VAULT_ADDR="$VAULT_ADDR" \
     -e VAULT_CACERT="$VAULT_CACERT_IN_CONTAINER" \
-    "$VAULT_CONTAINER" sh -c 'IFS= read -r t; VAULT_TOKEN="$t" exec vault kv "$1" "$2" "$3=-"' sh "$VERB" "$DEST" "$F" >/dev/null 2>&1
-fi || fail "gravação falhou ($DEST#$F); a inbox ficou intacta"
+    "$VAULT_CONTAINER" sh -c 'IFS= read -r t; VAULT_TOKEN="$t" exec vault kv "$@"' sh "$VERB" ${CAS:+"$CAS"} "$DEST" "$F=-" >/dev/null 2>&1
+fi || {
+  if [ "$VERB" = put ]; then
+    fail "gravação falhou ($DEST#$F). Se o destino já existe e este token não o consegue ler, nada foi alterado (put -cas=0); a inbox ficou intacta"
+  fi
+  fail "gravação falhou ($DEST#$F); a inbox ficou intacta"
+}
 
 H_OUT=$(hash_of "$DEST" "$F") || H_OUT=""
-[ "$H_OUT" = "$H_IN" ] || fail "leitura de volta não confere ($DEST#$F); a inbox ficou intacta"
+if [ "$H_OUT" != "$H_IN" ]; then
+  if [ -n "$PREV" ]; then
+    if V kv rollback -version="$PREV" "$DEST" >/dev/null 2>&1; then
+      fail "leitura de volta não confere ($DEST#$F); destino revertido para a versão $PREV; a inbox ficou intacta"
+    fi
+    fail "leitura de volta não confere ($DEST#$F) e o rollback falhou; repor à mão: vault kv rollback -version=$PREV $DEST; a inbox ficou intacta"
+  fi
+  if V kv metadata delete "$DEST" >/dev/null 2>&1; then
+    fail "leitura de volta não confere ($DEST#$F); o destino criado agora foi apagado; a inbox ficou intacta"
+  fi
+  fail "leitura de volta não confere ($DEST#$F) e apagar o destino falhou; apagar à mão: vault kv metadata delete $DEST; a inbox ficou intacta"
+fi
 
-if V kv metadata delete "$IN" >/dev/null 2>&1; then
-  echo "OK: $DEST#$F (promovido de $REF)"
-else
-  echo "OK: $DEST#$F (promovido de $REF)"
+echo "OK: $DEST#$F (promovido de $REF)"
+if ! V kv metadata delete "$IN" >/dev/null 2>&1; then
   echo "vault-promote: aviso: a entrada da inbox não foi apagada ($IN)" >&2
+  exit 3
 fi
