@@ -169,4 +169,19 @@ on('tool.call', { tool: /^(Write|Edit|MultiEdit)$/ }, async ($, e, next) => {
           'Edita só as linhas que precisas, com old_string sem marcadores, ou pede ao humano para desligar a redação (/prumo-guard-redact off).',
       }
   }).catch(($, e, next) => (next.called ? next(e) : { deny: 'prumo-guard: a verificação de marcadores falhou.' }))
+
+  // O modelo só vê o marcador; gravá-lo no Vault trocaria o segredo real por texto.
+  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    const command = (e as unknown as { command?: string }).command
+    if (typeof command !== 'string' || !command.includes('[prumo:')) return next(e)
+    const kvWrite = /\bkv\s+(put|patch)\b/.test(command) || /\bwrite\s+(-\S+\s+)*secret\//.test(command)
+    const httpWrite = /\/v1\/secret\//.test(command) && /\b(curl|wget)\b/.test(command) && /(-X\s*(POST|PUT|PATCH)\b|\s-d\b|--data)/i.test(command)
+    if (!kvWrite && !httpWrite) return next(e)
+    return {
+      deny:
+        'prumo-guard: este comando grava um marcador de redação no Vault. O valor foi redigido antes de chegar ao modelo e não está disponível; ' +
+        'gravar o marcador destruiria o segredo. A pessoa grava-o no seu terminal com `vault kv patch <caminho> <campo>=-` ' +
+        '(o valor é lido do stdin; `kv put` se o caminho ainda não existir).',
+    }
+  }).catch(($, e, next) => (next.called ? next(e) : { deny: 'prumo-guard: a verificação de escritas no Vault falhou.' }))
 }
