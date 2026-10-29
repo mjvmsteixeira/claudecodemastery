@@ -104,9 +104,20 @@ fi
 # Cópia normalizada só para estas regras: `//` e `/./` num caminho valem `/`, e `dir/../` desaparece, em voltas
 # até não mudar nada (a/b/c/../../../inbox fica inbox; `..` nunca conta como dir). Um `../` que sobre à cabeça
 # do caminho depois de -mount=secret (`../inbox/x`) conta como a inbox: falha segura (ver INBOX_ARG).
+# No máximo 64 voltas (cada uma tira um nível de aninhamento): sem limite, 8000 níveis passavam o timeout do hook.
+# Se ao fim delas ainda houver `../` e `inbox`, o comando é N2 (falha segura).
 SEG='([^./[:space:]][^/[:space:]]*|\.[^./[:space:]][^/[:space:]]*|\.\.[^/[:space:]]+)'
-CMDN=$(printf '%s' "$CMD" | sed -E -e 's#//+#/#g' -e ':a' -e 's#/\./#/#g' -e "s#${SEG}/\\.\\./##g" -e 'ta')
+CMDN=$(printf '%s' "$CMD" | sed -E -e 's#//+#/#g' -e ':a' -e 's#/\./#/#g' -e 'ta')
+NORM_DONE=0
+for _ in $(seq 64); do
+  NEXT=$(printf '%s' "$CMDN" | sed -E -e "s#${SEG}/\\.\\./##g" -e ':a' -e 's#/\./#/#g' -e 'ta')
+  if [ "$NEXT" = "$CMDN" ]; then NORM_DONE=1; break; fi
+  CMDN=$NEXT
+done
 matchn() { echo "$CMDN" | grep -qiE "$1"; }
+if [ -z "$LEVEL" ] && [ "$NORM_DONE" = 0 ] && matchn '\.\./' && matchn 'inbox'; then
+  LEVEL="N2"
+fi
 MOUNT_RE='-mount[=[:space:]]+["'"'"']?secret["'"'"']?[[:space:]]'
 INBOX_ARG='([^[:space:]]+[[:space:]]+)*["'"'"']?(\./|/|\.\./)*inbox/'
 if [ -z "$LEVEL" ] && matchn 'vault-promote\.sh["'"'"']?[[:space:]]+["'"'"']?secret/inbox/'; then

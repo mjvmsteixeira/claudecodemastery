@@ -133,6 +133,29 @@ test('fuzz: nada que o motor da fase 1 redigia em frases separadas por espaço p
   expect(failures).toEqual([])
 })
 
+// Texto colado contra a fase 1: aqui há diferenças assumidas. O motor da fase 1 apanhava alguns valores por engolir
+// um troço longo de lixo colado (marcadores, URLs, palavras-chave sem espaço); a fase 3 estreitou isso de propósito
+// (marcador falso, pontuação de fecho fora do valor, palavra-chave como valor). Medido no mulberry com 7 sementes ×
+// 40 000: 29 regressões não-TOKEN (~1 em 10 000). Aqui a semente e o N são fixos e o limite é o valor medido com
+// este motor (0). A semente 5 dá 3 com o motor de 18f3bbe e 1 com o de a3d7adc (pontuação depois do marcador):
+// uma alteração que o suba é uma regressão nova a rever, não um número a actualizar sem olhar.
+const GLUED_N = 4000
+const GLUED_MAX_REGRESSIONS = 0
+
+test(`fuzz: texto colado contra a fase 1, no máximo ${GLUED_MAX_REGRESSIONS} regressões em ${GLUED_N}`, () => {
+  const g = generator(5)
+  const o = opts(false)
+  const found: string[] = []
+  for (let i = 0; i < GLUED_N; i++) {
+    const { text, vals } = g.glued()
+    const before = Fase1.redactText(text, o).text
+    if (/TOKEN\]/.test(before)) continue
+    const now = redactText(text, o).text
+    for (const v of vals) if (!before.includes(v) && now.includes(v)) found.push(`#${i}`)
+  }
+  expect(found.length).toBeLessThan(GLUED_MAX_REGRESSIONS + 1)
+})
+
 test('fuzz: corpus de positivos da fase 1, sozinho e em frases baralhadas, sem regressão', () => {
   const rnd = rng(3)
   const failures: string[] = []

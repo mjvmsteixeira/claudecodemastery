@@ -7,7 +7,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento
 **`approval-gate`: N2 para a inbox do prumo-guard.** O valor capturado só sai da inbox com a pessoa a aprovar.
 
 - **N2:** correr `vault-promote.sh` com uma referência da inbox, ler a inbox (`kv get`, também com `-mount=secret`, `vault read`, curl/wget à API) e apagá-la (`kv delete`, `kv metadata delete`, `kv destroy`, `vault delete`, curl DELETE).
-- **Normalização:** `//`, `/./` e `dir/../` num caminho valem o caminho resolvido, em voltas até não mudar nada, a qualquer profundidade (`a/b/c/../../../inbox/x` é `inbox/x`; `..` nunca conta como `dir`). Com `-mount=secret`, `./inbox/x`, `/inbox/x` e um `../` que sobre à cabeça (`../inbox/x`) contam como inbox, por falha segura. `-mount=secret projects/x`, `secret/inbox/../projects/x` e leituras fora da inbox continuam livres. Custo: um caminho com 5000 níveis de `dir/../` leva ~2 s a normalizar.
+- **Normalização:** `//`, `/./` e `dir/../` num caminho valem o caminho resolvido, em voltas até não mudar nada, a qualquer profundidade (`a/b/c/../../../inbox/x` é `inbox/x`; `..` nunca conta como `dir`). Com `-mount=secret`, `./inbox/x`, `/inbox/x` e um `../` que sobre à cabeça (`../inbox/x`) contam como inbox, por falha segura. `-mount=secret projects/x`, `secret/inbox/../projects/x` e leituras fora da inbox continuam livres. No máximo 64 voltas (uma por nível de aninhamento); se ao fim delas ainda houver `../` e `inbox`, o comando é N2 (falha segura). Medido: 100 níveis em 0,23 s e 8000 em 0,38 s (sem limite, 8000 níveis levavam 6 s, acima do timeout de 5 s do hook).
 - **Limite:** best-effort contra ofuscação (variáveis, `eval`, base64, codificação em percentagem).
 - **Testes:** `scripts/eval/inbox-n2-test.sh`.
 

@@ -69,6 +69,11 @@ blocks "kv metadata delete -mount com três ../" 'vault kv metadata delete -moun
 blocks "vault read secret/data com três ../" 'vault read secret/data/a/b/c/../../../inbox/x'
 blocks "curl com três ../" 'curl -s https://h:8200/v1/secret/data/a/b/c/../../../inbox/x'
 blocks "kv get -mount com /./ repetido" 'vault kv get -mount=secret a/././../inbox/x'
+DEEP="$(printf 'a/%.0s' $(seq 100))$(printf '../%.0s' $(seq 100))inbox/x"
+T0=$SECONDS
+blocks "kv get -mount com 100 níveis de ../ (limite de voltas, falha segura)" "vault kv get -mount=secret $DEEP"
+[ $((SECONDS - T0)) -le 1 ] && echo "  ✓ 100 níveis em ≤ 1 s" || { echo "  ✗ 100 níveis levou $((SECONDS - T0)) s"; FAILS=$((FAILS+1)); }
+passes "100 níveis fora da inbox continuam livres" "vault kv get -mount=secret $(printf 'a/%.0s' $(seq 100))$(printf '../%.0s' $(seq 100))projects/x"
 blocks "secret/./inbox" 'vault kv get secret/./inbox/x'
 blocks "secret/data//inbox" 'vault read secret/data//inbox/x'
 blocks "curl com //" 'curl -s https://h:8200/v1/secret//data/inbox/x'

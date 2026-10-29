@@ -87,8 +87,7 @@ const encode = (n: number, width: number): string => {
 const decode = (s: string): number => [...s.slice(1, -1)].filter(c => c !== S_PAD).reduce((n, c) => n * 29 + c.charCodeAt(0) - 0xfdd2, 0)
 // um marcador sozinho é um valor já redigido; colado a mais texto é texto (um marcador falso não esconde o resto).
 // A ref só conta com a forma da inbox: um marcador falso com outro texto depois da seta é um valor.
-// Pontuação final depois dele só o deixa sozinho se acabar o valor (`<marcador>!:<v>` é texto colado).
-const MARKER_ALONE = String.raw`(?:\[prumo:[A-Z0-9-]+(?:→secret/inbox/[A-Za-z0-9._/-]+#[A-Za-z0-9_.-]+)?\]|${SENTINEL})(?![${TRAIL}]*[^\s"'&;,${TRAIL}])`
+const MARKER_ALONE = String.raw`(?:\[prumo:[A-Z0-9-]+(?:→secret/inbox/[A-Za-z0-9._/-]+#[A-Za-z0-9_.-]+)?\]|${SENTINEL})(?![^\s"'&;,${TRAIL}])`
 // referências a variáveis, placeholders e literais não são valores; "99.5%" é uma taxa, não uma palavra-passe
 const NOT_A_VALUE = String.raw`(?!${MARKER_ALONE}|\$|\\\$(?:[({]|[A-Z_]{2})|process\.env|os\.environ|ENV\[|<|\{\{|\d[\d.,]*%(?![^\s"'&;,.)]))(?!(?:true|false|null|none|nil|undefined|string|str|number|int|bool|boolean|required|optional)(?![^\s"'&;,.)]))`
 // um valor sem aspas acaba antes de uma palavra-chave colada a um marcador que está até 40 caracteres atrás no mesmo
@@ -166,8 +165,9 @@ const RULES: Rule[] = [
   { name: 'TOKEN', re: /\b(Bearer)\s+([A-Za-z0-9._~+/-]{16,}=*)/g, replace: (mark, _m, [kw, val]) => `${kw} ${mark(val as string)}` },
   ...segredoRules(KEYWORDS_OTHER, 'giu', KEYWORDS_PASS),
   ...segredoRules(KEYWORDS_ENV, 'gu'),
-  // esquema limitado a 32 caracteres: sem limite, uma corrida longa de [a-z0-9+.-] sem :// era quadrática (390 KB: 44 s)
-  { name: 'URL-CREDENCIAIS', re: /(\b[a-z][a-z0-9+.-]{0,31}:\/\/[^\s:\/@]+:)(?!\uFDD0[\uFDD2-\uFDEF]+\uFDD1@)([^\s@\/]{3,})(@)/gi, replace: (mark, _m, [lead, pw, at]) => `${lead}${mark(pw as string, 'SEGREDO', (lead as string).length)}${at}` },
+  // esquema limitado a 32 caracteres: sem limite, uma corrida longa de [a-z0-9+.-] sem :// era quadrática (390 KB: 44 s).
+  // Sem \b: com o limite, um esquema colado a mais de 32 letras de palavra deixava de casar e a password passava.
+  { name: 'URL-CREDENCIAIS', re: /([a-z][a-z0-9+.-]{0,31}:\/\/[^\s:\/@]+:)(?!\uFDD0[\uFDD2-\uFDEF]+\uFDD1@)([^\s@\/]{3,})(@)/gi, replace: (mark, _m, [lead, pw, at]) => `${lead}${mark(pw as string, 'SEGREDO', (lead as string).length)}${at}` },
   // parte local limitada a 64 (RFC 5321): sem limite, uma corrida longa de [A-Za-z0-9.-] sem @ era quadrática
   { name: 'EMAIL', pii: true, re: /\b[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,}\b/g },
   { name: 'IBAN', pii: true, re: /\bPT\d{2}(?:\s?\d{4}){5}\s?\d\b/gi, valid: ibanValid },

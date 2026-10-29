@@ -65,10 +65,23 @@ test('marcador com ref da inbox continua a ser um valor já redigido', () => {
   expect(collectSecrets(t, O)).toEqual([])
 })
 
-test('marcador seguido de pontuação e mais texto não fica sozinho', () => {
-  const t = PW + ':' + M + 'X]!:' + V
-  expect(redactText(t, O).text.includes(V)).toBe(false)
-})
+// Ronda extra: um marcador seguido de pontuação continua sozinho; o valor seguinte não engole a palavra-chave
+// que está a mais de 40 caracteres (limite do GLUED_KEYWORD). Regressões face à fase 1 numa versão intermédia.
+const SK = 's' + 'k-' + 'A1b2'.repeat(6)
+const AK = 'AK' + 'IA' + 'ABCDEFGHJKLMNPQR'
+const X41 = 'x'.repeat(41)
+const punctCases: Array<[string, string]> = [
+  ['.<41x>password:', 'api' + '_key=' + SK + '.' + X41 + PW + ': ' + V],
+  [').<41x>password is', 'api' + '_key=' + SK + ').' + X41 + PW + ' is ' + V],
+  [': !<41x>password:', 'api' + '_key: ' + SK + '!' + X41 + PW + ': ' + V],
+  ['.user@[x é', PW + ': ' + AK + '.user@[x é ' + V],
+]
+for (const [name, t] of punctCases) {
+  test(`marcador seguido de pontuação: ${name} redige o valor seguinte`, () => {
+    expect(Fase1.redactText(t, O).text.includes(V)).toBe(false)
+    expect(redactText(t, O).text.includes(V)).toBe(false)
+  })
+}
 
 test('URL-CREDENCIAIS linear: 390 KB de a-a- e 195 KB de a.a.…@ em menos de 2 s cada', () => {
   for (const t of ['a-'.repeat(200000), 'a.'.repeat(100000) + '@']) {
@@ -76,6 +89,12 @@ test('URL-CREDENCIAIS linear: 390 KB de a-a- e 195 KB de a.a.…@ em menos de 2 
     redactText(t, { pii: true, internalIps: true, extra: [] })
     expect(performance.now() - s).toBeLessThan(2000)
   }
+})
+
+test('URL-CREDENCIAIS com o esquema colado a mais de 32 letras', () => {
+  const pw = 'Zp' + 'abc9!x'
+  const t = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef' + 'https://admin:' + pw + '@db.example.com'
+  expect(redactText(t, O).text.includes(pw)).toBe(false)
 })
 
 test('URL-CREDENCIAIS continua a apanhar esquemas habituais', () => {
