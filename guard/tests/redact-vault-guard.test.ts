@@ -48,3 +48,33 @@ test('vault kv patch sem marcador passa', async ($, on) => {
   const r = await $.tool.call({ tool: 'Bash', command: 'vault kv patch secret/x k=-' })
   expect(r.deny).toBeUndefined()
 })
+
+test('vault kv -mount=secret put com marcador é recusado', async ($, on) => {
+  hooks(on)
+  const r = await $.tool.call({ tool: 'Bash', command: `vault kv -mount=secret put x k=${M}` })
+  expect(r.deny).toBeDefined()
+})
+
+test('vault write -mount=secret com marcador é recusado', async ($, on) => {
+  hooks(on)
+  const r = await $.tool.call({ tool: 'Bash', command: `vault write -mount=secret x k=${M}` })
+  expect(r.deny).toBeDefined()
+})
+
+test('marcador por pipe para vault kv put é recusado', async ($, on) => {
+  hooks(on)
+  const r = await $.tool.call({ tool: 'Bash', command: `printf '%s' '${M}' | vault kv put x k=-` })
+  expect(r.deny).toBeDefined()
+})
+
+test('wget --method=PUT --body-data a /v1/kv/data/ é recusado', async ($, on) => {
+  hooks(on)
+  const r = await $.tool.call({ tool: 'Bash', command: `wget --method=PUT --body-data='${M}' https://v/v1/kv/data/x` })
+  expect(r.deny).toBeDefined()
+})
+
+test('vault kv get -mount=secret passa', async ($, on) => {
+  hooks(on)
+  const r = await $.tool.call({ tool: 'Bash', command: 'vault kv get -mount=secret x' })
+  expect(r.deny).toBeUndefined()
+})

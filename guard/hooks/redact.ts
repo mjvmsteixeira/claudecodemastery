@@ -174,8 +174,11 @@ on('tool.call', { tool: /^(Write|Edit|MultiEdit)$/ }, async ($, e, next) => {
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const command = (e as unknown as { command?: string }).command
     if (typeof command !== 'string' || !command.includes('[prumo:')) return next(e)
-    const kvWrite = /\bkv\s+(put|patch)\b/.test(command) || /\bwrite\s+(-\S+\s+)*secret\//.test(command)
-    const httpWrite = /\/v1\/secret\//.test(command) && /\b(curl|wget)\b/.test(command) && /(-X\s*(POST|PUT|PATCH)\b|\s-d\b|--data)/i.test(command)
+    const kvWrite = /\bkv\s+(?:-\S+\s+)*(?:put|patch)\b/.test(command) || /\bwrite\s+(?:-\S+\s+)*(?:-mount=\S+|\S*(?:secret|kv)\/)/.test(command)
+    const httpWrite =
+      /\/v1\/(?:secret|[^/\s]+\/(?:data|metadata))\//.test(command) &&
+      /\b(curl|wget)\b/.test(command) &&
+      /(-X\s*(POST|PUT|PATCH)\b|(?:^|\s)-d|--data|--method[= ](POST|PUT|PATCH)\b|--body-data|--post-data|--post-file)/i.test(command)
     if (!kvWrite && !httpWrite) return next(e)
     return {
       deny:
