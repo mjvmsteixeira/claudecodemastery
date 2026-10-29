@@ -9,7 +9,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento
 ### Mudanças de comportamento
 
 - **Palavras-chave novas:** `senha`, `palavra-passe` (também com espaço ou `_`), `passphrase` e `pass` (não dentro de `bypass`, `compass`, `passport`).
-- **Prosa:** `<palavra-chave> … é|is|era|was <valor>` e `<palavra-chave> <valor>`. Sem aspas, o valor em prosa ou depois de `: ` tem de conter um dígito ou um símbolo. Valores com 5 ou mais caracteres; com aspas podem ter espaços, sem aspas podem ter `,` e `;`.
+- **Prosa:** `<palavra-chave> … é|is|era|was <valor>` e `<palavra-chave> <valor>`. Sem aspas, o valor em prosa ou depois de `: ` tem de conter um dígito ou um símbolo. Valores com 5 ou mais caracteres (o mínimo desceu de 6 para 5, também para as palavras-chave que já existiam); com aspas podem ter espaços, sem aspas podem ter `,` e `;`.
 - **`.env`:** variáveis em maiúsculas `*_KEY=`.
 - **Classes novas:** `CHAVE-API` (`sk-`, `sk-proj-`, `sk-ant-`, `sk-svcacct-`, `sk_live_`/`sk_test_`/`rk_live_`/`rk_test_`, `AIza`, `glpat-`, `npm_`) e `TELEGRAM-TOKEN`. `SLACK-TOKEN` aceita também `xapp-`.
 - **Exclusões:** referências (`$…`, `process.env`, `os.environ`, `ENV[`, `<…>`, `{{…}}`) e tipos ou literais (`true`, `false`, `null`, `none`, `nil`, `undefined`, `string`, `str`, `number`, `int`, `bool`, `boolean`, `required`, `optional`).

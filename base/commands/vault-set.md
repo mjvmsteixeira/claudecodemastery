@@ -41,9 +41,12 @@ VALOR=$(cat <<'EOF_VALOR'
 EOF_VALOR
 )
 
-# Recusar marcadores de redação: o valor real não chegou até aqui
+# Recusar marcadores de redação: o valor real não chegou até aqui.
+# O marcador é construído por partes: escrito por inteiro no comando, o hook
+# do prumo-guard recusaria o próprio script.
+M='[pru''mo:'
 case "$VALOR" in
-  *'[prumo:'*)
+  *"$M"*)
     echo "Valor redigido pelo prumo-guard — nada foi gravado. No teu terminal: vault kv patch $PATH_VAULT $KEY=- (ou kv put se o caminho não existir) e cola lá o valor."
     exit 1 ;;
 esac
@@ -66,8 +69,9 @@ Após o comando, verificar que foi guardado lendo apenas o início:
 source "${CLAUDE_PLUGIN_ROOT}/lib/vault-env.sh"
 
 VAL=$(V kv get -format=json "<PATH>" | jq -r '.data.data.<KEY>')
+M='[pru''mo:'
 case "$VAL" in
-  *'[prumo:'*) echo "ERRO: o valor guardado é um marcador de redação"; exit 1 ;;
+  *"$M"*) echo "ERRO: o valor guardado é um marcador de redação"; exit 1 ;;
 esac
 if [ "$VAL" = "PLACEHOLDER" ] || [ -z "$VAL" ]; then
   echo "ERRO: valor não foi guardado"

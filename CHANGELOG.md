@@ -10,7 +10,7 @@ As tags legacy `v0.5.0`, `v0.5.1` e `v0.6.0` são anteriores à convenção e n�
 
 ## prumo-guard 1.3.1 · prumo-base 1.0.3 — 2026-10-29
 
-A redação do prumo-guard cobre palavras-passe em prosa (`senha`, `palavra-passe`, `passphrase`, `pass`), variáveis `*_KEY=` de `.env`, chaves de fornecedores (`CHAVE-API`), tokens do Telegram e `xapp-` do Slack, com exclusões para referências e tipos. Um hook novo recusa gravar no Vault valores com marcadores `[prumo:`, e o `/vault-set` do prumo-base aborta sem gravar quando recebe um e indica o comando `vault kv patch <caminho> <campo>=-` para correr no terminal. Detalhe em `guard/CHANGELOG.md` e `base/CHANGELOG.md`.
+A redação do prumo-guard cobre palavras-passe em prosa (`senha`, `palavra-passe`, `passphrase`, `pass`), variáveis `*_KEY=` de `.env`, chaves de fornecedores (`CHAVE-API`), tokens do Telegram e `xapp-` do Slack, com exclusões para referências e tipos; o comprimento mínimo do valor desce de 6 para 5 caracteres, também para as palavras-chave que já existiam. Um hook novo recusa gravar no Vault valores com marcadores `[prumo:`, e o `/vault-set` do prumo-base aborta sem gravar quando recebe um e indica o comando `vault kv patch <caminho> <campo>=-` para correr no terminal. Detalhe em `guard/CHANGELOG.md` e `base/CHANGELOG.md`.
 
 ## prumo-guard 1.3.0 — 2026-10-24
 
