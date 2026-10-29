@@ -76,7 +76,7 @@ function segredoRules(keywords: string, flags: string): Rule[] {
     },
     {
       name: 'SEGREDO',
-      re: new RegExp(String.raw`(${keywords}["']?(?:${loose}))(?:${QUOTED}|${HAS_DIGIT_OR_SYMBOL}${NOT_A_VALUE}${UNQUOTED})`, flags),
+      re: new RegExp(String.raw`(${keywords}(?![A-Za-z])["']?(?:${loose}))(?:${QUOTED}|${HAS_DIGIT_OR_SYMBOL}${NOT_A_VALUE}${UNQUOTED})`, flags),
       replace,
     },
   ]

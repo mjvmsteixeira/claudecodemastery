@@ -100,6 +100,9 @@ const negatives: Array<[string, string]> = [
   ['N9b', 'risk-assessment-for-the-quarterly-report'],
   ['N10a', 'password: ' + '{{ vault_password }}'],
   ['N10b', 'password=' + '<PASSWORD>'],
+  ['N12a', 'passport was 12345 ok'],
+  ['N12b', 'secretary is Maria1'],
+  ['N12c', 'passage is 12345'],
 ]
 
 for (const [id, text] of negatives) {
