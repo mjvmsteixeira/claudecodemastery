@@ -7,10 +7,8 @@
 set -uo pipefail
 P="${1:-}"; F="${2:-}"
 [ -n "$P" ] && [ -n "$F" ] || { echo "uso: vault-write-field.sh <caminho-kv> <campo>" >&2; exit 1; }
-case "$P" in
-  secret/inbox/?*) ;;
-  *) echo "vault-write-field: caminho fora de secret/inbox/" >&2; exit 1 ;;
-esac
+[[ "$F" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]*$ ]] || { echo "vault-write-field: campo inválido" >&2; exit 1; }
+[[ "$P" =~ ^secret/inbox/[A-Za-z0-9._/-]+$ ]] || { echo "vault-write-field: caminho fora de secret/inbox/ ou inválido" >&2; exit 1; }
 case "/$P/" in */../*|*/./*|*//*) echo "vault-write-field: caminho inválido" >&2; exit 1 ;; esac
 
 CACHE="${PRUMO_HOME:-$HOME/.prumo}/token-cache"
