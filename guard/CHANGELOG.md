@@ -7,11 +7,14 @@ Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento
 **Redação mais fiel e captura mais robusta.** Requer o prumo-base 1.2.0 para o ciclo completo (promoção e auditoria da inbox).
 
 - **Marcadores:** só os marcadores emitidos pelo próprio redactor ficam protegidos, através de sentinelas internas; um marcador falso (incluindo o de uma credencial de URL) deixa de proteger um segredo.
-- **Palavra-chave como valor:** `api_key password=<v>` deixa de gravar `password=`.
+- **Palavra-chave como valor:** uma palavra-chave (também depois de `(` ou `[`) seguida de `=`/`:`, ou de espaço e de um valor (aspa, ou 5+ caracteres sem espaço com dígito ou símbolo), não é o valor da anterior: `api_key password=<v>` deixa de gravar `password=`, e `password is (AWS_SECRET_KEY <v>`, `token: password <v>` e `password: token <v>` redigem `<v>`. Sem valor a seguir, a palavra é o próprio valor (`password: secret_x9 fim` grava `secret_x9`). Um valor sem aspas acaba antes de uma palavra-chave colada a um marcador até 40 caracteres atrás (`token: <marcador>(db_password <v>`).
+- **Sentinelas com o comprimento do marcador:** a sentinela interna de um marcador emitido ocupa tantos caracteres como `[prumo:CLASSE]`, com ou sem ref; a janela de 30 caracteres da prosa (`… é|is <valor>`) deixa de chegar mais longe depois de um marcador do que no motor da fase 1 (`4ccea37`; regressão encontrada por fuzzing).
+- **Marcador falso com ref:** só conta como marcador sozinho a ref com a forma da inbox (`secret/inbox/…#campo`); `password=` seguido de um marcador com outro texto depois da seta é redigido e recolhido. Pontuação final depois de um marcador só o deixa sozinho se o valor acabar aí.
 - **Pontuação:** o `]`, o `)` e o `.` finais ficam fora do valor sem aspas; uma palavra-passe que termine em `.` antes de um espaço ou do fim é guardada sem o ponto.
-- **Desempenho:** a parte local do email fica limitada a 64 caracteres.
+- **Desempenho:** a parte local do email fica limitada a 64 caracteres; o esquema de uma URL com credenciais a 32 (390 KB de `a-a-…` levavam 44 s, agora 0,2 s).
+- **Teste de fuzzing:** `tests/redact-fuzz.test.ts` (semente fixa) verifica que nenhuma sentinela sai, que nenhum valor recolhido fica no texto (com e sem refs) e que nada do corpus de positivos e de frases separadas por espaço que o motor da fase 1 redigia passa em claro.
 - **Plugins por symlink:** `latestPluginDir` segue symlinks, e as versões instaladas assim passam a ser encontradas.
-- **Captura:** uma gravação falhada apaga a cache do token da inbox e o login corre com um `HOME` vazio.
+- **Captura (via prumo-base 1.2.0):** uma gravação falhada apaga a cache do token da inbox e o login corre com um `HOME` vazio.
 - **Limites conhecidos:** tokens colados a uma letra ou dígito não são redigidos; palavras-passe em URL com `/`; emoji ou Unicode raro em nomes de pasta podem alterar o segmento da inbox.
 
 ## v1.4.0 — 2026-10-29
@@ -28,7 +31,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento
 - **Configuração:** `redact.capture` (por omissão `true`). Padrões `extra` do `redact.json` só são capturados com `"secret": true`.
 - **Limites:** prompts `isMeta` não são tocados; imagens e anexos não são lidos; máximo de 10 segredos novos por prompt.
 - **Permissão:** o escritor do prumo-base faz login próprio como `agent-claude` (nunca o token raiz nem a role do projeto); só essa role precisa de `create` em `secret/data/inbox/*` (policy `prumo-inbox`, HCL mínimo no README).
-- **Redação:** falsos negativos corrigidos (`$` dentro de valores entre aspas, aspa de fecho da palavra-chave, frases entre aspas, pontuação interna). Os marcadores `[prumo:CLASSE→ref]` já emitidos deixam de ser alterados por regras seguintes (a referência com contador >= 100 era corrompida pela regra do NIF). Só conta como emitido o marcador cuja ref o redactor conhece (a desta chamada ou uma gravada nesta sessão); qualquer outro texto com forma de marcador continua sujeito a todas as regras. Depois de uma palavra-chave, `password=…` é a palavra-chave seguinte e não o valor (`api_key password=<v>` gravava `password=`). Um marcador colado a outro texto dentro de um valor só fica de fora se foi emitido nesta chamada ou tem ref conhecida; um marcador falso faz parte do valor. Sem aspas, o `.` final antes de espaço ou do fim e o `]`/`)` cujo par abre antes da palavra-chave ficam fora do valor gravado. Por isso uma password que termine em `.` no fim do texto ou antes de um espaço é guardada sem esse ponto. Durante a redação, os marcadores emitidos vivem no texto como sentinelas internas (não-caracteres Unicode, neutralizados no input), em vez de posições recalculadas. Uma credencial de URL com forma de marcador falso (`https://u:[…]@host`) também é redigida. Desempenho: a regra EMAIL limita a parte local a 64 caracteres (uma corrida longa de dígitos e hífens sem @ levava ~10 s por 200 KB).
+- **Redação:** falsos negativos corrigidos (`$` dentro de valores entre aspas, aspa de fecho da palavra-chave, frases entre aspas, pontuação interna). Os marcadores `[prumo:CLASSE→ref]` já emitidos deixam de ser alterados por regras seguintes (a referência com contador >= 100 era corrompida pela regra do NIF).
 
 ## v1.3.1 — 2026-10-29
 

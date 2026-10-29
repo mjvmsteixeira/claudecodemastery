@@ -65,27 +65,37 @@ const KEYWORDS_ENV = String.raw`\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*_KEY`
 
 // pontuação de fim de frase ou de markdown: nunca conta como símbolo nem pertence ao valor
 const TRAIL = '.)\\]`*!?:'
-// Durante a redação cada marcador emitido vive no texto como sentinela: U+FDD0, o índice em U+FDD2–U+FDEF, U+FDD1.
+// Durante a redação cada marcador emitido vive no texto como sentinela: U+FDD0, o índice em base 29 (U+FDD2–U+FDEE),
+// enchimento U+FDEF até ao comprimento do marcador sem ref, U+FDD1. Com esse comprimento, as janelas das regras (a prosa
+// `… é|is <valor>` olha 30 caracteres para trás) medem o texto como ele é lido, e da mesma maneira com ou sem refs
+// (a recolha corre sem refs e a redação com elas: o que uma recolhe a outra tem de redigir).
 // São não-caracteres (reservados a uso interno); os que venham no input passam a U+FFFD antes de começar.
 const S_OPEN = '\uFDD0'
 const S_CLOSE = '\uFDD1'
 const SENTINEL = String.raw`\uFDD0[\uFDD2-\uFDEF]+\uFDD1`
 const SENTINEL_RE = new RegExp(SENTINEL, 'g')
 const NEXT_SENTINEL = new RegExp(String.raw`\s+(${SENTINEL})`, 'y')
-const encode = (n: number): string => {
+const S_PAD = '\uFDEF'
+const encode = (n: number, width: number): string => {
   let out = ''
   do {
-    out = String.fromCharCode(0xfdd2 + (n % 30)) + out
-    n = Math.floor(n / 30)
+    out = String.fromCharCode(0xfdd2 + (n % 29)) + out
+    n = Math.floor(n / 29)
   } while (n > 0)
-  return S_OPEN + out + S_CLOSE
+  return S_OPEN + out + S_PAD.repeat(Math.max(0, width - out.length - 2)) + S_CLOSE
 }
-const decode = (s: string): number => [...s.slice(1, -1)].reduce((n, c) => n * 30 + c.charCodeAt(0) - 0xfdd2, 0)
-// um marcador sozinho é um valor já redigido; colado a mais texto é texto (um marcador falso não esconde o resto)
-const MARKER_ALONE = String.raw`(?:\[prumo:[A-Z0-9-]+(?:→[^\]\s]+)?\]|${SENTINEL})(?![^\s"'&;,${TRAIL}])`
+const decode = (s: string): number => [...s.slice(1, -1)].filter(c => c !== S_PAD).reduce((n, c) => n * 29 + c.charCodeAt(0) - 0xfdd2, 0)
+// um marcador sozinho é um valor já redigido; colado a mais texto é texto (um marcador falso não esconde o resto).
+// A ref só conta com a forma da inbox: um marcador falso com outro texto depois da seta é um valor.
+// Pontuação final depois dele só o deixa sozinho se acabar o valor (`<marcador>!:<v>` é texto colado).
+const MARKER_ALONE = String.raw`(?:\[prumo:[A-Z0-9-]+(?:→secret/inbox/[A-Za-z0-9._/-]+#[A-Za-z0-9_.-]+)?\]|${SENTINEL})(?![${TRAIL}]*[^\s"'&;,${TRAIL}])`
 // referências a variáveis, placeholders e literais não são valores; "99.5%" é uma taxa, não uma palavra-passe
 const NOT_A_VALUE = String.raw`(?!${MARKER_ALONE}|\$|\\\$(?:[({]|[A-Z_]{2})|process\.env|os\.environ|ENV\[|<|\{\{|\d[\d.,]*%(?![^\s"'&;,.)]))(?!(?:true|false|null|none|nil|undefined|string|str|number|int|bool|boolean|required|optional)(?![^\s"'&;,.)]))`
-const UNQUOTED = String.raw`(?:[^\s"'&;,]|[;,](?=[^\s"'&;,])){5,}`
+// um valor sem aspas acaba antes de uma palavra-chave colada a um marcador que está até 40 caracteres atrás no mesmo
+// valor (`token: <marcador>(db_password <v>`): sem isto, o pedaço depois do marcador levava a palavra-chave e a regra
+// dela já não via o valor. O texto entre o marcador e a palavra-chave continua a ser valor.
+const GLUED_KEYWORD = String.raw`(?=(?:(?i:${KEYWORDS_OTHER}|${KEYWORDS_PASS})|(?-i:${KEYWORDS_ENV}))["']?(?:[ \t]*[=:]|[ \t]))(?<=[\uFDD1\]][^\s"'&;,]{0,40})`
+const UNQUOTED = String.raw`(?:(?!${GLUED_KEYWORD})(?:[^\s"'&;,]|[;,](?=[^\s"'&;,]))){5,}`
 const UNQUOTED_TRIM = String.raw`${UNQUOTED}(?<![${TRAIL}])`
 const QUOTED = String.raw`(["'])${NOT_A_VALUE}[^"'\n]{5,}\2`
 // em prosa só conta com dígito ou símbolo dentro do valor (a pontuação interna conta, a final não); sem isto "password reset" seria segredo
@@ -105,9 +115,11 @@ const QUOTED_PASS_SPACED = String.raw`(?=[^"'\n]{5})(?=[^"'\n]* )(?![^"'\n]*${VA
 const QUOTED_PASS = String.raw`(["'])${NOT_A_VALUE}(?:${QUOTED_NOSPACE}|${QUOTED_PASS_SPACED})\2`
 // código de shell a seguir a uma palavra solta: flags, redirecções, caminhos, subshells, pipes
 const SHELL_START = String.raw`(?:[-~/(|>]|\d>)`
-// depois de uma palavra-chave, "password=…" é a palavra-chave seguinte, não o valor (`api_key password=<v>`)
+// depois de uma palavra-chave, "password=…" é a palavra-chave seguinte, não o valor (`api_key password=<v>`); o mesmo
+// com espaço e um valor a seguir (`password is (AWS_SECRET_KEY <v>`, `token: password <v>`): o valor é o que vem depois.
+// "Um valor a seguir" = aspa, ou 5+ caracteres sem espaço com um dígito ou símbolo; sem isso a palavra é o próprio valor.
 // Só salta uma palavra-chave que uma regra seguinte redige: a ENV é sensível a maiúsculas mesmo dentro de regras `giu`.
-const NOT_A_KEYWORD = String.raw`(?!(?:${KEYWORDS_OTHER}|${KEYWORDS_PASS}|(?-i:${KEYWORDS_ENV}))["']?[ \t]*[=:])`
+const NOT_A_KEYWORD = String.raw`(?![(\[]?(?:${KEYWORDS_OTHER}|${KEYWORDS_PASS}|(?-i:${KEYWORDS_ENV}))["']?(?:[ \t]*[=:]|[ \t]+(?:["']|(?=\S{5})\S*[^\p{L}\s])))`
 const PAIRS: Record<string, string> = { ']': '[', ')': '(' }
 
 function segredoRules(keywords: string, flags: string, passKeywords?: string): Rule[] {
@@ -154,7 +166,8 @@ const RULES: Rule[] = [
   { name: 'TOKEN', re: /\b(Bearer)\s+([A-Za-z0-9._~+/-]{16,}=*)/g, replace: (mark, _m, [kw, val]) => `${kw} ${mark(val as string)}` },
   ...segredoRules(KEYWORDS_OTHER, 'giu', KEYWORDS_PASS),
   ...segredoRules(KEYWORDS_ENV, 'gu'),
-  { name: 'URL-CREDENCIAIS', re: /(\b[a-z][a-z0-9+.-]*:\/\/[^\s:\/@]+:)(?!\uFDD0[\uFDD2-\uFDEF]+\uFDD1@)([^\s@\/]{3,})(@)/gi, replace: (mark, _m, [lead, pw, at]) => `${lead}${mark(pw as string, 'SEGREDO', (lead as string).length)}${at}` },
+  // esquema limitado a 32 caracteres: sem limite, uma corrida longa de [a-z0-9+.-] sem :// era quadrática (390 KB: 44 s)
+  { name: 'URL-CREDENCIAIS', re: /(\b[a-z][a-z0-9+.-]{0,31}:\/\/[^\s:\/@]+:)(?!\uFDD0[\uFDD2-\uFDEF]+\uFDD1@)([^\s@\/]{3,})(@)/gi, replace: (mark, _m, [lead, pw, at]) => `${lead}${mark(pw as string, 'SEGREDO', (lead as string).length)}${at}` },
   // parte local limitada a 64 (RFC 5321): sem limite, uma corrida longa de [A-Za-z0-9.-] sem @ era quadrática
   { name: 'EMAIL', pii: true, re: /\b[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,}\b/g },
   { name: 'IBAN', pii: true, re: /\bPT\d{2}(?:\s?\d{4}){5}\s?\d\b/gi, valid: ibanValid },
@@ -238,8 +251,9 @@ function run(text: string, opts: RedactOptions, onSecret?: (cls: string, value: 
       }
       const found: [string, string][] = []
       const emit = (cls: string, ref?: string) => {
-        markers.push(ref === undefined ? ph(cls) : `[prumo:${cls}→${ref}]`)
-        return encode(markers.length - 1)
+        const marker = ref === undefined ? ph(cls) : `[prumo:${cls}→${ref}]`
+        markers.push(marker)
+        return encode(markers.length - 1, ph(cls).length)
       }
       const mark: Mark = (value, cls = rule.name, at = match.lastIndexOf(value)) => {
         const start = offset + at
