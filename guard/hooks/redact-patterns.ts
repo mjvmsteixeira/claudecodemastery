@@ -1,5 +1,5 @@
 export type ExtraPattern = { name: string; re: RegExp }
-export type RedactOptions = { pii: boolean; internalIps: boolean; extra: ExtraPattern[] }
+export type RedactOptions = { pii: boolean; internalIps: boolean; extra: ExtraPattern[]; refs?: ReadonlyMap<string, string> }
 
 type Rule = {
   name: string
@@ -7,8 +7,10 @@ type Rule = {
   pii?: boolean
   ip?: boolean
   valid?: (match: string) => boolean
-  replace?: (match: string, ...groups: (string | undefined)[]) => string
+  replace?: (mark: Mark, match: string, ...groups: (string | undefined)[]) => string
 }
+
+type Mark = (value: string, cls?: string) => string
 
 const ph = (name: string) => `[prumo:${name}]`
 
@@ -84,9 +86,10 @@ const SHELL_START = String.raw`(?:[-~/(|>]|\d>)`
 
 function segredoRules(keywords: string, flags: string, passKeywords?: string): Rule[] {
   // o grupo 2 é a aspa quando o valor vem entre aspas; sem aspas fica undefined
-  const replace = (_m: string, lead?: string, q?: string) => {
+  const replace = (mark: Mark, m: string, lead?: string, q?: string) => {
     const quote = typeof q === 'string' ? q : ''
-    return `${lead}${quote}${ph('SEGREDO')}${quote}`
+    const head = (lead ?? '').length + quote.length
+    return `${lead}${quote}${mark(m.slice(head, m.length - quote.length))}${quote}`
   }
   const rule = (lead: string, value: string): Rule => ({ name: 'SEGREDO', re: new RegExp(String.raw`(${lead})${value}`, flags), replace })
   const unquoted = (symbol: string, skip?: string) => `${hasDigitOrSymbol(symbol, skip)}${NOT_A_VALUE}${UNQUOTED_TRIM}`
@@ -112,10 +115,10 @@ const RULES: Rule[] = [
   { name: 'SLACK-TOKEN', re: /\b(?:xox[abprs]|xapp)-[A-Za-z0-9-]{10,}/g },
   { name: 'CHAVE-API', re: /\b(?:sk-[A-Za-z0-9_-]{20,}|(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{10,}|AIza[A-Za-z0-9_-]{35}|glpat-[A-Za-z0-9_-]{20,}|npm_[A-Za-z0-9]{36})/g },
   { name: 'TELEGRAM-TOKEN', re: /\b\d{8,10}:AA[A-Za-z0-9_-]{33}\b/g },
-  { name: 'TOKEN', re: /\b(Bearer)\s+[A-Za-z0-9._~+/-]{16,}=*/g, replace: (_m, kw) => `${kw} ${ph('TOKEN')}` },
+  { name: 'TOKEN', re: /\b(Bearer)\s+([A-Za-z0-9._~+/-]{16,}=*)/g, replace: (mark, _m, kw, val) => `${kw} ${mark(val as string)}` },
   ...segredoRules(KEYWORDS_OTHER, 'giu', KEYWORDS_PASS),
   ...segredoRules(KEYWORDS_ENV, 'gu'),
-  { name: 'URL-CREDENCIAIS', re: /(\b[a-z][a-z0-9+.-]*:\/\/[^\s:\/@]+:)(?!\[prumo:)([^\s@\/]{3,})(@)/gi, replace: (_m, lead, _pw, at) => `${lead}${ph('SEGREDO')}${at}` },
+  { name: 'URL-CREDENCIAIS', re: /(\b[a-z][a-z0-9+.-]*:\/\/[^\s:\/@]+:)(?!\[prumo:)([^\s@\/]{3,})(@)/gi, replace: (mark, _m, lead, pw, at) => `${lead}${mark(pw as string, 'SEGREDO')}${at}` },
   { name: 'EMAIL', pii: true, re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g },
   { name: 'IBAN', pii: true, re: /\bPT\d{2}(?:\s?\d{4}){5}\s?\d\b/gi, valid: ibanValid },
   { name: 'CC', pii: true, re: /\b\d{8}\s?\d\s?[A-Za-z]{2}\d\b/g, valid: ccValid },
@@ -124,13 +127,13 @@ const RULES: Rule[] = [
   { name: 'IP-INTERNO', ip: true, re: /\b(?:10\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])|192\.168)\.\d{1,3}\.\d{1,3}\b/g },
 ]
 
-export const PLACEHOLDER_RE = /\[prumo:[A-Z0-9-]+\]/g
+export const PLACEHOLDER_RE = /\[prumo:[A-Z0-9-]+(?:→[^\]\s]+)?\]/g
 
 export function countPlaceholders(text: string): number {
   return (text.match(PLACEHOLDER_RE) ?? []).length
 }
 
-export function redactText(text: string, opts: RedactOptions): { text: string; hits: number; classes: string[] } {
+function run(text: string, opts: RedactOptions, onSecret?: (cls: string, value: string) => void): { text: string; hits: number; classes: string[] } {
   let out = text
   let hits = 0
   const classes = new Set<string>()
@@ -138,15 +141,38 @@ export function redactText(text: string, opts: RedactOptions): { text: string; h
   for (const rule of rules) {
     if (rule.pii && !opts.pii) continue
     if (rule.ip && !opts.internalIps) continue
+    const secret = !rule.pii && !rule.ip
     out = out.replace(rule.re, (match: string, ...rest: unknown[]) => {
       if (rule.valid && !rule.valid(match)) return match
       hits += 1
       classes.add(rule.name)
+      const mark: Mark = (value, cls = rule.name) => {
+        if (secret) onSecret?.(cls, value)
+        const ref = opts.refs?.get(value)
+        return ref === undefined ? ph(cls) : `[prumo:${cls}→${ref}]`
+      }
       const groups = rest.slice(0, rest.findIndex(g => typeof g === 'number')) as (string | undefined)[]
-      return rule.replace ? rule.replace(match, ...groups) : ph(rule.name)
+      return rule.replace ? rule.replace(mark, match, ...groups) : mark(match)
     })
   }
   return { text: out, hits, classes: [...classes] }
+}
+
+export function redactText(text: string, opts: RedactOptions): { text: string; hits: number; classes: string[] } {
+  return run(text, opts)
+}
+
+export function collectSecrets(text: string, opts: RedactOptions): { cls: string; value: string }[] {
+  const found = new Map<string, string>()
+  run(text, opts, (cls, value) => {
+    if (!found.has(value)) found.set(value, cls)
+  })
+  // as regras correm em sequência; a ordem de aparição é a do texto original
+  const at = (v: string) => {
+    const i = text.indexOf(v)
+    return i < 0 ? Infinity : i
+  }
+  return [...found].map(([value, cls]) => ({ cls, value })).sort((a, b) => at(a.value) - at(b.value))
 }
 
 export function compileExtra(raw: unknown): { patterns: ExtraPattern[]; errors: string[] } {
