@@ -2,7 +2,7 @@
 name: vault-set
 description: Adiciona/actualiza um segredo no Vault local; substitui PLACEHOLDERs.
 allowed-tools: Bash
-argument-hint: "[path] [key] — opcional; se omitido, pergunta interactivamente"
+argument-hint: "[path] [key] | --from <ref da inbox> [destino] [campo] — opcional; se omitido, pergunta interactivamente"
 ---
 
 # Vault Set — Adicionar ou Actualizar Segredo
@@ -16,7 +16,19 @@ Perguntar ao utilizador (ou usar os argumentos passados ao comando):
 
 Com o prumo-guard ativo, um valor colado no chat pode chegar redigido como `[prumo:…]`, e o que seria gravado é o marcador, não o segredo. A forma preferida é a pessoa correr no seu terminal, com o `vault` instalado e `VAULT_ADDR`/`VAULT_TOKEN` definidos, `vault kv patch <caminho> <campo>=-` (ou `vault kv put <caminho> <campo>=-` se o caminho não existir) e colar lá o valor, que é lido do stdin e nunca passa pelo chat. Com o Vault em Docker: `docker exec -i -e VAULT_TOKEN vault vault kv patch <caminho> <campo>=-`.
 
-Se o valor chegou como `[prumo:…→secret/inbox/…#value]`, já está no Vault (inbox do prumo-guard) e o modelo nunca o viu. Até à fase 3 (`--from`), a promoção para o destino faz-se no terminal da pessoa: `vault kv get -field=value <inbox> | vault kv patch <destino> <campo>=-` (`kv put` se o destino não existir). Em Docker: `docker exec -i -e VAULT_TOKEN vault vault kv get -field=value <inbox> | docker exec -i -e VAULT_TOKEN vault vault kv patch <destino> <campo>=-`. Precisa de `read` na inbox e de `create`/`patch` no destino (token da pessoa; o AppRole não lê a inbox). Não pedir o valor de novo.
+Se o valor chegou como um marcador de redação com referência `secret/inbox/…#value`, já está no Vault (inbox do prumo-guard) e o modelo nunca o viu: promover com `--from` (ver abaixo). Não pedir o valor de novo.
+
+### `--from <referência da inbox> [destino] [campo]`
+
+Promove o segredo da inbox para o destino definitivo sem que o valor passe pelo chat, por argv, ficheiros ou logs. Se faltar o destino ou o campo, perguntar (um de cada vez), com as sugestões abaixo. Correr por Bash:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/lib/vault-promote.sh" "<secret/inbox/…#campo>" "<destino>" "<campo>"
+```
+
+O script lê a inbox com o token da pessoa (o AppRole não tem `read` na inbox), canaliza `kv get | kv patch` (`kv put` se o destino não existir) num só processo, confirma a leitura de volta por hash e só então apaga a entrada da inbox. Se a leitura de volta não conferir, a inbox fica intacta e o script sai com 1. Saída: `OK: <destino>#<campo> (promovido de <inbox>)` ou um erro genérico.
+
+Esta corrida lê um segredo, por isso passa pelo approval-gate: a pessoa aprova uma vez, e o valor continua a não aparecer.
 
 Se o utilizador não souber o path, sugerir com base no contexto:
 - API key LLM → `secret/ai/<serviço>` ou `secret/projects/<nome>/<serviço>`
@@ -49,9 +61,9 @@ EOF_VALOR
 M='[pru''mo:'
 case "$VALOR" in
   *"$M"*secret/inbox/*)
-    # Referência da inbox do prumo-guard: o valor já está no Vault; promover no terminal.
-    INBOX=$(printf '%s' "$VALOR" | sed -n 's/.*\(secret\/inbox\/[A-Za-z0-9._\/-]*\)#.*/\1/p')
-    echo "O valor já está no Vault em ${INBOX:-secret/inbox/…} — nada foi gravado. No teu terminal: vault kv get -field=value ${INBOX:-<inbox>} | vault kv patch $PATH_VAULT $KEY=- (ou kv put se o caminho não existir). Em Docker: docker exec -i -e VAULT_TOKEN vault vault kv get -field=value ${INBOX:-<inbox>} | docker exec -i -e VAULT_TOKEN vault vault kv patch $PATH_VAULT $KEY=-"
+    # Referência da inbox do prumo-guard: o valor já está no Vault; promover com --from.
+    INBOX=$(printf '%s' "$VALOR" | sed -n 's/.*\(secret\/inbox\/[A-Za-z0-9._\/-]*#[A-Za-z0-9_.-]*\).*/\1/p')
+    echo "O valor já está no Vault em ${INBOX:-secret/inbox/…} — nada foi gravado. Promover com: /vault-set --from ${INBOX:-<referência da inbox>} $PATH_VAULT $KEY"
     exit 1 ;;
   *"$M"*)
     echo "Valor redigido pelo prumo-guard — nada foi gravado. No teu terminal (com vault instalado e VAULT_ADDR/VAULT_TOKEN definidos): vault kv patch $PATH_VAULT $KEY=- (ou kv put se o caminho não existir) e cola lá o valor. Em Docker: docker exec -i -e VAULT_TOKEN vault vault kv patch $PATH_VAULT $KEY=-"
