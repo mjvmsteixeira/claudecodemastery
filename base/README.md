@@ -87,13 +87,29 @@ Se já tens `~/vault/` com `docker-compose.yml`, `vault-init.json`, `policies/`,
 
 ### Inbox do prumo-guard
 
-O `lib/vault-write-field.sh` (1.1.0) grava um campo lido do stdin em `secret/inbox/…` (`kv put -cas=0`, nunca sobrescreve) e serve a captura do prumo-guard 1.4.0: os segredos colados no chat ficam em `secret/inbox/<projeto>/<id>` (campo `value`). Pré-requisito: o AppRole do Claude tem de ter uma policy com o HCL abaixo; o token em cache (`claude-policy` e `default`) tem `deny` em `secret/data/inbox/*` e, sem ela, a captura cai sempre no caminho «não guardado». Aplicação (pela pessoa, com token de administração; forma exata a confirmar no `/prumo-vault-policy`): `vault policy write prumo-inbox <ficheiro>` e `vault write auth/approle/role/<role-do-claude> token_policies="claude-policy,default,prumo-inbox"` (substitui a lista: repetir as existentes; o `deny` existente tem de deixar de cobrir a inbox; apagar `~/.prumo/token-cache` para renovar o token). O token usado é o do cache AppRole (`~/.prumo/token-cache`) ou o do `vault-env.sh`, e precisa de `create` em `secret/data/inbox/*` (KV v2). Política mínima, a juntar à do AppRole em uso (não altera as existentes):
+O `lib/vault-write-field.sh` (1.1.0) grava um campo lido do stdin em `secret/inbox/…` (`kv put -cas=0`, nunca sobrescreve) e serve a captura do prumo-guard 1.4.0: os segredos colados no chat ficam em `secret/inbox/<projeto>/<id>` (campo `value`). O token usado é o do cache AppRole (`~/.prumo/token-cache`) ou o do `vault-env.sh`, e precisa de `create` em `secret/data/inbox/*` (KV v2). Política mínima, a juntar à do AppRole em uso (não altera as existentes):
 
 ```hcl
 path "secret/data/inbox/*" {
   capabilities = ["create"]
 }
 ```
+
+Pré-requisito: a captura só funciona depois de anexar ao AppRole do Claude uma policy com este HCL.
+
+A pessoa cria o ficheiro `prumo-inbox-policy.hcl` com o HCL acima (ou passa-o no stdin) e, com um token de administração, corre:
+
+```bash
+vault policy write prumo-inbox prumo-inbox-policy.hcl     # ou: vault policy write prumo-inbox -   (HCL no stdin)
+vault read auth/approle/role/agent-claude                  # ver token_policies atuais
+vault write auth/approle/role/agent-claude token_policies="claude-policy,prumo-inbox"
+```
+
+`token_policies` substitui a lista inteira: manter as policies que a role já tenha e acrescentar `prumo-inbox` (o exemplo parte de `claude-policy`). Nenhum path da policy atual cobre a inbox, por isso sem a `prumo-inbox` o token não tem permissão e a captura cai sempre no caminho «não guardado».
+
+Roles por projeto: o token em cache (`~/.prumo/token-cache`, TTL de 600 s, emitido pelo `secops/hooks/pre-tool-vault-ttl.sh`) é o da role com o nome da pasta do projeto, se existir em `~/vault/approle-credentials.json`, e senão o da `agent-claude`. Nos projetos com role própria, a captura só funciona se essa role também tiver a `prumo-inbox`: `vault write auth/approle/role/<nome-da-pasta> token_policies="<policies atuais>,prumo-inbox"`.
+
+Um token emitido antes da alteração só ganha a permissão no próximo login (apagar `~/.prumo/token-cache` ou esperar os 600 s).
 
 Detalhe da captura em `guard/README.md`. O `vault kv put` faz uma pré-verificação em `sys/internal/ui/mounts`, que precisa da policy `default` no token. A promoção para o caminho definitivo faz-se no terminal da pessoa (ver `/vault-set`) e pede `read` na inbox e `create`/`patch` no destino; em Docker, o mesmo com `docker exec -i -e VAULT_TOKEN vault …` nos dois lados do pipe.
 

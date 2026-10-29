@@ -76,16 +76,7 @@ Um segredo colado no chat deixa de se perder: antes de ser redigido, é gravado 
 - **Falhas:** Vault inacessível, sem permissão, colisão ou gravação a passar os 8000 ms (conta como falha): o segredo fica redigido sem referência e a pessoa vê o aviso `N segredo(s) redigido(s) mas não guardado(s) no Vault`. Sem o prumo-base 1.1.0, um aviso (uma vez por sessão) diz para o instalar. Se a própria redação do prompt falhar, o prompt é descartado (`{ drop }`) com uma mensagem, em vez de seguir em claro; a saída é `/prumo-guard-redact off`. Se a redação falhar nos argumentos de um slash command, o comando não corre.
 - **Desligar:** `redact.capture: false` no `guard.json` mantém a redação e deixa de gravar; `redact.prompt: false` desliga a redação e, com ela, a captura.
 - **Limites:** prompts `isMeta` não são tocados; imagens e anexos não são lidos; máximo de 10 segredos novos por prompt (os restantes ficam só redigidos, com aviso).
-- **Pré-requisito:** a captura só funciona depois de anexar ao AppRole do Claude uma policy com este HCL. O token em cache (`claude-policy` e `default`) tem `deny` em `secret/data/inbox/*`; sem a policy, todos os segredos caem no caminho «não guardado» (redigidos, sem referência). Nada disto é aplicado pelo plugin; a pessoa corre, com um token de administração (a forma exata de gerar o ficheiro confirma-se no `/prumo-vault-policy`):
-
-```bash
-vault policy write prumo-inbox ~/vault/policies/prumo-inbox-policy.hcl
-vault read auth/approle/role/<role-do-claude>                       # ver token_policies atuais
-vault write auth/approle/role/<role-do-claude> token_policies="claude-policy,default,prumo-inbox"
-```
-
-`token_policies` substitui a lista inteira: repetir as policies que já lá estavam. O `deny` de outra policy ganha a qualquer `create`, por isso é preciso que esse `deny` deixe de abranger `secret/data/inbox/*` (ou que seja afinado). O token em cache só muda quando expira (3000 s): apagar `~/.prumo/token-cache` para renovar.
-
+- **Pré-requisito:** a captura só funciona depois de anexar ao AppRole do Claude uma policy com o HCL mínimo abaixo (ver «Permissão»). O plugin não aplica nada no Vault.
 - **Permissão:** o token usado é o do cache AppRole (`~/.prumo/token-cache`) ou o que o `vault-env.sh` obtém, e precisa de `create` em `secret/data/inbox/*` (KV v2; com `-cas=0` a gravação só cria, por isso `update` não é necessário). Política mínima, a juntar à do AppRole em uso (as políticas existentes não são alteradas):
 
 ```hcl
@@ -93,6 +84,20 @@ path "secret/data/inbox/*" {
   capabilities = ["create"]
 }
 ```
+
+  A pessoa cria o ficheiro `prumo-inbox-policy.hcl` com o HCL acima (ou passa-o no stdin) e, com um token de administração, corre:
+  
+  ```bash
+  vault policy write prumo-inbox prumo-inbox-policy.hcl     # ou: vault policy write prumo-inbox -   (HCL no stdin)
+  vault read auth/approle/role/agent-claude                  # ver token_policies atuais
+  vault write auth/approle/role/agent-claude token_policies="claude-policy,prumo-inbox"
+  ```
+  
+  `token_policies` substitui a lista inteira: manter as policies que a role já tenha e acrescentar `prumo-inbox` (o exemplo parte de `claude-policy`). Nenhum path da policy atual cobre a inbox, por isso sem a `prumo-inbox` o token não tem permissão e a captura cai sempre no caminho «não guardado».
+  
+  Roles por projeto: o token em cache (`~/.prumo/token-cache`, TTL de 600 s, emitido pelo `secops/hooks/pre-tool-vault-ttl.sh`) é o da role com o nome da pasta do projeto, se existir em `~/vault/approle-credentials.json`, e senão o da `agent-claude`. Nos projetos com role própria, a captura só funciona se essa role também tiver a `prumo-inbox`: `vault write auth/approle/role/<nome-da-pasta> token_policies="<policies atuais>,prumo-inbox"`.
+  
+  Um token emitido antes da alteração só ganha a permissão no próximo login (apagar `~/.prumo/token-cache` ou esperar os 600 s).
 
   Ler de volta ou promover a entrada (`vault kv get`) pede `read` no mesmo caminho e é feito pela pessoa, com o seu token, no terminal. O `kv put` faz uma pré-verificação em `sys/internal/ui/mounts`, que precisa da policy `default` no token.
 
