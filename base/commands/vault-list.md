@@ -50,6 +50,33 @@ if [ -f "$POLICY_FILE" ]; then
 fi
 ```
 
+## Passo 2b — Inbox do projecto
+
+A inbox do prumo-guard (`secret/inbox/<projecto>/`) guarda os valores capturados antes de serem promovidos. Mostra-se à parte, só com metadados e sem prévia: a prévia mascarada acima não se aplica à inbox (`kv get` na inbox é N2 e mostraria parte do valor).
+
+```bash
+source "${CLAUDE_PLUGIN_ROOT}/lib/vault-env.sh"
+vault_ready || { echo "Vault inacessível ou sealed — abortar."; exit 1; }
+
+SEG=$(printf '%s' "$(basename "$PWD")" | jq -Rr 'ascii_downcase | gsub("[^a-z0-9]";"-") | sub("^-+";"") | sub("-+$";"")')
+SEG=${SEG:-sessao}
+INBOX="secret/inbox/$SEG"
+
+echo "=== INBOX ==="
+ENTRADAS=$(V kv list -format=json "$INBOX" 2>/dev/null | jq -r '.[]?')
+if [ -z "$ENTRADAS" ]; then
+  echo "Inbox vazia: $INBOX/"
+else
+  printf '%s\n' "$ENTRADAS" | while read -r entry; do
+    V kv metadata get -format=json "$INBOX/$entry" 2>/dev/null \
+      | jq -r --arg p "$INBOX/$entry" \
+        '(.data.versions[(.data.current_version | tostring)].created_time | sub("\\.[0-9]+Z$"; "Z")) as $t
+         | (((now - ($t | fromdateiso8601)) / 86400) | floor) as $d
+         | [$p, $t, "\($d) dias", (if $d > 7 then "⚠ >7 dias" else "OK" end)] | @tsv'
+  done
+fi
+```
+
 ## Passo 3 — Apresentar como tabela markdown
 
 Com os dados recolhidos, apresentar em duas secções:
@@ -68,6 +95,14 @@ Com os dados recolhidos, apresentar em duas secções:
 | `secret/ai/<serviço>` | `api_key` | `sk-ant-a...` | OK |
 | `secret/tokens/github` | `token` | `ghp_Ab1C...` | OK |
 
+**Inbox do projecto** (`secret/inbox/<nome>/`), bloco separado e sem prévia
+
+| Path | created_time | Idade | Estado |
+|------|--------------|-------|--------|
+| `secret/inbox/<nome>/<aaaammdd-hhmmss>-<n>` | `2026-10-20T09:15:02Z` | 9 dias | ⚠ >7 dias |
+
+Para promover uma entrada: `/vault-set --from secret/inbox/<nome>/<entrada>#value <destino> <campo>`.
+
 **Regras de prévia:**
 - Valor preenchido → primeiros 8 caracteres + `...`
 - `PLACEHOLDER` ou vazio → `⚠ PLACEHOLDER`
@@ -79,3 +114,5 @@ Com os dados recolhidos, apresentar em duas secções:
 - Se não existir `<nome>-policy.hcl`, mostrar apenas os segredos específicos e avisar que a policy não foi encontrada
 - Se o Vault estiver inacessível, informar e parar
 - Nunca listar segredos de outros projectos
+- Inbox: nunca `kv get` nem prévia do valor; só `kv list` e `kv metadata get`, com o token da pessoa (o AppRole não lista a inbox). Não apagar entradas aqui
+

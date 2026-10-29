@@ -49,6 +49,24 @@ grep -rl "loadVaultSecrets\|VAULT_ROLE_ID\|vault.*approle" . \
   --include="*.js" --include="*.ts" --include="*.py" --include="*.go" 2>/dev/null \
   | head -5 \
   || echo "⚠ Nenhum ficheiro com integração Vault detectado — correr /vault-integrate"
+
+echo ""
+echo "### 6. INBOX"
+SEG=$(printf '%s' "$(basename "$PWD")" | jq -Rr 'ascii_downcase | gsub("[^a-z0-9]";"-") | sub("^-+";"") | sub("-+$";"")')
+SEG=${SEG:-sessao}
+INBOX="secret/inbox/$SEG"
+ENTRADAS=$(V kv list -format=json "$INBOX" 2>/dev/null | jq -r '.[]?')
+if [ -z "$ENTRADAS" ]; then
+  echo "Inbox vazia: $INBOX/"
+else
+  printf '%s\n' "$ENTRADAS" | while read -r entry; do
+    V kv metadata get -format=json "$INBOX/$entry" 2>/dev/null \
+      | jq -r --arg p "$INBOX/$entry" \
+        '(.data.versions[(.data.current_version | tostring)].created_time | sub("\\.[0-9]+Z$"; "Z")) as $t
+         | (((now - ($t | fromdateiso8601)) / 86400) | floor) as $d
+         | [$p, $t, "\($d) dias", (if $d > 7 then "⚠ >7 dias" else "OK" end)] | @tsv'
+  done
+fi
 ```
 
 ## Output esperado
@@ -70,8 +88,20 @@ Apresentar em 5 secções:
 
 **5. Integração** — ficheiros com código de integração detectados, ou sugestão de correr `/vault-integrate`
 
+**6. Inbox** — entradas de `secret/inbox/<projecto>/` (a inbox do prumo-guard, onde ficam os valores capturados). Só metadados:
+
+| Entrada | created_time | Idade | Estado |
+|---------|--------------|-------|--------|
+| `secret/inbox/<projecto>/<aaaammdd-hhmmss>-<n>` | `2026-10-20T09:15:02Z` | 9 dias | ⚠ >7 dias |
+
+Para cada entrada com mais de 7 dias, propor à pessoa uma de duas saídas:
+- promover: `/vault-set --from secret/inbox/<projecto>/<entrada>#value <destino> <campo>`
+- apagar: `V kv metadata delete secret/inbox/<projecto>/<entrada>`, só depois de a pessoa o decidir, entrada a entrada, e numa chamada Bash própria. O approval-gate do prumo-secops classifica este apagamento como N2 e a pessoa aprova o pedido. Nunca apagar por iniciativa do audit.
+
 ## Regras
 
 - Nunca imprimir valores — apenas estado OK / PLACEHOLDER
+- Inbox: só `kv list` e `kv metadata get`, nunca `kv get` (ler a inbox é N2 e mostraria o valor). Um único comando Bash lista e lê os metadados de todas as entradas; o `kv list` e o `kv metadata get` com caminho não são N2 (o gate só apanha `kv get` e o `-mount=secret` com `inbox/`), por isso a pessoa não é interrompida por entrada. Não reescrever o snippet com `-mount=secret`
+- Inbox: usa o token da pessoa que o `vault-env.sh` resolve; o AppRole não tem `list` nem `read` na inbox
 - Se o projecto não tiver nada em `secret/projects/<nome>/`, sugerir `/vault-integrate`
 - Se o Vault estiver inacessível, reportar e parar
