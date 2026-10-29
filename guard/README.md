@@ -166,6 +166,7 @@ Caminho: `$PRUMO_HOME/guard.json` (`~/.prumo/guard.json` por omissão). Cada sec
 | `redact.prompt` | `true` | Redige também o que a pessoa escreve |
 | `redact.readPii` | `false` | Aplica PII a resultados de `Read`, `Grep`, `Glob` |
 | `redact.internalIps` | `false` | Redige IPs privados |
+| `redact.capture` | `true` | Grava os segredos do prompt e dos argumentos de slash commands em `secret/inbox/<projeto>/` (campo `value`, via `vault-write-field.sh` do prumo-base 1.1.0+) antes de os redigir, e o marcador leva a referência. Prompts `isMeta` ficam fora do âmbito: não são tocados. |
 | `brake.enabled` | `false` | Liga o travão (opt-in); desligado, nenhum dos limites abaixo atua |
 | `brake.usdBudget` | `20` | Orçamento em USD por loop (0 desliga) |
 | `brake.tokenBudget` | `0` | Orçamento de tokens (0 desliga) |

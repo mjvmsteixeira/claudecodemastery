@@ -1,6 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, On } from 'claude-code'
 import { loadConfig, prumoHome, readJsonFile, type GuardConfig } from './config.ts'
+import { captureAndRedact, resetCapture } from './capture.ts'
 import { compileExtra, countPlaceholders, redactText, type ExtraPattern } from './redact-patterns.ts'
 
 export const redactOn = atom({ plugin: 'prumo-guard', key: 'redactOn' } as const, true)
@@ -101,6 +102,7 @@ export async function setRedactOn($: EngineInterface, value: boolean): Promise<v
 export async function startRedaction($: EngineInterface): Promise<GuardConfig> {
   cfg = undefined
   extraLoaded = false
+  resetCapture()
   const c = await ensureConfig($)
   await update($, redactOn, () => c.redact.enabled)
   return c
@@ -143,13 +145,29 @@ export function registerRedaction(on: On): void {
     const c = await ensureConfig($)
     if (!c.redact.prompt) return next(e)
     await ensureExtra($)
-    const r = redactText(e.text, { pii: true, internalIps: c.redact.internalIps, extra })
+    const r = await captureAndRedact($, e.text, { pii: true, internalIps: c.redact.internalIps, extra }, c.redact.capture, false)
     if (r.hits === 0) return next(e)
-    $.ui.toast(`prumo-guard: ${r.hits} valor(es) redigido(s) no prompt (${r.classes.join(', ')})`)
-    return next({ ...e, text: r.text })
-  })
+    if (!r.context) $.ui.toast(`prumo-guard: ${r.hits} valor(es) redigido(s) no prompt (${r.classes.join(', ')})`)
+    return next({ ...e, text: r.text, ...(r.context ? { context: [...(e.context ?? []), r.context] } : {}) })
+  }).catch(($, e, next) =>
+    next.called
+      ? next(e)
+      : { drop: 'prumo-guard: a redação do prompt falhou e o prompt não foi enviado. Tenta de novo; se persistir, desliga com /prumo-guard-redact off.' },
+  )
 
-on('tool.call', { tool: /^(Write|Edit|MultiEdit)$/ }, async ($, e, next) => {
+  // Só os segredos: os argumentos de um comando não levam PII redigida.
+  on('command.run', async ($, e, next) => {
+    if (e.command.startsWith('prumo-guard') || !e.args) return next(e)
+    if (!(await read($, redactOn))) return next(e)
+    const c = await ensureConfig($)
+    if (!c.redact.prompt) return next(e)
+    await ensureExtra($)
+    const r = await captureAndRedact($, e.args, { pii: false, internalIps: false, extra }, c.redact.capture, true)
+    if (r.hits === 0) return next(e)
+    return next({ ...e, args: r.text })
+  }).catch(($, e, next) => (next.called ? next(e) : { text: 'prumo-guard: a redação dos argumentos falhou; o comando não correu.' }))
+
+  on('tool.call', { tool: /^(Write|Edit|MultiEdit)$/ }, async ($, e, next) => {
     const input = e as unknown as { file_path?: string; content?: string; new_string?: string; edits?: { new_string?: string }[] }
     const incoming = [input.content, input.new_string, ...(input.edits ?? []).map(x => x.new_string)].filter((x): x is string => typeof x === 'string').join('\n')
     if (countPlaceholders(incoming) === 0 || !input.file_path) return next(e)
