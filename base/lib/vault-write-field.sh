@@ -44,7 +44,10 @@ if [ -z "$TOK" ]; then
   BODY=$(jq -c '.["agent-claude"] | select(.role_id and .secret_id) | {role_id, secret_id}' "$CREDS" 2>/dev/null)
   [ -n "$BODY" ] || fail "sem credenciais agent-claude"
   if [ "$VAULT_MODE" = "native" ]; then
-    RESP=$(printf '%s' "$BODY" | VAULT_TOKEN="" vault write -format=json auth/approle/login - 2>/dev/null)
+    # HOME temporário vazio só no login: o token helper do CLI não encontra nem envia o ~/.vault-token da pessoa.
+    LH=$(mktemp -d 2>/dev/null) || fail "sem diretório temporário"
+    RESP=$(printf '%s' "$BODY" | env -u VAULT_CONFIG_PATH HOME="$LH" VAULT_TOKEN="" vault write -format=json auth/approle/login - 2>/dev/null)
+    rm -rf "$LH"
   else
     RESP=$(printf '%s' "$BODY" | docker exec -i \
       -e VAULT_ADDR="$VAULT_ADDR" \
@@ -67,4 +70,8 @@ else
     -e VAULT_ADDR="$VAULT_ADDR" \
     -e VAULT_CACERT="$VAULT_CACERT_IN_CONTAINER" \
     "$VAULT_CONTAINER" sh -c 'IFS= read -r t; VAULT_TOKEN="$t" exec vault kv put -cas=0 "$1" "$2=-"' sh "$P" "$F" >/dev/null 2>&1
-fi || { echo "vault-write-field: gravação falhou ($P#$F)" >&2; exit 1; }
+fi || {
+  # token revogado ou expirado antes dos 600 s: a próxima chamada faz login de novo
+  rm -f "$CACHE" 2>/dev/null
+  echo "vault-write-field: gravação falhou ($P#$F)" >&2; exit 1
+}

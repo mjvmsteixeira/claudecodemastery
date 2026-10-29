@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { collectSecrets, compileExtra, countPlaceholders, redactText } from '../hooks/redact-patterns.ts'
+import { collectSecrets, compileExtra, countPlaceholders, forgetRefs, redactText, rememberRef } from '../hooks/redact-patterns.ts'
 import { positives, leaks, SECRETS_ONLY, V, W } from './coverage-cases.ts'
 
 const PW = 'pass' + 'word='
@@ -139,6 +139,8 @@ for (const t of GLUED) {
 test('refs: um marcador com referência fica intacto com PII ligada (contadores >= 100, NIF válido, projeto numérico)', () => {
   const ok = (ref: string) => {
     const m = '[prumo:SEGREDO→' + ref + ']'
+    // eco sem opts.refs (session.append): só a ref registada pelo capture.ts fica protegida
+    rememberRef(ref)
     const r = redactText('x ' + m + ' y', { pii: true, internalIps: true, extra: [] })
     expect(r.text).toBe('x ' + m + ' y')
     expect(r.hits).toBe(0)
@@ -151,10 +153,13 @@ test('refs: um marcador com referência fica intacto com PII ligada (contadores 
   }
   ok('secret/inbox/app-123456789/20261029-102030-7#value')
   ok('secret/inbox/192-168-1-1/20261029-102030-7#value')
+  forgetRefs()
 })
 
 test('refs: o marcador é protegido, o PII ao lado continua a ser redigido', () => {
   const m = '[prumo:SEGREDO→secret/inbox/proj/20261029-162526-105#value]'
+  rememberRef(m.slice(m.indexOf('→') + 1, -1))
   const r = redactText(m + ' ' + 'ana@example.com', { pii: true, internalIps: false, extra: [] })
   expect(r.text).toBe(m + ' [prumo:EMAIL]')
+  forgetRefs()
 })

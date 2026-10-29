@@ -16,6 +16,8 @@ case " $* " in
     printf '%s\n' "$@" > "$FAKE_DIR/argv.login"
     cat > "$FAKE_DIR/stdin.login"
     echo x >> "$FAKE_DIR/logins"
+    printf '%s' "$HOME" > "$FAKE_DIR/home.login"
+    ls -A "$HOME" > "$FAKE_DIR/homels.login" 2>/dev/null
     [ "${FAKE_LOGIN_FAIL:-}" = 1 ] && exit 2
     rid=$(sed -n 's/.*"role_id":"\([^"]*\)".*/\1/p' "$FAKE_DIR/stdin.login")
     printf '{"auth":{"client_token":"tok-%s"}}\n' "$rid"
@@ -45,7 +47,7 @@ printf '{"root_token":"%s"}' "$ROOTM" > "$T/vhome/vault-init.json"
 
 # run <exit-falso> <caminho> <campo>; valor em $VAL; DOCKER=1 usa o ramo docker; cwd = projeto com role própria
 run() {
-  rm -f "$T/argv" "$T/stdin" "$T/ran" "$T/envtoken" "$T/argv.login" "$T/stdin.login" "$T/logins"
+  rm -f "$T/argv" "$T/stdin" "$T/ran" "$T/envtoken" "$T/argv.login" "$T/stdin.login" "$T/logins" "$T/home.login" "$T/homels.login"
   [ -n "${KEEPCACHE:-}" ] || rm -f "$T/prumo/inbox-token-cache"
   ( cd "$T/projx" && printf '%s' "$VAL" | env -u VAULT_FORCE_DOCKER ${DOCKER:+VAULT_FORCE_DOCKER=1} \
     VAULT_TOKEN="$INHM" FAKE_DIR="$T" FAKE_EXIT="$1" FAKE_ECHO="${ECHO:-}" FAKE_LOGIN_FAIL="${LOGINFAIL:-}" \
@@ -148,6 +150,25 @@ VAL="$SECRET"; DOCKER=1 ECHO=1 run 3 secret/inbox/d/e value
 grep -qF -- "$SECRET" "$T/err" "$T/out" || grep -qF -- "$TOKX" "$T/err" "$T/out" && bad "vazou" || ok "docker: sem vazamento"
 VAL="$SECRET"; DOCKER=1 CREDS="$T/nao-existe.json" run 0 secret/inbox/d/e value
 [ "$RC" = 1 ] && [ ! -e "$T/ran" ] && ok "docker sem credenciais -> exit 1, sem gravação" || bad "docker sem credenciais: rc=$RC"
+
+echo "login sem ~/.vault-token: HOME temporário vazio só no login"
+VTF="$T/home/.vault-token"; printf '%s' "$ROOTM" > "$VTF"
+VAL="$SECRET"; run 0 secret/inbox/h/i value
+LH="$(cat "$T/home.login" 2>/dev/null)"
+[ -n "$LH" ] && [ "$LH" != "$T/home" ] && ok "login com HOME diferente do da pessoa" || bad "login com HOME=$LH"
+[ -e "$T/homels.login" ] && [ ! -s "$T/homels.login" ] && ok "HOME do login vazio (sem .vault-token)" || bad "HOME do login: $(cat "$T/homels.login" 2>/dev/null)"
+[ -n "$LH" ] && [ ! -e "$LH" ] && ok "HOME temporário apagado no fim" || bad "HOME temporário ficou: $LH"
+[ "$RC" = 0 ] && [ "$(cat "$T/envtoken")" = "$TOKX" ] && ok "gravação continua com o token do login" || bad "gravação depois do login com HOME vazio (rc=$RC)"
+rm -f "$VTF"
+
+echo "gravação falhada apaga a cache do token"
+VAL="$SECRET"; run 0 secret/inbox/c/d value
+[ -f "$CF" ] || bad "pré-condição: cache não criada"
+VAL="$SECRET"; KEEPCACHE=1 run 3 secret/inbox/c/d value
+[ "$RC" = 1 ] && [ ! -e "$CF" ] && ok "token em cache recusado -> cache apagada" || bad "cache ficou após falha (rc=$RC)"
+VAL="$SECRET"; run 0 secret/inbox/c/d value
+VAL="$SECRET"; DOCKER=1 KEEPCACHE=1 run 3 secret/inbox/c/d value
+[ "$RC" = 1 ] && [ ! -e "$CF" ] && ok "docker: falha apaga a cache" || bad "docker: cache ficou após falha"
 
 echo "recusas"
 VAL="$SECRET"

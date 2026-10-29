@@ -1,5 +1,5 @@
 import type { EngineInterface } from 'claude-code'
-import { collectSecrets, redactText, type RedactOptions } from './redact-patterns.ts'
+import { collectSecrets, forgetRefs, redactText, rememberRef, type RedactOptions } from './redact-patterns.ts'
 import { latestPluginDir } from './plugin-paths.ts'
 
 const MAX_PER_PROMPT = 10
@@ -26,6 +26,7 @@ export function captureState(): { disabled: boolean; failStreak: number } {
 // Chamada pelo startRedaction: as referências valem só dentro da sessão.
 export function resetCapture(): void {
   refs.clear()
+  forgetRefs()
   warnedNoWriter = false
   counter = 0
   failStreak = 0
@@ -113,6 +114,7 @@ export async function captureAndRedact($: EngineInterface, text: string, opts: R
         covered.push(s.value)
         if (ok) {
           refs.set(s.value, `${path}#${FIELD}`)
+          rememberRef(`${path}#${FIELD}`)
           created++
         } else {
           failed++

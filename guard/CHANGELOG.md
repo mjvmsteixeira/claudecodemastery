@@ -16,7 +16,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento
 - **Configuração:** `redact.capture` (por omissão `true`). Padrões `extra` do `redact.json` só são capturados com `"secret": true`.
 - **Limites:** prompts `isMeta` não são tocados; imagens e anexos não são lidos; máximo de 10 segredos novos por prompt.
 - **Permissão:** o escritor do prumo-base faz login próprio como `agent-claude` (nunca o token raiz nem a role do projeto); só essa role precisa de `create` em `secret/data/inbox/*` (policy `prumo-inbox`, HCL mínimo no README).
-- **Redação:** falsos negativos corrigidos (`$` dentro de valores entre aspas, aspa de fecho da palavra-chave, frases entre aspas, pontuação interna). Os marcadores `[prumo:CLASSE→ref]` já emitidos deixam de ser alterados por regras seguintes (a referência com contador >= 100 era corrompida pela regra do NIF).
+- **Redação:** falsos negativos corrigidos (`$` dentro de valores entre aspas, aspa de fecho da palavra-chave, frases entre aspas, pontuação interna). Os marcadores `[prumo:CLASSE→ref]` já emitidos deixam de ser alterados por regras seguintes (a referência com contador >= 100 era corrompida pela regra do NIF). Só conta como emitido o marcador cuja ref o redactor conhece (a desta chamada ou uma gravada nesta sessão); qualquer outro texto com forma de marcador continua sujeito a todas as regras. Depois de uma palavra-chave, `password=…` é a palavra-chave seguinte e não o valor (`api_key password=<v>` gravava `password=`).
 
 ## v1.3.1 — 2026-10-29
 

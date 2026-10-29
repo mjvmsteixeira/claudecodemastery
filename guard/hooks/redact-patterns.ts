@@ -84,6 +84,8 @@ const QUOTED_PASS_SPACED = String.raw`(?=[^"'\n]{5})(?=[^"'\n]* )(?![^"'\n]*${VA
 const QUOTED_PASS = String.raw`(["'])${NOT_A_VALUE}(?:${QUOTED_NOSPACE}|${QUOTED_PASS_SPACED})\2`
 // código de shell a seguir a uma palavra solta: flags, redirecções, caminhos, subshells, pipes
 const SHELL_START = String.raw`(?:[-~/(|>]|\d>)`
+// depois de uma palavra-chave, "password=…" é a palavra-chave seguinte, não o valor (`api_key password=<v>`)
+const NOT_A_KEYWORD = String.raw`(?!(?:${KEYWORDS_OTHER}|${KEYWORDS_PASS}|${KEYWORDS_ENV})["']?[ \t]*[=:])`
 
 function segredoRules(keywords: string, flags: string, passKeywords?: string): Rule[] {
   // o grupo 2 é a aspa quando o valor vem entre aspas; sem aspas fica undefined
@@ -96,12 +98,12 @@ function segredoRules(keywords: string, flags: string, passKeywords?: string): R
   const unquoted = (symbol: string, skip?: string) => `${hasDigitOrSymbol(symbol, skip)}${NOT_A_VALUE}${UNQUOTED_TRIM}`
   const all = passKeywords ? `(?:${keywords}|${passKeywords})` : keywords
   const prose = (kw: string, quoted: string) => [
-    rule(String.raw`${kw}(?![A-Za-z/\\])["']?[^\n]{0,30}?[ \t](?:é|is|era|was)[ \t]+`, `(?:${quoted}|${unquoted(SYMBOL)})`),
-    rule(String.raw`${kw}(?![A-Za-z/\\])(?:["'](?![ \t]+["']))?[ \t]+(?!${SHELL_START})`, `(?:${quoted}|${unquoted(SYMBOL_STRICT, '/_-')})`),
+    rule(String.raw`${kw}(?![A-Za-z/\\])["']?[^\n]{0,30}?[ \t](?:é|is|era|was)[ \t]+${NOT_A_KEYWORD}`, `(?:${quoted}|${unquoted(SYMBOL)})`),
+    rule(String.raw`${kw}(?![A-Za-z/\\])(?:["'](?![ \t]+["']))?[ \t]+(?!${SHELL_START})${NOT_A_KEYWORD}`, `(?:${quoted}|${unquoted(SYMBOL_STRICT, '/_-')})`),
   ]
   return [
     rule(String.raw`${all}["']?[ \t]*[=:]`, `(?:${QUOTED}|${NOT_A_VALUE}${UNQUOTED})`),
-    rule(String.raw`${all}(?![A-Za-z])["']?[ \t]*[=:][ \t]+`, `(?:${QUOTED}|${unquoted(SYMBOL)})`),
+    rule(String.raw`${all}(?![A-Za-z])["']?[ \t]*[=:][ \t]+${NOT_A_KEYWORD}`, `(?:${QUOTED}|${unquoted(SYMBOL)})`),
     ...prose(keywords, QUOTED_PROSE),
     ...(passKeywords ? prose(passKeywords, QUOTED_PASS) : []),
   ]
@@ -130,6 +132,24 @@ const RULES: Rule[] = [
 
 export const PLACEHOLDER_RE = /\[prumo:[A-Z0-9-]+(?:→[^\]\s]+)?\]/g
 
+// Refs que o capture.ts gravou nesta sessão: o eco delas no session.append (que não passa `refs`) fica intacto.
+const sessionRefs = new Set<string>()
+
+export function rememberRef(ref: string): void {
+  sessionRefs.add(ref)
+}
+
+export function forgetRefs(): void {
+  sessionRefs.clear()
+}
+
+// Legítima só a ref que o próprio redactor emite: a de opts.refs (esta chamada) ou uma registada nesta sessão.
+function isKnownRef(ref: string, opts: RedactOptions): boolean {
+  if (sessionRefs.has(ref)) return true
+  for (const r of opts.refs?.values() ?? []) if (r === ref) return true
+  return false
+}
+
 export function countPlaceholders(text: string): number {
   return (text.match(PLACEHOLDER_RE) ?? []).length
 }
@@ -146,8 +166,11 @@ function run(text: string, opts: RedactOptions, onSecret?: (cls: string, value: 
     if (rule.ip && !opts.internalIps) continue
     const collect = !rule.pii && !rule.ip && rule.collect !== false
     const edits: [number, number, number][] = []
-    // nenhuma regra actua dentro de um marcador já emitido (a ref `…/20261029-105#value` tem dígitos que parecem PII)
-    const sealed = [...out.matchAll(PLACEHOLDER_RE)].map(m => [m.index as number, (m.index as number) + m[0].length] as const)
+    // nenhuma regra actua dentro de um marcador com ref conhecida (a ref `…/20261029-105#value` tem dígitos que parecem PII);
+    // os marcadores com outra ref, ou sem ref, são texto como outro qualquer: um marcador falso não esconde um segredo
+    const sealed = [...out.matchAll(PLACEHOLDER_RE)]
+      .filter(m => m[0].includes('→') && isKnownRef(m[0].slice(m[0].indexOf('→') + 1, -1), opts))
+      .map(m => [m.index as number, (m.index as number) + m[0].length] as const)
     out = out.replace(rule.re, (match: string, ...rest: unknown[]) => {
       if (rule.valid && !rule.valid(match)) return match
       const offset = rest[rest.findIndex(g => typeof g === 'number')] as number

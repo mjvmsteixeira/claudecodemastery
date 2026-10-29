@@ -277,3 +277,25 @@ test('contexto: não manda pedir o valor nem usar run_with_secret; aponta para /
   expect(r.context![0]).toContain('Não peças o valor')
   expect(r.context![0]).toContain('/vault-set')
 })
+
+// O session.append não passa `refs`: só reconhece as refs que o capture registou nesta sessão.
+test('eco no session.append: a ref gravada fica intacta com PII ligada; noutra sessão volta a ser texto normal', async ($, on) => {
+  const nif = '2' + '45678905'
+  await setup($, on, { cwd: '/p/' + nif })
+  const r = await $.prompt.submit(sub(`o token é ${TOKEN}`))
+  const arrow = r.text.indexOf('→')
+  const marker = r.text.slice(r.text.lastIndexOf('[', arrow), r.text.indexOf(']', arrow) + 1)
+  expect(marker).toContain('/' + nif + '/')
+  const row = (text: string) =>
+    ({
+      door: 'tool-result',
+      origin: { kind: 'tool', tool: 'Bash' },
+      uuid: 'u1',
+      message: { type: 'user', role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: text }] },
+    }) as never
+  const echo = await $.session.append(row('eco ' + marker))
+  expect(JSON.stringify(echo.message)).toContain(marker)
+  await $.session.start({ cwd: '/h', surface: null, isInteractive: false })
+  const later = await $.session.append(row('eco ' + marker))
+  expect(JSON.stringify(later.message)).not.toContain(nif)
+})
