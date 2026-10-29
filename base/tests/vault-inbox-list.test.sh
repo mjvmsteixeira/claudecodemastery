@@ -8,20 +8,23 @@ T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 mkdir -p "$T/bin" "$T/home" "$T/vhome"
 FAILS=0
 
+# Saídas (rc, stdout, stderr) medidas contra o CLI real, Vault v2.0.0 (vault server -dev), em 2026-10-29.
 cat > "$T/bin/vault" <<'FAKE'
 #!/usr/bin/env bash
-# FAKE_LIST: entradas separadas por espaço; "" -> vazio (rc 2); FAKE_BADTOKEN -> permission denied.
+# FAKE_LIST: entradas separadas por espaço; "" -> inbox inexistente. O token escolhe o cenário de erro.
 case "$1" in
-  status) echo '{"sealed":false}'; exit 0 ;;
+  status) [ "${VAULT_ADDR##*:}" = 1 ] && { echo 'Get "http://127.0.0.1:1/v1/sys/seal-status": dial tcp 127.0.0.1:1: connect: connection refused' >&2; exit 2; }
+          echo '{"sealed":false}'; exit 0 ;;
 esac
 [ "$1 $2" = "kv get" ] && { echo "KVGET" >> "$FAKE_DIR/kvget.log"; echo "SEGREDO-NAO-DEVIA-SAIR"; exit 0; }
-if [ -n "${FAKE_BADTOKEN:-}" ] && [ "${VAULT_TOKEN:-}" = bad ]; then
-  echo "Error listing: 403 permission denied" >&2; exit 2
-fi
 case "$1 $2" in
   "kv list")
     printf '%s\n' "$*" >> "$FAKE_DIR/lists.log"
-    [ -n "${FAKE_LIST:-}" ] || { echo "No value found at secret/metadata/inbox/x" >&2; exit 2; }
+    case "${VAULT_TOKEN:-}" in
+      bad) printf 'Error making API request.\n\nURL: GET http://127.0.0.1:18299/v1/sys/internal/ui/mounts/secret/inbox/proj\nCode: 403. Errors:\n\n* 2 errors occurred:\n\t* permission denied\n\t* invalid token\n' >&2; exit 2 ;;
+      nolist) printf 'Error listing secret/metadata/inbox/proj: Error making API request.\n\nURL: GET http://127.0.0.1:18299/v1/secret/metadata/inbox/proj?list=true\nCode: 403. Errors:\n\n* 1 error occurred:\n\t* permission denied\n' >&2; exit 2 ;;
+    esac
+    [ -n "${FAKE_LIST:-}" ] || { echo '{}'; exit 2; }
     printf '['; sep=""; for e in $FAKE_LIST; do printf '%s"%s"' "$sep" "$e"; sep=","; done; printf ']\n' ;;
   "kv metadata")
     p="${@: -1}"; n="${p##*/}"
@@ -37,8 +40,8 @@ chmod +x "$T/bin/vault"
 # run <cwd-basename> <FAKE_LIST> [token]  -> OUT, RC
 run() {
   local d="$T/cwd/$1"; mkdir -p "$d"; : > "$T/lists.log"
-  OUT=$(cd "$d" && HOME="$T/home" VAULT_HOME="$T/vhome" VAULT_ADDR=http://127.0.0.1:1 VAULT_TOKEN="${3:-good}" \
-    VAULT_FORCE_DOCKER='' PATH="$T/bin:$PATH" FAKE_DIR="$T" FAKE_LIST="$2" FAKE_BADTOKEN="${FAKE_BADTOKEN:-}" \
+  OUT=$(cd "$d" && HOME="$T/home" VAULT_HOME="$T/vhome" VAULT_ADDR="${4:-http://127.0.0.1:18299}" VAULT_TOKEN="${3:-good}" \
+    VAULT_FORCE_DOCKER='' PATH="$T/bin:$PATH" FAKE_DIR="$T" FAKE_LIST="$2" \
     bash "$SCRIPT" 2>&1)
   RC=$?
 }
@@ -50,8 +53,12 @@ echo "vault-inbox-list"
 run proj ""
 { [ $RC = 0 ] && has "Inbox vazia: secret/inbox/proj/"; } && ok "inbox vazia" || ko "inbox vazia"
 
-FAKE_BADTOKEN=1 run proj "a" bad
-{ [ $RC != 0 ] && has "não foi possível listar secret/inbox/proj/" && ! has "vazia"; } && ok "falha de token não diz «vazia»" || ko "falha de token"
+run proj "a" bad
+{ [ $RC != 0 ] && has "não foi possível listar secret/inbox/proj/" && ! has "vazia"; } && ok "token inválido: aviso, rc!=0, sem «vazia»" || ko "token inválido"
+run proj "a" nolist
+{ [ $RC != 0 ] && has "não foi possível listar secret/inbox/proj/" && ! has "vazia"; } && ok "token sem list: aviso, rc!=0, sem «vazia»" || ko "token sem list"
+run proj "" good http://127.0.0.1:1
+{ [ $RC != 0 ] && has "não foi possível listar secret/inbox/proj/" && ! has "vazia"; } && ok "Vault inacessível: aviso, rc!=0, sem «vazia»" || ko "Vault inacessível"
 
 run proj "old-1 new-2"
 { [ $RC = 0 ] && grep -qE '^secret/inbox/proj/old-1	2026-01-01T10:00:00Z	[0-9]+ dias	⚠ >7 dias$' <<<"$OUT"; } && ok "entrada com mais de 7 dias destacada" || ko ">7 dias"

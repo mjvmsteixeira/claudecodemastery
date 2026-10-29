@@ -27,7 +27,10 @@ ERR=$(mktemp); trap 'rm -f "$ERR"' EXIT
 OUT=$(V kv list -format=json "$INBOX" 2>"$ERR")
 RC=$?
 if [ "$RC" -ne 0 ]; then
-  if [ "$RC" = 2 ] && grep -q 'No value found' "$ERR"; then
+  # Medido contra o CLI (Vault v2.0.0): inbox inexistente dá rc 2, stdout `{}` e stderr vazio.
+  # Token inválido, sem `list` e Vault inacessível dão rc 2 com stdout vazio e erro no stderr.
+  if [ "$RC" = 2 ] && { [ -z "$OUT" ] || [ "$OUT" = "{}" ]; } \
+     && { [ ! -s "$ERR" ] || grep -q 'No value found' "$ERR"; }; then
     echo "Inbox vazia: $INBOX/"
     exit 0
   fi
