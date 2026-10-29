@@ -52,21 +52,7 @@ grep -rl "loadVaultSecrets\|VAULT_ROLE_ID\|vault.*approle" . \
 
 echo ""
 echo "### 6. INBOX"
-SEG=$(printf '%s' "$(basename "$PWD")" | jq -Rr 'ascii_downcase | gsub("[^a-z0-9]";"-") | sub("^-+";"") | sub("-+$";"")')
-SEG=${SEG:-sessao}
-INBOX="secret/inbox/$SEG"
-ENTRADAS=$(V kv list -format=json "$INBOX" 2>/dev/null | jq -r '.[]?')
-if [ -z "$ENTRADAS" ]; then
-  echo "Inbox vazia: $INBOX/"
-else
-  printf '%s\n' "$ENTRADAS" | while read -r entry; do
-    V kv metadata get -format=json "$INBOX/$entry" 2>/dev/null \
-      | jq -r --arg p "$INBOX/$entry" \
-        '(.data.versions[(.data.current_version | tostring)].created_time | sub("\\.[0-9]+Z$"; "Z")) as $t
-         | (((now - ($t | fromdateiso8601)) / 86400) | floor) as $d
-         | [$p, $t, "\($d) dias", (if $d > 7 then "⚠ >7 dias" else "OK" end)] | @tsv'
-  done
-fi
+bash "${CLAUDE_PLUGIN_ROOT}/lib/vault-inbox-list.sh"
 ```
 
 ## Output esperado
@@ -101,7 +87,7 @@ Para cada entrada com mais de 7 dias, propor à pessoa uma de duas saídas:
 ## Regras
 
 - Nunca imprimir valores — apenas estado OK / PLACEHOLDER
-- Inbox: só `kv list` e `kv metadata get`, nunca `kv get` (ler a inbox é N2 e mostraria o valor). Um único comando Bash lista e lê os metadados de todas as entradas; o `kv list` e o `kv metadata get` com caminho não são N2 (o gate só apanha `kv get` e o `-mount=secret` com `inbox/`), por isso a pessoa não é interrompida por entrada. Não reescrever o snippet com `-mount=secret`
+- Inbox: a listagem é o `lib/vault-inbox-list.sh` (só `kv list` e `kv metadata get`, nunca `kv get`: ler a inbox é N2 e mostraria o valor). É um único comando Bash para todas as entradas, e não é N2, por isso a pessoa não é interrompida por entrada. Distingue «Inbox vazia» de `⚠ não foi possível listar …` (token, permissões ou Vault selado): nunca reportar a falha como inbox vazia. Subpastas aparecem como `⚠ subpasta inesperada`. Limite: nomes de pasta com emoji ou Unicode raro (`İ`) podem dar um segmento diferente do da captura
 - Inbox: usa o token da pessoa que o `vault-env.sh` resolve; o AppRole não tem `list` nem `read` na inbox
 - Se o projecto não tiver nada em `secret/projects/<nome>/`, sugerir `/vault-integrate`
 - Se o Vault estiver inacessível, reportar e parar
