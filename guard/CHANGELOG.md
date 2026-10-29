@@ -14,7 +14,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento
 - **Falhas:** Vault inacessível, sem permissão ou colisão deixam o segredo só redigido, com aviso; sem o prumo-base 1.1.0, aviso único por sessão; se a redação do prompt falhar, o prompt é descartado (`{ drop }`).
 - **Configuração:** `redact.capture` (por omissão `true`). Padrões `extra` do `redact.json` só são capturados com `"secret": true`.
 - **Limites:** prompts `isMeta` não são tocados; imagens e anexos não são lidos; máximo de 10 segredos novos por prompt.
-- **Permissão:** o token (cache AppRole ou `vault-env.sh`) precisa de `create` em `secret/data/inbox/*`; HCL mínimo no README.
+- **Permissão:** o token (cache AppRole ou `vault-env.sh`) precisa de `create` em `secret/data/inbox/*`; HCL mínimo no README. Requer anexar essa policy ao AppRole do Claude (o token em cache tem `deny` na inbox); sem ela a captura cai sempre em «não guardado».
 - **Redação:** falsos negativos corrigidos (`$` dentro de valores entre aspas, aspa de fecho da palavra-chave, frases entre aspas, pontuação interna).
 
 ## v1.3.1 — 2026-10-29

@@ -7,7 +7,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento
 **`vault-write-field.sh`: gravação de um campo lido do stdin.** Serve a captura do prumo-guard 1.4.0, que guarda em `secret/inbox/…` os segredos colados no chat.
 
 - **`lib/vault-write-field.sh <caminho> <campo>`:** o valor vem do stdin (nunca em argv); só aceita caminhos em `secret/inbox/` e campos `[A-Za-z0-9_.-]`; grava com `kv put -cas=0` (não sobrescreve), em modo nativo ou via `docker exec`. Sem saída em sucesso, erros genéricos.
-- **Permissão:** o token (cache AppRole ou `vault-env.sh`) precisa de `create` em `secret/data/inbox/*`; HCL mínimo no README.
+- **Permissão:** o token (cache AppRole ou `vault-env.sh`) precisa de `create` em `secret/data/inbox/*`; HCL mínimo no README. Requer anexar essa policy ao AppRole do Claude (o token em cache tem `deny` na inbox); sem ela a captura cai sempre em «não guardado».
 - **`/vault-set` passo 1:** um valor que chegou como referência `secret/inbox/…#value` já está no Vault; a promoção faz-se no terminal da pessoa (`vault kv get -field=value <inbox> | vault kv patch <destino> <campo>=-`).
 
 ## v1.0.3 — 2026-10-29

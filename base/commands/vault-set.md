@@ -16,7 +16,7 @@ Perguntar ao utilizador (ou usar os argumentos passados ao comando):
 
 Com o prumo-guard ativo, um valor colado no chat pode chegar redigido como `[prumo:…]`, e o que seria gravado é o marcador, não o segredo. A forma preferida é a pessoa correr no seu terminal, com o `vault` instalado e `VAULT_ADDR`/`VAULT_TOKEN` definidos, `vault kv patch <caminho> <campo>=-` (ou `vault kv put <caminho> <campo>=-` se o caminho não existir) e colar lá o valor, que é lido do stdin e nunca passa pelo chat. Com o Vault em Docker: `docker exec -i -e VAULT_TOKEN vault vault kv patch <caminho> <campo>=-`.
 
-Se o valor chegou como `[prumo:…→secret/inbox/…#value]`, já está no Vault (inbox do prumo-guard) e o modelo nunca o viu. Até à fase 3 (`--from`), a promoção para o destino faz-se no terminal da pessoa: `vault kv get -field=value <inbox> | vault kv patch <destino> <campo>=-` (`kv put` se o destino não existir). Não pedir o valor de novo.
+Se o valor chegou como `[prumo:…→secret/inbox/…#value]`, já está no Vault (inbox do prumo-guard) e o modelo nunca o viu. Até à fase 3 (`--from`), a promoção para o destino faz-se no terminal da pessoa: `vault kv get -field=value <inbox> | vault kv patch <destino> <campo>=-` (`kv put` se o destino não existir). Em Docker: `docker exec -i -e VAULT_TOKEN vault vault kv get -field=value <inbox> | docker exec -i -e VAULT_TOKEN vault vault kv patch <destino> <campo>=-`. Precisa de `read` na inbox e de `create`/`patch` no destino. Não pedir o valor de novo.
 
 Se o utilizador não souber o path, sugerir com base no contexto:
 - API key LLM → `secret/ai/<serviço>` ou `secret/projects/<nome>/<serviço>`
@@ -48,6 +48,11 @@ EOF_VALOR
 # do prumo-guard recusaria o próprio script.
 M='[pru''mo:'
 case "$VALOR" in
+  *"$M"*secret/inbox/*)
+    # Referência da inbox do prumo-guard: o valor já está no Vault; promover no terminal.
+    INBOX=$(printf '%s' "$VALOR" | sed -n 's/.*\(secret\/inbox\/[A-Za-z0-9._\/-]*\)#.*/\1/p')
+    echo "O valor já está no Vault em ${INBOX:-secret/inbox/…} — nada foi gravado. No teu terminal: vault kv get -field=value ${INBOX:-<inbox>} | vault kv patch $PATH_VAULT $KEY=- (ou kv put se o caminho não existir). Em Docker: docker exec -i -e VAULT_TOKEN vault vault kv get -field=value ${INBOX:-<inbox>} | docker exec -i -e VAULT_TOKEN vault vault kv patch $PATH_VAULT $KEY=-"
+    exit 1 ;;
   *"$M"*)
     echo "Valor redigido pelo prumo-guard — nada foi gravado. No teu terminal (com vault instalado e VAULT_ADDR/VAULT_TOKEN definidos): vault kv patch $PATH_VAULT $KEY=- (ou kv put se o caminho não existir) e cola lá o valor. Em Docker: docker exec -i -e VAULT_TOKEN vault vault kv patch $PATH_VAULT $KEY=-"
     exit 1 ;;
