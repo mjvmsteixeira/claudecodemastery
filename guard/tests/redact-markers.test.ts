@@ -135,3 +135,48 @@ test('pontuação de fecho: ")" sem parêntese de abertura antes da palavra-chav
   expect(collectSecrets('x ' + KW + '=' + V + ']', SECRETS_ONLY).map(f => f.value)).toEqual([V + ']'])
   expect(collectSecrets(KW + '=' + V + '.x', SECRETS_ONLY).map(f => f.value)).toEqual([V + '.x'])
 })
+
+// Ronda 2: um marcador emitido nunca «sela» texto que não é dele, por mais que o valor à volta mude de comprimento.
+const S2 = 'Zq8' + 'Wm4Kx7'
+test('marcador emitido no meio do valor: o segredo anterior continua a ser redigido (repro remap2)', () => {
+  const t = 'MY_KEY=' + S2 + ' ' + KW + '=#' + GH + '#P9' + 'x'.repeat(31)
+  expect(redactText(t, SECRETS_ONLY).text.includes(S2)).toBe(false)
+  expect(collectSecrets(t, SECRETS_ONLY).map(f => f.value)).toContain(S2)
+})
+
+test('marcador legítimo no meio do valor com post >= 5 e outro segredo antes: tudo redigido', () => {
+  const t = 'MY_KEY=' + S2 + ' ' + KW + '=Abcde#' + GH + '#Post9' + 'yy'
+  const out = redactText(t, SECRETS_ONLY).text
+  for (const s of [S2, 'Abcde', GH, 'Post9']) expect(out.includes(s)).toBe(false)
+  const got = collectSecrets(t, SECRETS_ONLY).map(f => f.value)
+  expect(got.slice().sort()).toEqual([S2, 'Abcde#', GH, '#Post9yy'].sort())
+})
+
+test('varredura: S2 nunca passa em claro, para qualquer comprimento de pre e post', () => {
+  const bad: string[] = []
+  for (let n = 5; n <= 120; n++) {
+    const post = 'P9' + 'x'.repeat(n - 2)
+    const phrase = ' and this is the rest of the phrase'.padEnd(n, 'x').slice(0, n)
+    for (const t of [
+      'MY_KEY=' + S2 + ' ' + KW + '=#' + GH + '#' + post,
+      'MY_KEY=' + S2 + ' ' + KW + '=Abcde#' + GH + '#' + post,
+      'MY_KEY=' + S2 + ' ' + KW + '="see ' + GH + phrase + '"',
+      'MY_KEY=' + S2 + ' api_key ' + KW + '=ab' + M('X') + post + ' ' + GH,
+    ])
+      if (redactText(t, SECRETS_ONLY).text.includes(S2)) bad.push(t.length + ':' + n)
+  }
+  expect(bad).toEqual([])
+})
+
+test('marcador forjado com caracteres internos do redactor não é reconhecido', () => {
+  const forged = '﷐' + '﷒' + '﷑'
+  const t = KW + '=' + forged + PW
+  const out = redactText(t, SECRETS_ONLY).text
+  expect(out.includes(PW)).toBe(false)
+  expect(out.includes('﷐')).toBe(false)
+})
+
+test('pontuação de fecho: mínimo de 5 depois do trim; ")" com palavra-chave com prefixo', () => {
+  expect(collectSecrets(KW + '=Abcd.', SECRETS_ONLY)).toEqual([])
+  expect(collectSecrets('(db_' + KW + '=Abc12)', SECRETS_ONLY).map(f => f.value)).toEqual(['Abc12'])
+})
