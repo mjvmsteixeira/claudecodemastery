@@ -111,9 +111,18 @@ Roles por projeto: não precisam de `prumo-inbox`; o escritor usa sempre a `agen
 
 Um token em cache emitido antes de alterar as policies só ganha a permissão no próximo login (apagar `~/.prumo/inbox-token-cache` ou esperar os 600 s).
 
-Detalhe da captura em `guard/README.md`. O `vault kv put` faz uma pré-verificação em `sys/internal/ui/mounts`, que precisa da policy `default` no token. A promoção para o caminho definitivo faz-se no terminal da pessoa (ver `/vault-set`) e pede `read` na inbox e `create`/`patch` no destino; em Docker, o mesmo com `docker exec -i -e VAULT_TOKEN vault …` nos dois lados do pipe.
+Detalhe da captura em `guard/README.md`. O `vault kv put` faz uma pré-verificação em `sys/internal/ui/mounts`, que precisa da policy `default` no token. A promoção para o caminho definitivo faz-se com `/vault-set --from` (`lib/vault-promote.sh`) e pede `read` na inbox e `create`/`patch` no destino ao token da pessoa.
 
-Listar e limpar a inbox faz-se com o token da pessoa (o AppRole não lê): `vault kv list secret/inbox/<projeto>` e `vault kv metadata delete secret/inbox/<projeto>/<id>`; a fase 3 acrescenta-o ao `/vault-audit`. Um timeout de gravação pode deixar uma entrada órfã. A captura de `command.run` apanha também os argumentos de comandos de outros plugins e built-in.
+Listar e limpar a inbox faz-se com o token da pessoa (o AppRole não lê): o `/vault-audit` e o `/vault-list` listam-na (`lib/vault-inbox-list.sh`, só metadados) e `vault kv metadata delete secret/inbox/<projeto>/<id>` apaga uma entrada (N2). Um timeout de gravação pode deixar uma entrada órfã. A captura de `command.run` apanha também os argumentos de comandos de outros plugins e built-in.
+
+### Ciclo completo: colar, guardar, promover, auditar
+
+1. **Colar:** a pessoa cola o segredo no chat; o prumo-guard grava-o em `secret/inbox/<projeto>/<id>` (campo `value`) antes de o redigir, e o modelo só vê a referência. Funciona em qualquer projeto: o escritor faz login como `agent-claude`, qualquer que seja a pasta.
+2. **Promover:** `/vault-set --from secret/inbox/<projeto>/<id>#value <destino> <campo>` corre o `lib/vault-promote.sh`, que lê a inbox com o token da pessoa (o AppRole não lê), escreve no destino com `-cas` (`-cas=0` se o destino não existe, `-cas=<versão>` se existe), confirma por hash, reverte se não conferir e só então apaga a entrada da inbox. O valor não passa pelo chat, argv, ficheiros nem logs. O approval-gate do prumo-secops 1.0.3 classifica a corrida do script como N2 e a pessoa aprova o pedido.
+3. **Auditar:** `/vault-audit` (secção «Inbox») e `/vault-list` mostram as entradas da inbox do projeto só com metadados (caminho, data, idade), sem valores, e destacam as com mais de 7 dias. A listagem é o `lib/vault-inbox-list.sh` (`kv list` e `kv metadata get`).
+4. **Apagar:** `vault kv metadata delete secret/inbox/<projeto>/<id>` só por decisão da pessoa; é N2 no gate. O gate cobre também as formas `-mount=secret`, com `./inbox/`, `/inbox/` e `dir/../inbox/`.
+
+Limites conhecidos da redação: tokens colados a uma letra ou dígito não são redigidos; palavras-passe em URL que contenham `/`; parte local de email com mais de 64 caracteres; nomes de pasta com emoji ou Unicode raro podem alterar o segmento da inbox; o gate de aprovação é best-effort contra ofuscação (variáveis, `eval`, base64, codificação em percentagem); uma palavra-passe que termine em `.` antes de um espaço ou do fim é guardada sem o ponto.
 
 ### Flow típico de sessão
 

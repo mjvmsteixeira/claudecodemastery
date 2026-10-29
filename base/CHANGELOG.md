@@ -2,6 +2,17 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.2.0 — 2026-10-29
+
+**Promoção e auditoria da inbox.** Fecha o ciclo do prumo-guard: o segredo guardado na inbox passa ao caminho definitivo sem passar pelo chat.
+
+- **`lib/vault-promote.sh <inbox#campo> <destino> <campo>`:** lê a inbox com o token da pessoa e escreve no destino com `kv patch -cas=<versão>` (ou `kv put -cas=0` se o destino não existe), confirma por hash, reverte se não conferir (`kv rollback`, ou apaga o destino criado agora) e só então apaga a entrada da inbox. Uma inbox vazia é recusada; erros genéricos, sem valores.
+- **`/vault-set --from <referência> [destino] [campo]`:** promove através do script. A corrida do `vault-promote.sh` é N2 no approval-gate do prumo-secops 1.0.3.
+- **`lib/vault-inbox-list.sh`:** lista a inbox do projeto só com metadados (`kv list` e `kv metadata get`, nunca `kv get`), distingue inbox vazia de falha ao listar e destaca entradas com mais de 7 dias.
+- **`/vault-audit` e `/vault-list`:** secção «Inbox» com essa listagem.
+- **Redação (em conjunto com o prumo-guard 1.4.1):** `vault-write-field.sh` apaga a cache do token da inbox quando a gravação falha e faz o login com um `HOME` vazio.
+- **Limites:** o gate é best-effort contra ofuscação; ver `README.md`.
+
 ## v1.1.0 — 2026-10-29
 
 **`vault-write-field.sh`: gravação de um campo lido do stdin.** Serve a captura do prumo-guard 1.4.0, que guarda em `secret/inbox/…` os segredos colados no chat.

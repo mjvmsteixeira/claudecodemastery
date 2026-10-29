@@ -101,11 +101,11 @@ fi
 # Leituras e apagamentos fora da inbox não casam. Limites assumidos (modelo de
 # confiança do gate): codificação em percentagem, variáveis, eval e base64 não
 # são vistos.
-# Cópia normalizada só para estas regras: `//` e `/./` num caminho valem `/`.
-CMDN=$(printf '%s' "$CMD" | sed -E 's#/+#/#g; s#/\./#/#g; s#/\./#/#g')
+# Cópia normalizada só para estas regras: `//` e `/./` num caminho valem `/`, e `dir/../` desaparece.
+CMDN=$(printf '%s' "$CMD" | sed -E 's#/+#/#g; s#/\./#/#g; s#/\./#/#g; s#[^/[:space:]]+/\.\./##g; s#[^/[:space:]]+/\.\./##g')
 matchn() { echo "$CMDN" | grep -qiE "$1"; }
 MOUNT_RE='-mount[=[:space:]]+["'"'"']?secret["'"'"']?[[:space:]]'
-INBOX_ARG='([^[:space:]]+[[:space:]]+)*["'"'"']?inbox/'
+INBOX_ARG='([^[:space:]]+[[:space:]]+)*["'"'"']?(\./|/)?inbox/'
 if [ -z "$LEVEL" ] && matchn 'vault-promote\.sh["'"'"']?[[:space:]]+["'"'"']?secret/inbox/'; then
   LEVEL="N2"
 fi

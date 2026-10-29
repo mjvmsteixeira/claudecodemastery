@@ -2,6 +2,18 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.4.1 — 2026-10-29
+
+**Redação mais fiel e captura mais robusta.** Requer o prumo-base 1.2.0 para o ciclo completo (promoção e auditoria da inbox).
+
+- **Marcadores:** só os marcadores emitidos pelo próprio redactor ficam protegidos, através de sentinelas internas; um marcador falso (incluindo o de uma credencial de URL) deixa de proteger um segredo.
+- **Palavra-chave como valor:** `api_key password=<v>` deixa de gravar `password=`.
+- **Pontuação:** o `]`, o `)` e o `.` finais ficam fora do valor sem aspas; uma palavra-passe que termine em `.` antes de um espaço ou do fim é guardada sem o ponto.
+- **Desempenho:** a parte local do email fica limitada a 64 caracteres.
+- **Plugins por symlink:** `latestPluginDir` segue symlinks, e as versões instaladas assim passam a ser encontradas.
+- **Captura:** uma gravação falhada apaga a cache do token da inbox e o login corre com um `HOME` vazio.
+- **Limites conhecidos:** tokens colados a uma letra ou dígito não são redigidos; palavras-passe em URL com `/`; emoji ou Unicode raro em nomes de pasta podem alterar o segmento da inbox.
+
 ## v1.4.0 — 2026-10-29
 
 **Os segredos colados no chat ficam guardados no Vault.** Antes eram redigidos e perdiam-se; agora o prumo-guard grava-os numa inbox e o marcador aponta para lá. Requer o prumo-base 1.1.0.
