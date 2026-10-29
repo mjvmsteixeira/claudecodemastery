@@ -64,6 +64,28 @@ Antes de o conteúdo chegar ao modelo, os valores sensíveis são trocados por `
 
 Estado: `/prumo-guard-redact on|off` (só pela pessoa) liga ou desliga durante a sessão. Na linha de estado e no `/prumo-guard` aparece como `RGPD on` ou `RGPD off`.
 
+### Captura para o Vault
+
+Um segredo colado no chat deixa de se perder: antes de ser redigido, é gravado na inbox do Vault e o marcador passa a apontar para ele. Requer o prumo-base 1.1.0 ou superior (`lib/vault-write-field.sh`) e um Vault acessível.
+
+- **O que é capturado:** só as classes de segredo (as da lista acima), no texto do prompt (`prompt.submit`) e nos argumentos de slash commands (`command.run`, exceto os `prumo-guard…`). PII e IPs internos continuam só redigidos, sem referência. Os padrões `extra` do `redact.json` só são capturados com `"secret": true`.
+- **Caminho:** `secret/inbox/<projeto>/<aaaammdd-hhmmss>-<n>`, campo `value`. `<projeto>` é o nome do diretório de trabalho em minúsculas, só `[a-z0-9-]` (vazio vira `sessao`); `<n>` é o contador da sessão, a partir de 1. A gravação usa `kv put -cas=0`: nunca sobrescreve, e uma colisão deixa o valor só redigido, com aviso.
+- **Marcador com referência:** `[prumo:CLASSE→secret/inbox/<projeto>/<id>#value]`. Sem referência (`[prumo:CLASSE]`) para PII e para os segredos que não foram guardados. O mesmo valor repetido na sessão reutiliza a referência.
+- **Contexto dado ao modelo:** uma linha `[prumo-guard]` a dizer quantos segredos foram guardados e que o texto mostra só a referência `caminho#campo`; o modelo não pede o valor, usa a referência com `run_with_secret` ou pede à pessoa que o promova com `/vault-set`. Para os não guardados, a linha manda gravar no terminal com `vault kv patch <caminho> <campo>=-`.
+- **Valor:** vai ao Vault só por stdin, nunca em argumentos, ficheiros, logs, avisos, contexto do modelo ou CEF.
+- **Falhas:** Vault inacessível, sem permissão ou colisão: o segredo fica redigido sem referência e a pessoa vê o aviso `N segredo(s) redigido(s) mas não guardado(s) no Vault`. Sem o prumo-base 1.1.0, um aviso (uma vez por sessão) diz para o instalar. Se a própria redação do prompt falhar, o prompt é descartado (`{ drop }`) com uma mensagem, em vez de seguir em claro.
+- **Desligar:** `redact.capture: false` no `guard.json` mantém a redação e deixa de gravar.
+- **Limites:** prompts `isMeta` não são tocados; imagens e anexos não são lidos; máximo de 10 segredos novos por prompt (os restantes ficam só redigidos, com aviso).
+- **Permissão:** o token usado é o do cache AppRole (`~/.prumo/token-cache`) ou o que o `vault-env.sh` obtém, e precisa de `create` em `secret/data/inbox/*` (KV v2; com `-cas=0` a gravação só cria, por isso `update` não é necessário). Política mínima, a juntar à do AppRole em uso (as políticas existentes não são alteradas):
+
+```hcl
+path "secret/data/inbox/*" {
+  capabilities = ["create"]
+}
+```
+
+  Ler de volta ou promover a entrada (`vault kv get`) pede `read` no mesmo caminho e é feito pela pessoa, com o seu token, no terminal.
+
 ### Painel do loop
 
 Acima do prompt, enquanto houver loop do ralph, subagentes, fase, testes ou pausa: iteração do ralph (`.claude/ralph-loop.local.md`), fase, consumo de contexto e dos limites de taxa, custo em USD, subagentes ativos com a duração e o último resumo de testes (passam/falham). A ferramenta `loop_phase` deixa o modelo declarar a fase (`plano`, `implementação`, `testes`, `revisão`, `outro`).
@@ -163,7 +185,7 @@ Caminho: `$PRUMO_HOME/guard.json` (`~/.prumo/guard.json` por omissão). Cada sec
 | Campo | Default | Efeito |
 |---|---|---|
 | `redact.enabled` | `true` | Redação ligada ao arrancar a sessão |
-| `redact.prompt` | `true` | Redige também o que a pessoa escreve |
+| `redact.prompt` | `true` | Redige também o que a pessoa escreve (e os argumentos de slash commands) |
 | `redact.readPii` | `false` | Aplica PII a resultados de `Read`, `Grep`, `Glob` |
 | `redact.internalIps` | `false` | Redige IPs privados |
 | `redact.capture` | `true` | Grava os segredos do prompt e dos argumentos de slash commands em `secret/inbox/<projeto>/` (campo `value`, via `vault-write-field.sh` do prumo-base 1.1.0+) antes de os redigir, e o marcador leva a referência. Prompts `isMeta` ficam fora do âmbito: não são tocados. |
@@ -189,7 +211,7 @@ Padrões extra de redação:
 { "patterns": [ { "name": "PROCESSO-INTERNO", "regex": "PI-\\d{6}", "flags": "g" } ] }
 ```
 
-`name` só aceita `A-Z`, `0-9` e `-` e aparece como `[prumo:NOME]`; `flags` é opcional e o `g` é acrescentado se faltar. Um padrão inválido é ignorado e a pessoa recebe um aviso. Um ficheiro ilegível, com JSON inválido ou sem uma lista em `patterns` desliga todos os padrões da organização: a pessoa recebe o aviso `redact.json inválido — padrões da organização desligados`, que também aparece no `/prumo-guard`. As classes por omissão continuam ativas.
+`name` só aceita `A-Z`, `0-9` e `-` e aparece como `[prumo:NOME]`; `"secret": true` marca o padrão como segredo e só então é capturado para o Vault (sem ele, é só redigido); `flags` é opcional e o `g` é acrescentado se faltar. Um padrão inválido é ignorado e a pessoa recebe um aviso. Um ficheiro ilegível, com JSON inválido ou sem uma lista em `patterns` desliga todos os padrões da organização: a pessoa recebe o aviso `redact.json inválido — padrões da organização desligados`, que também aparece no `/prumo-guard`. As classes por omissão continuam ativas.
 
 ### `~/.prumo/secret-exec.json`
 

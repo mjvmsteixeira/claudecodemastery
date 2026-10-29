@@ -2,6 +2,21 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versionamento: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## v1.4.0 — 2026-10-29
+
+**Os segredos colados no chat ficam guardados no Vault.** Antes eram redigidos e perdiam-se; agora o prumo-guard grava-os numa inbox e o marcador aponta para lá. Requer o prumo-base 1.1.0.
+
+### Mudanças de comportamento
+
+- **Captura:** antes de redigir, os segredos do prompt (`prompt.submit`) e dos argumentos de slash commands (`command.run`) são gravados em `secret/inbox/<projeto>/<aaaammdd-hhmmss>-<n>`, campo `value`, por `vault-write-field.sh` (`kv put -cas=0`: nunca sobrescreve). O valor só viaja por stdin.
+- **Marcador com referência:** `[prumo:CLASSE→secret/inbox/<projeto>/<id>#value]`; PII e falhas ficam com o marcador simples. O mesmo valor repetido na sessão reutiliza a referência.
+- **Contexto para o modelo:** uma linha `[prumo-guard]` diz que o valor está guardado e que só a referência é visível.
+- **Falhas:** Vault inacessível, sem permissão ou colisão deixam o segredo só redigido, com aviso; sem o prumo-base 1.1.0, aviso único por sessão; se a redação do prompt falhar, o prompt é descartado (`{ drop }`).
+- **Configuração:** `redact.capture` (por omissão `true`). Padrões `extra` do `redact.json` só são capturados com `"secret": true`.
+- **Limites:** prompts `isMeta` não são tocados; imagens e anexos não são lidos; máximo de 10 segredos novos por prompt.
+- **Permissão:** o token (cache AppRole ou `vault-env.sh`) precisa de `create` em `secret/data/inbox/*`; HCL mínimo no README.
+- **Redação:** falsos negativos corrigidos (`$` dentro de valores entre aspas, aspa de fecho da palavra-chave, frases entre aspas, pontuação interna).
+
 ## v1.3.1 — 2026-10-29
 
 **A redação apanha mais, e o Vault deixa de receber marcadores.** Uma palavra-passe escrita em prosa passava em claro, e um valor já redigido podia ser gravado no Vault como se fosse o segredo.

@@ -85,6 +85,18 @@ Se já tens `~/vault/` com `docker-compose.yml`, `vault-init.json`, `policies/`,
 - Acrescenta entries a `$VAULT_HOME/approle-credentials.json` (via `jq` merge, preserva existentes)
 - Escreve backups em `$VAULT_HOME/backups/projects/<projecto>-<timestamp>.json.enc` (subdir nova, não conflita)
 
+### Inbox do prumo-guard
+
+O `lib/vault-write-field.sh` (1.1.0) grava um campo lido do stdin em `secret/inbox/…` (`kv put -cas=0`, nunca sobrescreve) e serve a captura do prumo-guard 1.4.0: os segredos colados no chat ficam em `secret/inbox/<projeto>/<id>` (campo `value`). O token usado é o do cache AppRole (`~/.prumo/token-cache`) ou o do `vault-env.sh`, e precisa de `create` em `secret/data/inbox/*` (KV v2). Política mínima, a juntar à do AppRole em uso (não altera as existentes):
+
+```hcl
+path "secret/data/inbox/*" {
+  capabilities = ["create"]
+}
+```
+
+Detalhe da captura em `guard/README.md`. A promoção para o caminho definitivo faz-se no terminal da pessoa (ver `/vault-set`).
+
 ### Flow típico de sessão
 
 Quando arrancas uma sessão Claude Code:
