@@ -205,14 +205,14 @@ export function compileExtra(raw: unknown): { patterns: ExtraPattern[]; errors: 
   const list = typeof raw === 'object' && raw !== null ? (raw as { patterns?: unknown }).patterns : undefined
   if (!Array.isArray(list)) return { patterns, errors }
   for (const item of list) {
-    const p = item as { name?: unknown; regex?: unknown; flags?: unknown }
+    const p = item as { name?: unknown; regex?: unknown; flags?: unknown; secret?: unknown }
     if (typeof p.name !== 'string' || typeof p.regex !== 'string' || !/^[A-Z0-9-]+$/.test(p.name)) {
       errors.push(`padrão inválido: ${JSON.stringify(item)}`)
       continue
     }
     const flags = typeof p.flags === 'string' ? p.flags : 'g'
     try {
-      patterns.push({ name: p.name, re: new RegExp(p.regex, flags.includes('g') ? flags : `${flags}g`), secret: (item as { secret?: unknown }).secret === true })
+      patterns.push({ name: p.name, re: new RegExp(p.regex, flags.includes('g') ? flags : `${flags}g`), ...(Object.is(p.secret, true) && { secret: true }) })
     } catch (err) {
       errors.push(`${p.name}: ${String(err)}`)
     }
